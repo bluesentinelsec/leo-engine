@@ -1,260 +1,114 @@
-# API Design Notes (WIP / DRAFT)
+# Runtime
 
-API heavily inspired by rayib; will likely modify it along the way.
-
-## **1. Window & Monitor Management**
+## High level C API
 
 ```c
-leo_err leo_init_window(int width, int height, const char * /*notnull*/ title);
-void leo_close_window(void);
-bool leo_window_should_close(void);
+// main.c — Leo high-level C API usage example (caller perspective)
 
-bool leo_is_window_fullscreen(void);
-void leo_toggle_fullscreen(void);
+#include <stdio.h>
+#include <stdlib.h>
+#include <stdbool.h>
+#include <leo/leo_engine.h>
 
-int leo_get_screen_width(void);
-int leo_get_screen_height(void);
+// ---- User state you want accessible in callbacks ---------------------------
+typedef struct AppState {
+    int frame_count;
+    const char *greeting;
+} AppState;
 
-int leo_get_monitor_count(void);
-int leo_get_current_monitor(void);
+// ---- Callback prototypes (idiomatic C typedefs usually live in the header) --
+static bool on_init(void *user);
+static void on_update(float dt, void *user);
+static void on_render(void *user);
+static void on_exit(void *user);
 
-leo_vector2 leo_get_monitor_position(int monitor);
-leo_vector2 leo_get_window_position(void);
+int main(int argc, char **argv) {
+    (void)argc; (void)argv;
 
-const char *leo_get_monitor_name(int monitor);
+    // 1) Prepare user data that your game wants to access in callbacks
+    AppState state = {
+        .frame_count = 0,
+        .greeting = "hello from leo!"
+    };
+
+    // 2) Configure the engine (stack-allocated config; no heap unless you set heap strings)
+    leo_engine_config_t config;
+    leo_engine_config_init(&config);     // fill with sensible defaults
+
+    // Required callbacks (lifecycle)
+    config.on_init   = on_init;
+    config.on_update = on_update;
+    config.on_render = on_render;
+    config.on_exit   = on_exit;
+
+    // Optional bits (window, timing, assets, etc.) — tweak as needed
+    config.window.title        = "Leo Sample";
+    config.window.width        = 1280;
+    config.window.height       = 720;
+    config.window.start_fullscreen = false;
+
+    // Example timing choices: fixed update @ 60Hz, uncapped render with vsync
+    config.timing.fixed_hz     = 60.0f;
+    config.timing.vsync        = true;
+    config.timing.max_fps_cap  = 0;      // 0 = uncapped (renderer may still vsync)
+
+    // If your engine uses a resource pack or entry script, set them here if applicable:
+    // config.assets.pack_path    = "resources.leopack";
+    // config.script.entry_point  = "scripts/game.lua";
+
+    // 3) Create the engine
+    leo_engine_t engine;                 // stack handle
+    leo_err err = leo_engine_new(&engine, &config);
+    if (err != LEO_OK) {
+        fprintf(stderr, "leo_engine_new failed: %s\n", leo_err_str(err));
+        return EXIT_FAILURE;
+    }
+
+    // 4) Run the main loop — blocks until the game exits or an error occurs
+    err = leo_engine_run(&engine, &config, &state);
+    if (err != LEO_OK && err != LEO_ERR_SHUTDOWN_REQUESTED) {
+        fprintf(stderr, "leo_engine_run failed: %s\n", leo_err_str(err));
+        // fall through to cleanup
+    }
+
+    // 5) Clean up
+    leo_engine_free(&engine);
+
+    // If config owns heap strings (e.g., duplicated title/paths), call this:
+    // leo_engine_config_free(&config);
+
+    return (err == LEO_OK || err == LEO_ERR_SHUTDOWN_REQUESTED) ? EXIT_SUCCESS : EXIT_FAILURE;
+}
+
+// ---- Callback implementations ----------------------------------------------
+
+static bool on_init(void *user) {
+    AppState *s = (AppState*)user;
+    s->frame_count = 0;
+    // Load textures/sounds, create scenes, etc. Return false to abort startup.
+    printf("[init] %s\n", s->greeting);
+    return true;
+}
+
+static void on_update(float dt, void *user) {
+    AppState *s = (AppState*)user;
+    (void)dt;
+    s->frame_count++;
+
+    // Example: if (leo_input_key_pressed_once(LEO_KEY_ESCAPE)) leo_request_shutdown();
+    // Advance simulation, handle input, spawn/despawn, etc.
+}
+
+static void on_render(void *user) {
+    AppState *s = (AppState*)user;
+    // Draw your world/UI here using Leo’s draw APIs.
+    // Example (imaginary): leo_draw_text(10, 10, "Frames: %d", s->frame_count);
+    (void)s;
+}
+
+static void on_exit(void *user) {
+    AppState *s = (AppState*)user;
+    printf("[exit] total frames: %d\n", s->frame_count);
+    // Free any user-managed resources if needed.
+}
 ```
-
----
-
-## **2. Cursor Control**
-
-```c
-void leo_show_cursor(void);
-void leo_hide_cursor(void);
-bool leo_is_cursor_hidden(void);
-
-void leo_enable_cursor(void);   // unlock cursor
-void leo_disable_cursor(void);  // lock cursor
-
-bool leo_is_cursor_on_screen(void);
-```
-
----
-
-## **3. Rendering Control**
-
-```c
-void leo_clear_background(leo_color color);
-void leo_begin_drawing(void);
-void leo_end_drawing(void);
-
-void leo_begin_mode_2d(leo_camera2d camera);
-void leo_end_mode_2d(void);
-
-void leo_begin_texture_mode(leo_render_texture2d target);
-void leo_end_texture_mode(void);
-
-void leo_begin_blend_mode(int mode);
-void leo_end_blend_mode(void);
-```
-
----
-
-## **4. Screen-Space & Camera Math**
-
-```c
-leo_ray leo_get_screen_to_world_ray(leo_vector2 position, leo_camera camera);
-leo_ray leo_get_screen_to_world_ray_ex(leo_vector2 position, leo_camera camera, int width, int height);
-
-leo_vector2 leo_get_world_to_screen(leo_vector3 position, leo_camera camera);
-leo_vector2 leo_get_world_to_screen_ex(leo_vector3 position, leo_camera camera, int width, int height);
-
-leo_vector2 leo_get_world_to_screen_2d(leo_vector2 position, leo_camera2d camera);
-leo_vector2 leo_get_screen_to_world_2d(leo_vector2 position, leo_camera2d camera);
-
-leo_matrix leo_get_camera_matrix(leo_camera camera);
-leo_matrix leo_get_camera_matrix_2d(leo_camera2d camera);
-```
-
----
-
-## **5. Timing & FPS**
-
-```c
-void leo_set_target_fps(int fps);
-float leo_get_frame_time(void);  // delta time in seconds
-double leo_get_time(void);       // time since init
-int leo_get_fps(void);
-```
-
----
-
-## **6. Random Numbers**
-
-```c
-void leo_set_random_seed(unsigned int seed);
-int leo_get_random_value(int min, int max);
-```
-
----
-
-## **7. Logging & Memory**
-
-```c
-void leo_trace_log(int log_level, const char * /*notnull*/ text, ...);
-void leo_set_trace_log_level(int log_level);
-void leo_set_trace_log_callback(leo_trace_log_callback callback);
-
-void *leo_mem_alloc(unsigned int size);
-void *leo_mem_realloc(void *ptr, unsigned int size);
-void leo_mem_free(void *ptr);
-```
-
----
-
-## **8. File I/O**
-
-```c
-unsigned char *leo_load_file_data(const char * /*notnull*/ file_name, int * /*notnull*/ data_size);
-void leo_unload_file_data(unsigned char * /*notnull*/ data);
-
-bool leo_save_file_data(const char * /*notnull*/ file_name, void * /*notnull*/ data, int data_size);
-
-char *leo_load_file_text(const char * /*notnull*/ file_name);
-void leo_unload_file_text(char * /*notnull*/ text);
-bool leo_save_file_text(const char * /*notnull*/ file_name, char * /*notnull*/ text);
-```
-
----
-
-## **9. File System**
-
-```c
-bool leo_file_exists(const char * /*notnull*/ file_name);
-bool leo_directory_exists(const char * /*notnull*/ dir_path);
-bool leo_is_file_extension(const char * /*notnull*/ file_name, const char * /*notnull*/ ext);
-
-int leo_get_file_length(const char * /*notnull*/ file_name);
-const char *leo_get_file_extension(const char * /*notnull*/ file_name);
-const char *leo_get_file_name(const char * /*notnull*/ file_path);
-const char *leo_get_file_name_without_ext(const char * /*notnull*/ file_path);
-
-const char *leo_get_directory_path(const char * /*notnull*/ file_path);
-const char *leo_get_prev_directory_path(const char * /*notnull*/ dir_path);
-const char *leo_get_working_directory(void);
-const char *leo_get_application_directory(void);
-
-int leo_make_directory(const char * /*notnull*/ dir_path);
-bool leo_change_directory(const char * /*notnull*/ dir);
-bool leo_is_path_file(const char * /*notnull*/ path);
-bool leo_is_file_name_valid(const char * /*notnull*/ file_name);
-```
-
----
-
-## **10. Compression & Encoding**
-
-```c
-unsigned char *leo_compress_data(const unsigned char * /*notnull*/ data, int data_size, int * /*notnull*/ comp_data_size);
-unsigned char *leo_decompress_data(const unsigned char * /*notnull*/ comp_data, int comp_data_size, int * /*notnull*/ data_size);
-
-char *leo_encode_data_base64(const unsigned char * /*notnull*/ data, int data_size, int * /*notnull*/ output_size);
-unsigned char *leo_decode_data_base64(const unsigned char * /*notnull*/ data, int * /*notnull*/ output_size);
-
-unsigned int leo_compute_crc32(unsigned char * /*notnull*/ data, int data_size);
-unsigned int *leo_compute_md5(unsigned char * /*notnull*/ data, int data_size);
-unsigned int *leo_compute_sha1(unsigned char * /*notnull*/ data, int data_size);
-```
-
----
-
-## **11. Input – Keyboard**
-
-```c
-bool leo_is_key_pressed(int key);
-bool leo_is_key_pressed_repeat(int key);
-bool leo_is_key_down(int key);
-bool leo_is_key_released(int key);
-bool leo_is_key_up(int key);
-
-int leo_get_key_pressed(void);
-int leo_get_char_pressed(void);
-
-void leo_set_exit_key(int key);
-```
-
----
-
-## **12. Input – Gamepad**
-
-```c
-bool leo_is_gamepad_available(int gamepad);
-const char *leo_get_gamepad_name(int gamepad);
-
-bool leo_is_gamepad_button_pressed(int gamepad, int button);
-bool leo_is_gamepad_button_down(int gamepad, int button);
-bool leo_is_gamepad_button_released(int gamepad, int button);
-bool leo_is_gamepad_button_up(int gamepad, int button);
-
-int leo_get_gamepad_button_pressed(void);
-int leo_get_gamepad_axis_count(int gamepad);
-float leo_get_gamepad_axis_movement(int gamepad, int axis);
-
-int leo_set_gamepad_mappings(const char * /*notnull*/ mappings);
-void leo_set_gamepad_vibration(int gamepad, float left_motor, float right_motor, float duration);
-```
-
----
-
-## **13. Input – Mouse**
-
-```c
-bool leo_is_mouse_button_pressed(int button);
-bool leo_is_mouse_button_down(int button);
-bool leo_is_mouse_button_released(int button);
-bool leo_is_mouse_button_up(int button);
-
-int leo_get_mouse_x(void);
-int leo_get_mouse_y(void);
-leo_vector2 leo_get_mouse_position(void);
-leo_vector2 leo_get_mouse_delta(void);
-
-void leo_set_mouse_position(int x, int y);
-void leo_set_mouse_offset(int offset_x, int offset_y);
-void leo_set_mouse_scale(float scale_x, float scale_y);
-
-float leo_get_mouse_wheel_move(void);
-leo_vector2 leo_get_mouse_wheel_move_v(void);
-
-void leo_set_mouse_cursor(int cursor);
-```
-
----
-
-## **14. Shapes**
-
-```c
-void leo_set_shapes_texture(leo_texture2d texture, leo_rectangle source);
-leo_texture2d leo_get_shapes_texture(void);
-leo_rectangle leo_get_shapes_texture_rectangle(void);
-
-// Examples – all shape functions would follow same leo_ prefix style
-void leo_draw_pixel(int x, int y, leo_color color);
-void leo_draw_line(int x1, int y1, int x2, int y2, leo_color color);
-void leo_draw_circle(int x, int y, float radius, leo_color color);
-void leo_draw_rectangle(int x, int y, int width, int height, leo_color color);
-```
-
----
-
-## **15. Collision**
-
-```c
-bool leo_check_collision_recs(leo_rectangle r1, leo_rectangle r2);
-bool leo_check_collision_circles(leo_vector2 c1, float r1, leo_vector2 c2, float r2);
-bool leo_check_collision_circle_rec(leo_vector2 center, float radius, leo_rectangle rec);
-```
-
----
-
-
