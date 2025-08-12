@@ -2,8 +2,7 @@
 
 ## **1. Vision & Goals**
 
-Leo Engine aims to make **game programming feel good** — fast, minimal, and developer-friendly.
-It focuses on **retro 2D games**, supporting 8-bit era virtual resolutions and **pixel-perfect rendering**.
+Leo Engine is a runtime + tooling stack that gives you all the boring-but-essential parts of game development, without locking you into a specific editor or forcing a particular project structure.
 
 **Core Goals:**
 
