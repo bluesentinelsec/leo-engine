@@ -51,12 +51,7 @@ jobs:
 
       - name: Configure (CMake)
         shell: pwsh
-        run: |
-          cmake -S . -B "$env:BUILD_DIR" `
-            -G Ninja `
-            -DCMAKE_BUILD_TYPE="$env:CMAKE_BUILD_TYPE" `
-            -D${env:LIB_OPTION} `
-            -D${env:TEST_OPTION}
+        run: cmake -S . -B "$env:BUILD_DIR" -G Ninja -DCMAKE_BUILD_TYPE="$env:CMAKE_BUILD_TYPE" -D"$env:LIB_OPTION" -D"$env:TEST_OPTION"
 
       - name: Build
         shell: pwsh
