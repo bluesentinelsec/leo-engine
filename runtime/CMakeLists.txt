@@ -1,4 +1,4 @@
-cmake_minimum_required(VERSION 3.29)
+cmake_minimum_required(VERSION 3.25)
 
 # ---- Project ----
 set(PROJECT_NAME "leo")
@@ -21,11 +21,13 @@ set(CMAKE_CXX_STANDARD 17)
 set(CMAKE_CXX_STANDARD_REQUIRED ON)
 set(CMAKE_CXX_EXTENSIONS OFF)
 
-# ---- Runtime Entrypoint ----
-include(sources.cmake)
+# ---- Build Options ----
 
 option(LEO_BUILD_SHARED "Build Leo as a shared library" ON)
 option(LEO_BUILD_TESTS  "Build unit tests" ON)
+
+# ---- Runtime Entrypoint ----
+include(sources.cmake)
 
 if (LEO_BUILD_SHARED)
   add_library(${PROJECT_NAME} SHARED ${LEO_SOURCES})
@@ -36,7 +38,7 @@ add_library(${ALIAS_NAME} ALIAS ${PROJECT_NAME})
 
 set_property(TARGET ${PROJECT_NAME} PROPERTY POSITION_INDEPENDENT_CODE ON)
 
-# ---- Includes and linkage ----
+# ---- Includes and library dependency linkage ----
 target_include_directories(leo
   PUBLIC
     ${CMAKE_CURRENT_SOURCE_DIR}/include
@@ -78,3 +80,9 @@ if (LEO_BUILD_TESTS)
     )
   endif ()
 endif ()
+
+# TODO: export compile commands
+# TODO: set python find_package
+# TODO: add OBJC to languages for macOS?
+# TODO: Add dependencies: Lua, SDL3
+# TODO: Add sanitizers
