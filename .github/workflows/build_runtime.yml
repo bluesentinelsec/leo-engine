@@ -1,0 +1,108 @@
+name: Build Leo Engine Runtime
+
+on:
+  push:
+    branches: [ main ]
+  pull_request:
+    branches: [ main ]
+
+env:
+  BUILD_DIR: build
+  CMAKE_BUILD_TYPE: Debug
+
+jobs:
+  macos-arm64:
+    name: macOS (arm64, clang)
+    runs-on: macos-14 
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      # If you need Homebrew deps, uncomment and edit:
+      # - name: Install deps (brew)
+      #   run: |
+      #     brew update
+      #     brew install ninja pkg-config <your-deps>
+
+      - name: Configure (CMake)
+        run: |
+          cmake -S . -B "$BUILD_DIR" \
+            -G Ninja \
+            -DCMAKE_BUILD_TYPE="$CMAKE_BUILD_TYPE"
+
+      - name: Build
+        run: |
+          cmake --build "$BUILD_DIR" --config "$CMAKE_BUILD_TYPE" --parallel
+          # If you need specific targets:
+          # cmake --build "$BUILD_DIR" --target your_target --parallel
+
+
+  windows-x64:
+    name: Windows (x64, MSVC cl.exe)
+    runs-on: windows-2022
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+
+      - name: Configure (CMake)
+        shell: pwsh
+        run: |
+          cmake -S . -B "$env:BUILD_DIR" `
+            -G Ninja `
+            -DCMAKE_BUILD_TYPE="$env:CMAKE_BUILD_TYPE"
+          # Add your -D options (e.g., paths to SDKs, feature toggles).
+
+      - name: Build
+        shell: pwsh
+        run: |
+          cmake --build "$env:BUILD_DIR" --config "$env:CMAKE_BUILD_TYPE" --parallel
+          # Or target-specific builds:
+          # cmake --build "$env:BUILD_DIR" --target your_target --parallel
+
+  debian12-gcc:
+    name: Debian 12 (gcc)
+    runs-on: ubuntu-latest
+    container:
+      image: debian:12
+    steps:
+      - name: Install build tools
+        run: |
+          apt-get update
+          DEBIAN_FRONTEND=noninteractive apt-get install -y --no-install-recommends \
+            build-essential cmake ninja-build pkg-config git ca-certificates
+          update-ca-certificates
+
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      # Install project deps here (apt-get) if needed:
+      # - name: Install project deps
+      #   run: |
+      #     apt-get install -y libsdl3-dev <your-deps>
+
+      - name: Configure (CMake)
+        env:
+          CC: gcc
+          CXX: g++
+        run: |
+          cmake -S . -B "$BUILD_DIR" \
+            -G Ninja \
+            -DCMAKE_BUILD_TYPE="$CMAKE_BUILD_TYPE"
+          # Add -D flags or toolchain files as needed.
+
+      - name: Build
+        run: |
+          cmake --build "$BUILD_DIR" --config "$CMAKE_BUILD_TYPE" --parallel
+          # Specific target example:
+          # cmake --build "$BUILD_DIR" --target your_target --parallel
+
+
+# Optional: upload built artifacts (uncomment & tweak)
+#      - name: Upload artifact
+#        uses: actions/upload-artifact@v4
+#        with:
+#          name: ${{ runner.os }}-${{ github.sha }}
+#          path: |
+#            ${{ env.BUILD_DIR }}/your_binary_or_package
+#            # add more paths as needed
