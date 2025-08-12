@@ -2,13 +2,17 @@ name: Build Leo Engine Runtime
 
 on:
   push:
-    branches: [ main ]
+    branches:
+      - "**"
   pull_request:
-    branches: [ main ]
+    branches:
+      - "**"
 
 env:
   BUILD_DIR: build
   CMAKE_BUILD_TYPE: Debug
+  LIB_OPTION: LEO_BUILD_SHARED=ON
+  TEST_OPTION: LEO_BUILD_TESTS=ON
 
 jobs:
   macos-arm64:
@@ -28,14 +32,15 @@ jobs:
         run: |
           cmake -S . -B "$BUILD_DIR" \
             -G Ninja \
-            -DCMAKE_BUILD_TYPE="$CMAKE_BUILD_TYPE"
+            -DCMAKE_BUILD_TYPE="$CMAKE_BUILD_TYPE" \
+            -D${LIB_OPTION} \
+            -D${TEST_OPTION}
 
       - name: Build
         run: |
           cmake --build "$BUILD_DIR" --config "$CMAKE_BUILD_TYPE" --parallel
           # If you need specific targets:
           # cmake --build "$BUILD_DIR" --target your_target --parallel
-
 
   windows-x64:
     name: Windows (x64, MSVC cl.exe)
@@ -44,14 +49,14 @@ jobs:
       - name: Checkout
         uses: actions/checkout@v4
 
-
       - name: Configure (CMake)
         shell: pwsh
         run: |
           cmake -S . -B "$env:BUILD_DIR" `
             -G Ninja `
-            -DCMAKE_BUILD_TYPE="$env:CMAKE_BUILD_TYPE"
-          # Add your -D options (e.g., paths to SDKs, feature toggles).
+            -DCMAKE_BUILD_TYPE="$env:CMAKE_BUILD_TYPE" `
+            -D${env:LIB_OPTION} `
+            -D${env:TEST_OPTION}
 
       - name: Build
         shell: pwsh
@@ -61,7 +66,7 @@ jobs:
           # cmake --build "$env:BUILD_DIR" --target your_target --parallel
 
   debian12-gcc:
-    name: Debian 12 (gcc)
+    name: Debian 12 (x64, gcc)
     runs-on: ubuntu-latest
     container:
       image: debian:12
@@ -88,15 +93,15 @@ jobs:
         run: |
           cmake -S . -B "$BUILD_DIR" \
             -G Ninja \
-            -DCMAKE_BUILD_TYPE="$CMAKE_BUILD_TYPE"
-          # Add -D flags or toolchain files as needed.
+            -DCMAKE_BUILD_TYPE="$CMAKE_BUILD_TYPE" \
+            -D${LIB_OPTION} \
+            -D${TEST_OPTION}
 
       - name: Build
         run: |
           cmake --build "$BUILD_DIR" --config "$CMAKE_BUILD_TYPE" --parallel
           # Specific target example:
           # cmake --build "$BUILD_DIR" --target your_target --parallel
-
 
 # Optional: upload built artifacts (uncomment & tweak)
 #      - name: Upload artifact
