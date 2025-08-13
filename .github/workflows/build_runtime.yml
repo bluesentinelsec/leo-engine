@@ -51,12 +51,12 @@ jobs:
 
       - name: Configure (CMake)
         shell: pwsh
-        working-directory: frontend
+        working-directory: runtime
         run: cmake -S . -B "$env:BUILD_DIR" -G Ninja -DCMAKE_BUILD_TYPE="$env:CMAKE_BUILD_TYPE" -D"$env:LIB_OPTION" -D"$env:TEST_OPTION"
 
       - name: Build
         shell: pwsh
-        working-directory: frontend
+        working-directory: runtime
         run: |
           cmake --build "$env:BUILD_DIR" --config "$env:CMAKE_BUILD_TYPE" --parallel
           # Or target-specific builds:
@@ -64,7 +64,7 @@ jobs:
 
       - name: Test
         shell: pwsh
-        working-directory: frontend
+        working-directory: runtime
         run: |
           dir $BUILD_DIR
           .\$BUILD_DIR\test_leo_engine.exe
