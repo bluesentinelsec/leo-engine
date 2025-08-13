@@ -66,6 +66,7 @@ jobs:
         shell: pwsh
         working-directory: runtime
         run: |
+          dir build
           .\build\test_leo_runtime.exe
 
   debian12-gcc:
