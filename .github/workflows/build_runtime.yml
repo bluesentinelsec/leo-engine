@@ -30,7 +30,7 @@ jobs:
 
       - name: Configure (CMake)
         run: |
-          cmake -S . -B "$BUILD_DIR" \
+          cmake -S . -B build \
             -G Ninja \
             -DCMAKE_BUILD_TYPE="$CMAKE_BUILD_TYPE" \
             -D${LIB_OPTION} \
@@ -38,7 +38,7 @@ jobs:
 
       - name: Build
         run: |
-          cmake --build "$BUILD_DIR" --config "$CMAKE_BUILD_TYPE" --parallel
+          cmake --build build --config "$CMAKE_BUILD_TYPE" --parallel
           # If you need specific targets:
           # cmake --build "$BUILD_DIR" --target your_target --parallel
 
@@ -52,22 +52,21 @@ jobs:
       - name: Configure (CMake)
         shell: pwsh
         working-directory: runtime
-        run: cmake -S . -B "$env:BUILD_DIR" -G Ninja -DCMAKE_BUILD_TYPE="$env:CMAKE_BUILD_TYPE" -D"$env:LIB_OPTION" -D"$env:TEST_OPTION"
+        run: cmake -S . -B build -G Ninja -DCMAKE_BUILD_TYPE="$env:CMAKE_BUILD_TYPE" -D"$env:LIB_OPTION" -D"$env:TEST_OPTION"
 
       - name: Build
         shell: pwsh
         working-directory: runtime
         run: |
-          cmake --build "$env:BUILD_DIR" --config "$env:CMAKE_BUILD_TYPE" --parallel
+          cmake --build build --config "$env:CMAKE_BUILD_TYPE" --parallel
           # Or target-specific builds:
           # cmake --build "$env:BUILD_DIR" --target your_target --parallel
 
       - name: Test
         shell: pwsh
-        working-directory: runtime/$BUILD_DIR
+        working-directory: runtime
         run: |
-          dir
-          .\test_leo_runtime.exe
+          .\build\test_leo_runtime.exe
 
   debian12-gcc:
     name: Debian 12 (x64, gcc)
