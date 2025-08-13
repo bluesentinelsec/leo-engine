@@ -72,7 +72,7 @@ jobs:
         working-directory: runtime
         run: |
           cmake -S . -B build -G "Visual Studio 17 2022" -A x64 -DCMAKE_BUILD_TYPE=Release -DLEO_BUILD_SHARED=OFF -DLEO_BUILD_TEST=ON
-          cmake --build build --config "$env:CMAKE_BUILD_TYPE" --parallel
+          cmake --build build --config Release --parallel
           .\build\Release\test_leo_runtime.exe
           echo "TODO: PACKAGING"
 
@@ -81,7 +81,7 @@ jobs:
         working-directory: runtime
         run: |
           cmake -S . -B build -G "Visual Studio 17 2022" -A x64 -DCMAKE_BUILD_TYPE=Release -DLEO_BUILD_SHARED=ON -DLEO_BUILD_TEST=ON
-          cmake --build build --config "$env:CMAKE_BUILD_TYPE" --parallel
+          cmake --build build --config Release --parallel
           .\build\Release\test_leo_runtime.exe
           echo "TODO: PACKAGING"
 
