@@ -49,12 +49,12 @@ jobs:
       - name: Checkout
         uses: actions/checkout@v4
 
-      - name: Configure (CMake)
+      - name: Configure Debug
         shell: pwsh
         working-directory: runtime
-        run: cmake -S . -B build -G "Visual Studio 17 2022" -A x64 -DCMAKE_BUILD_TYPE="$env:CMAKE_BUILD_TYPE" -D"$env:LIB_OPTION" -D"$env:TEST_OPTION"
+        run: cmake -S . -B build -G "Visual Studio 17 2022" -A x64 -DCMAKE_BUILD_TYPE=Debug -DLEO_BUILD_SHARED=ON -DLEO_BUILD_TEST=ON
 
-      - name: Build
+      - name: Build Debug
         shell: pwsh
         working-directory: runtime
         run: |
@@ -62,12 +62,18 @@ jobs:
           # Or target-specific builds:
           # cmake --build "$env:BUILD_DIR" --target your_target --parallel
 
-      - name: Test
+      - name: Test Debug
         shell: pwsh
         working-directory: runtime
         run: |
-          dir build
-          .\build\test_leo_runtime.exe
+          dir build\Debug
+          .\build\Debug\test_leo_runtime.exe
+
+      - name: Package Debug
+        shell: pwsh
+        working-directory: runtime
+        run: |
+          dir
 
   debian12-gcc:
     name: Debian 12 (x64, gcc)
