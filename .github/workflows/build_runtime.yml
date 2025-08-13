@@ -64,10 +64,10 @@ jobs:
 
       - name: Test
         shell: pwsh
-        working-directory: runtime
+        working-directory: runtime/$BUILD_DIR
         run: |
-          dir $env:BUILD_DIR
-          .\$env:BUILD_DIR\test_leo_runtime.exe
+          dir
+          .\test_leo_runtime.exe
 
   debian12-gcc:
     name: Debian 12 (x64, gcc)
