@@ -63,7 +63,8 @@ jobs:
       - name: Test
         shell: pwsh
         run: |
-          .\$env:BUILD_DIR\test_leo_engine.exe
+          dir $BUILD_DIR
+          .\$BUILD_DIR\test_leo_engine.exe
 
   debian12-gcc:
     name: Debian 12 (x64, gcc)
