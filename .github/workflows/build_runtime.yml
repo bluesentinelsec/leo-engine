@@ -60,6 +60,11 @@ jobs:
           # Or target-specific builds:
           # cmake --build "$env:BUILD_DIR" --target your_target --parallel
 
+      - name: Test
+        shell: pwsh
+        run: |
+          .\"$env:BUILD_DIR"\test_leo_engine.exe
+
   debian12-gcc:
     name: Debian 12 (x64, gcc)
     runs-on: ubuntu-latest
