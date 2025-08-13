@@ -67,7 +67,7 @@ jobs:
         working-directory: runtime
         run: |
           dir $env:BUILD_DIR
-          .\$BUILD_DIR\test_leo_engine.exe
+          .\$env:BUILD_DIR\test_leo_engine.exe
 
   debian12-gcc:
     name: Debian 12 (x64, gcc)
