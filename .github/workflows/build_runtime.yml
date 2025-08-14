@@ -37,6 +37,21 @@ jobs:
           cmake --build build --config Debug --parallel
           ./build/test_leo_runtime
 
+
+      - name: macOS arm64 clang release static
+        working-directory: runtime
+        run: |
+          cmake -S . -B build -G Ninja -DCMAKE_BUILD_TYPE=Release -DLEO_BUILD_SHARED=OFF -DLEO_BUILD_TEST=ON
+          cmake --build build --config Release --parallel
+          ./build/test_leo_runtime
+
+      - name: macOS arm64 clang release shared
+        working-directory: runtime
+        run: |
+          cmake -S . -B build -G Ninja -DCMAKE_BUILD_TYPE=Release -DLEO_BUILD_SHARED=ON -DLEO_BUILD_TEST=ON
+          cmake --build build --config Release --parallel
+          ./build/test_leo_runtime
+
   windows-x64:
     name: Windows (x64, MSVC cl.exe)
     runs-on: windows-2022
