@@ -22,12 +22,6 @@ jobs:
       - name: Checkout
         uses: actions/checkout@v4
 
-      # If you need Homebrew deps, uncomment and edit:
-      # - name: Install deps (brew)
-      #   run: |
-      #     brew update
-      #     brew install ninja pkg-config <your-deps>
-
       - name: Configure (CMake)
         run: |
           cmake -S . -B build \
@@ -39,8 +33,6 @@ jobs:
       - name: Build
         run: |
           cmake --build build --config "$CMAKE_BUILD_TYPE" --parallel
-          # If you need specific targets:
-          # cmake --build "$BUILD_DIR" --target your_target --parallel
 
   windows-x64:
     name: Windows (x64, MSVC cl.exe)
@@ -98,11 +90,6 @@ jobs:
       - name: Checkout
         uses: actions/checkout@v4
 
-      # Install project deps here (apt-get) if needed:
-      # - name: Install project deps
-      #   run: |
-      #     apt-get install -y libsdl3-dev <your-deps>
-
       - name: Debian Linux amd64 Debug (Static)
         env:
           CC: gcc
@@ -123,11 +110,22 @@ jobs:
           cmake --build build --config Debug --parallel
           ./build/test_leo_runtime
 
-# Optional: upload built artifacts (uncomment & tweak)
-#      - name: Upload artifact
-#        uses: actions/upload-artifact@v4
-#        with:
-#          name: ${{ runner.os }}-${{ github.sha }}
-#          path: |
-#            ${{ env.BUILD_DIR }}/your_binary_or_package
-#            # add more paths as needed
+      - name: Debian Linux amd64 Release (Static)
+        env:
+          CC: gcc
+          CXX: g++
+        working-directory: runtime
+        run: |
+          cmake -S . -B build -G Ninja -DCMAKE_BUILD_TYPE=Release -DLEO_BUILD_SHARED=OFF -DLEO_BUILD_TEST=ON
+          cmake --build build --config Release --parallel
+          ./build/test_leo_runtime
+
+      - name: Debian Linux amd64 Release (Shared)
+        env:
+          CC: gcc
+          CXX: g++
+        working-directory: runtime
+        run: |
+          cmake -S . -B build -G Ninja -DCMAKE_BUILD_TYPE=Release -DLEO_BUILD_SHARED=ON -DLEO_BUILD_TEST=ON
+          cmake --build build --config Release --parallel
+          ./build/test_leo_runtime
