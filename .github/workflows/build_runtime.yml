@@ -56,7 +56,6 @@ jobs:
           cmake -S . -B build -G "Visual Studio 17 2022" -A x64 -DCMAKE_BUILD_TYPE=Debug -DLEO_BUILD_SHARED=OFF -DLEO_BUILD_TEST=ON
           cmake --build build --config "$env:CMAKE_BUILD_TYPE" --parallel
           .\build\Debug\test_leo_runtime.exe
-          echo "TODO: PACKAGING"
 
       - name: Build Debug (Shared)
         shell: pwsh
@@ -65,7 +64,20 @@ jobs:
           cmake -S . -B build -G "Visual Studio 17 2022" -A x64 -DCMAKE_BUILD_TYPE=Debug -DLEO_BUILD_SHARED=ON -DLEO_BUILD_TEST=ON
           cmake --build build --config "$env:CMAKE_BUILD_TYPE" --parallel
           .\build\Debug\test_leo_runtime.exe
-          echo "TODO: PACKAGING"
+
+      - name: Package Debug
+        shell: pwsh
+        working-directory: runtime
+        run: |
+          mkdir LEO-0.1.0-windows-x64-msvc-debug\include\leo
+          mkdir LEO-0.1.0-windows-x64-msvc-debug\lib\x64\leo
+          xcopy include\leo LEO-0.1.0-windows-x64-msvc-debug\include\leo /E /I /Y
+          copy build\Debug\leo.dll LEO-0.1.0-windows-x64-msvc-debug\lib\x64\
+          copy build\Debug\leo.lib LEO-0.1.0-windows-x64-msvc-debug\lib\x64\
+          copy build\Debug\leo.pdb LEO-0.1.0-windows-x64-msvc-debug\lib\x64\
+          copy ..\LICENSE LEO-0.1.0-windows-x64-msvc-debug\LICENSE.txt
+          copy README.md LEO-0.1.0-windows-x64-msvc-debug\
+          tree /A /F LEO-0.1.0-windows-x64-msvc-debug
 
       - name: Build Release (Static)
         shell: pwsh
@@ -74,7 +86,6 @@ jobs:
           cmake -S . -B build -G "Visual Studio 17 2022" -A x64 -DCMAKE_BUILD_TYPE=Release -DLEO_BUILD_SHARED=OFF -DLEO_BUILD_TEST=ON
           cmake --build build --config Release --parallel
           .\build\Release\test_leo_runtime.exe
-          echo "TODO: PACKAGING"
 
       - name: Build Release (Shared)
         shell: pwsh
@@ -83,10 +94,36 @@ jobs:
           cmake -S . -B build -G "Visual Studio 17 2022" -A x64 -DCMAKE_BUILD_TYPE=Release -DLEO_BUILD_SHARED=ON -DLEO_BUILD_TEST=ON
           cmake --build build --config Release --parallel
           .\build\Release\test_leo_runtime.exe
-          echo "TODO: PACKAGING"
+
+      - name: Package Release
+        shell: pwsh
+        working-directory: runtime
+        run: |
+          mkdir LEO-0.1.0-windows-x64-msvc\include\leo
+          mkdir LEO-0.1.0-windows-x64-msvc\lib\x64\leo
+          xcopy include\leo LEO-0.1.0-windows-x64-msvc\include\leo /E /I /Y
+          copy build\Release\leo.dll LEO-0.1.0-windows-x64-msvc\lib\x64\
+          copy build\Release\leo.lib LEO-0.1.0-windows-x64-msvc\lib\x64\
+          copy ..\LICENSE LEO-0.1.0-windows-x64-msvc\LICENSE.txt
+          copy README.md LEO-0.1.0-windows-x64-msvc\
+          tree /A /F LEO-0.1.0-windows-x64-msvc
 
 
+      - name: Upload LEO-0.1.0-windows-x64-msvc artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: LEO-0.1.0-windows-x64-msvc
+          path: LEO-0.1.0-windows-x64-msvc.zip
+          if-no-files-found: error
+          working-directory: runtime
 
+      - name: Upload LEO-0.1.0-windows-x64-msvc-debug artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: LEO-0.1.0-windows-x64-msvc-debug
+          path: LEO-0.1.0-windows-x64-msvc-debug.zip
+          if-no-files-found: error
+          working-directory: runtime
 
   debian12-gcc:
     name: Debian 12 (x64, gcc)
