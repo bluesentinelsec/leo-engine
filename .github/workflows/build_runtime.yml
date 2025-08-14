@@ -60,6 +60,10 @@ jobs:
           cmake -S . -B build -G "Visual Studio 17 2022" -A x64 -DCMAKE_BUILD_TYPE=Debug -DLEO_BUILD_SHARED=OFF -DLEO_BUILD_TEST=ON
           cmake --build build --config Debug --parallel
           .\build\Debug\test_leo_runtime.exe
+          mkdir test_install
+          cmake --install build --prefix test_install
+          tree /F test_install
+          exit 1
 
       - name: Build Debug (Shared)
         shell: pwsh

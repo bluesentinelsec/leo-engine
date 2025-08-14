@@ -1,0 +1,8 @@
+@PACKAGE_INIT@
+
+# Provide imported targets from the exported file
+include("${CMAKE_CURRENT_LIST_DIR}/LeoTargets.cmake")
+
+# (Optional) You can set helpful variables for consumers here:
+# set(LEO_RUNTIME_FOUND TRUE)
+# set(LEO_RUNTIME_VERSION "@PROJECT_VERSION@")
