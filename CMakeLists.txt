@@ -26,12 +26,11 @@ set(CMAKE_EXPORT_COMPILE_COMMANDS ON)
 include(FetchContent)
 
 # ---- Build Options ----
-
 option(LEO_BUILD_SHARED "Build Leo as a shared library" ON)
 option(LEO_BUILD_TESTS  "Build unit tests" ON)
 
 # ---- Runtime Entrypoint ----
-include(sources.cmake)
+include(sources.cmake) # <<<<<<<<<<<<< source code files are set here
 
 if (LEO_BUILD_SHARED)
   add_library(${PROJECT_NAME} SHARED ${LEO_SOURCES})
@@ -45,7 +44,52 @@ set_property(TARGET ${PROJECT_NAME} PROPERTY POSITION_INDEPENDENT_CODE ON)
 # ---- Includes and library dependency linkage ----
 target_include_directories(leo
   PUBLIC
-    ${CMAKE_CURRENT_SOURCE_DIR}/include
+    $<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}/include>
+    $<INSTALL_INTERFACE:include>
+)
+
+# ---- Installation Rules ----
+# Install the library
+install(TARGETS ${PROJECT_NAME}
+  EXPORT LeoTargets
+  LIBRARY DESTINATION lib
+  ARCHIVE DESTINATION lib
+  RUNTIME DESTINATION bin
+  INCLUDES DESTINATION include
+)
+
+# Install public headers
+install(DIRECTORY ${CMAKE_CURRENT_SOURCE_DIR}/include/
+  DESTINATION include
+  FILES_MATCHING PATTERN "*.h"
+)
+
+# Generate and install export file for CMake package
+install(EXPORT LeoTargets
+  FILE LeoTargets.cmake
+  NAMESPACE ${ALIAS_NAME}::
+  DESTINATION lib/cmake/leo
+)
+
+# Generate CMake package configuration files
+include(CMakePackageConfigHelpers)
+write_basic_package_version_file(
+  "${CMAKE_CURRENT_BINARY_DIR}/LeoConfigVersion.cmake"
+  VERSION ${PROJECT_VERSION}
+  COMPATIBILITY SameMajorVersion
+)
+
+configure_package_config_file(
+  "${CMAKE_CURRENT_SOURCE_DIR}/cmake/LeoConfig.cmake.in"
+  "${CMAKE_CURRENT_BINARY_DIR}/LeoConfig.cmake"
+  INSTALL_DESTINATION lib/cmake/leo
+)
+
+# Install CMake package configuration files
+install(FILES
+  "${CMAKE_CURRENT_BINARY_DIR}/LeoConfig.cmake"
+  "${CMAKE_CURRENT_BINARY_DIR}/LeoConfigVersion.cmake"
+  DESTINATION lib/cmake/leo
 )
 
 # ---- Test setup (toggle) ----
@@ -73,8 +117,7 @@ if (LEO_BUILD_TESTS)
   include(Catch)
   catch_discover_tests(${TEST_RUNNER})
 
-  # Copy DLL for Windows shared library testing
-  if (WIN32 AND LEO_BUILD_SHARED)
+  if (LEO_BUILD_SHARED)
     add_custom_command(
       TARGET ${TEST_RUNNER} POST_BUILD
       COMMAND ${CMAKE_COMMAND} -E copy_if_different
