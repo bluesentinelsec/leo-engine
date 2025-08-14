@@ -1,218 +1,106 @@
-# **Leo Engine Design Document (Draft)**
+# Runtime
 
-## **1. Vision & Goals**
+## High level C API
 
-Leo Engine is a runtime + tooling stack that gives you all the boring-but-essential parts of game development, without locking you into a specific editor or forcing a particular project structure.
+```c
+// main.c — Leo high-level C API usage example (caller perspective)
 
-**Core Goals:**
+#include <stdio.h>
+#include <stdlib.h>
+#include <stdbool.h>
+#include <leo/leo_engine.h>
 
-* Minimal dependencies: **SDL3** is the only large dependency; all others are static-linked.
-* Tight scope: Only support **Windows**, **macOS**, **Linux**, and **Web** (Emscripten).
-* Clean **C API** that’s friendly to language bindings.
-* Provide both **low-level primitives** and **high-level convenience functions**.
-* Fast bootstrap-to-release workflow via a **CLI project manager**.
+// ---- User state you want accessible in callbacks ---------------------------
+typedef struct AppState {
+    int         frame_count;
+    const char *greeting;
+} AppState;
 
----
+// ---- Callback prototypes (typedefs typically live in leo_engine.h) ----------
+static bool on_init(void *user);
+static void on_update(float dt, void *user);
+static void on_render(void *user);
+static void on_exit(void *user);
 
-## **2. Dependencies**
+int main(int argc, char **argv) {
+    (void)argc;
+    (void)argv;
 
-**Primary Dependency**
+    // 1) Prepare user data that your game wants to access in callbacks
+    AppState state = {
+        .frame_count = 0,
+        .greeting    = "hello from leo!",
+    };
 
-* **SDL3** — windowing, input, rendering, audio device setup, timers.
+    // 2) Prepare engine configuration and set callbacks
+    leo_engine_config_t config;
+    leo_err err = leo_new_engine_config(&config, on_init, on_update, on_render, on_exit);
+    if (err != LEO_OK) {
+        fprintf(stderr, "leo_new_engine_config failed: %s\n", leo_err_str(err));
+        return EXIT_FAILURE;
+    }
 
-**Static-linked Libraries**
+    // Optional bits (window, timing, assets, etc.) — tweak as needed
+    config.window.title            = "Leo Sample";
+    config.window.width            = 1280;
+    config.window.height           = 720;
+    config.window.start_fullscreen = false;
 
-* **miniaudio** — sound and music.
-* **stb\_image** — PNG/JPG image loading.
-* **stb\_truetype** — font rendering.
-* **getopt** — CLI argument parsing.
-* **Lua** — scripting.
+    // 3) Create the engine
+    leo_engine_t engine; // stack handle
+    err = leo_engine_new(&engine, &config);
+    if (err != LEO_OK) {
+        fprintf(stderr, "leo_engine_new failed: %s\n", leo_err_str(err));
+        leo_engine_config_free(&config);
+        return EXIT_FAILURE;
+    }
 
----
+    // 4) Run the main loop — blocks until the game exits or an error occurs
+    err = leo_engine_run(&engine, &config, &state);
+    if (err != LEO_OK && err != LEO_ERR_SHUTDOWN_REQUESTED) {
+        fprintf(stderr, "leo_engine_run failed: %s\n", leo_err_str(err));
+        // fall through to cleanup
+    }
 
-## **3. Target Audience & Use Cases**
+    // 5) Clean up
+    leo_engine_free(&engine);
+    leo_engine_config_free(&config);
 
-* **Indie developers** making retro-style games.
-* **Hobbyists** who want a minimal learning curve.
-* **Professional developers** who want a small, portable runtime.
+    return (err == LEO_OK || err == LEO_ERR_SHUTDOWN_REQUESTED) ? EXIT_SUCCESS : EXIT_FAILURE;
+}
 
-Goal:
+// ---- Callback implementations ----------------------------------------------
 
-Get a sprite on the screen in a few commands:
+static bool on_init(void *user) {
+    AppState *s = (AppState *)user;
+    s->frame_count = 0;
+    // Load textures/sounds, create scenes, etc. Return false to abort startup.
+    printf("[init] %s\n", s->greeting);
+    return true;
+}
+
+static void on_update(float dt, void *user) {
+    AppState *s = (AppState *)user;
+    (void)dt; // use if needed
+    s->frame_count++;
+
+    // Example:
+    // if (leo_input_key_pressed_once(LEO_KEY_ESCAPE)) {
+    //     leo_request_shutdown();
+    // }
+}
+
+static void on_render(void *user) {
+    AppState *s = (AppState *)user;
+    (void)s;
+    // Draw your world/UI here using Leo’s draw APIs.
+    // e.g., leo_draw_text(10, 10, "Frames: %d", s->frame_count);
+}
+
+static void on_exit(void *user) {
+    AppState *s = (AppState *)user;
+    printf("[exit] total frames: %d\n", s->frame_count);
+    // Free any user-managed resources if needed.
+}
+
 ```
-pip install leo-engine
-leo-engine new
-leo-engine run
-```
-
-Publish instantly for any supported platform:
-```
-leo-engine publish --platform windows-amd64
-```
-
-Should feel CI/CD friendly.
----
-
-## **4. Architecture Overview**
-
-### **4.1 Engine Runtime**
-
-* Distributed as a shared/static library.
-* All subsystems included:
-  **Windowing**, **rendering**, **input devices**, **sprites**, **collisions**, **camera**, **views**, **timers**, **threads**, **filesystem abstraction**, **sound**.
-* Font/text rendering baked in (stb\_truetype) with batching.
-* Simple particle system helper.
-* Basic tilemap rendering (Tiled JSON format).
-* Event system for decoupled communication.
-* Virtual filesystem (loose files or `.pack`).
-
-### **4.2 Front End**
-
-* Standalone EXE statically linking the runtime.
-* Lua bindings for scripting.
-* Integrates with the CLI project manager. Note: this means if you are a bindings user, you are on your own with packaging.
-* Lua-side helper modules for convenience.
-
----
-
-## **5. API Philosophy**
-
-* **Naming:** `leo_verb_noun()` with simple native C types.
-* **Error handling:** C-style error codes + `leo_last_error()` for details.
-* **Threading:** Main-thread-only for SDL calls; background jobs via worker pool.
-* **Coordinates:** Origin at **top-left**, units in pixels.
-* **Colors:** RGBA, 0–255 range.
-* **Handles over structs** for ABI stability.
-
----
-
-## **6. Rendering & Resolution**
-
-* We provide a low level API that lets you render however you wish
-* We also provide a high level API with particular rendering behavior
-* Virtual resolution system with **pixel-perfect scaling**.
-* Integer scaling and letterboxing favored by high-level API.
-* Sprite batching options for performance.
-* Blend modes: None, Alpha, Additive, Multiply.
-* Camera and view system with parallax support, and support for split screen multiplayer games.
-
----
-
-## **7. Input System**
-
-* Low-level: raw keyboard, mouse, and gamepad.
-* High-level: action binding system (optional).
-* Relies on SDL’s gamepad database, with override capability.
-
----
-
-## **8. Audio**
-
-* You can load and play any audio formats supported by miniaudio
-* We provide simple functions; we assume you are not an audio engineer
-* If you have sophisticated audio requirements, I suggest using a different library.
-
----
-
-## **9. Game Loop & Timing**
-
-* Low level API so caller can make whatever game loop they like
-* High level API where game loop is managed
-* Managed loop: fixed-timestep update + variable render.
-* Pause behavior customizable per game.
-* Deterministic PRNG for replays.
-
----
-
-## **10. Tiled Integration**
-
-* Runtime: JSON parser.
-* Front end: High-level Tiled map loader (JSON only; minimal compression support at start).
-
----
-
-## **11. Resource System / VFS**
-
-* Search order:
-
-  * Debug: Loose dir → pack file.
-  * Release: Pack file → loose dir.
-* **Pack format:** LeoPack v1 — indexed for O(1) access.
-* **Compression:** Per-file (sdefl).
-* **Encryption:** Optional XOR cipher.
-* Hot reload for Lua, images, font, shapes, and audio.
-
----
-
-## **12. Lua Scripting API**
-
-* Low-level: thin C bindings.
-* High-level: Lua-idiomatic helpers.
-* High-level lifecycle: `leo.init()`, `leo.update()`, `leo.render()`, `leo.exit()`.
-* Pretty stack traces; SDL3 logging integration.
-
----
-
-## **13. CLI Project Manager**
-
-**Commands**
-
-1. `new` — Bootstrap a new project.
-2. `run` — Run project with hot reload.
-3. `build` — Debug build for collaboration.
-4. `release` — Package for distribution.
-5. `profile` - Report profile info, and RAM consumption.
-6. `demo` - Would be neat if this could play engine samples
-
-
-**Features**
-
-* Downloads correct runtime for target platform.
-* Caches runtimes locally.
-* Supports version pinning and checksum verification.
-* Customized branding (icons, program metadata)
-
-Debugger and IDE support would be nice... need to look into it
-It would also be cool to one day support publishing to itch.io, Steam, and other stores.
-
----
-
-## **14. Platform Support & CI**
-
-* Initial:
-
-  * Windows 11 (x86\_64)
-  * macOS (arm64)
-  * Linux (x86\_64)
-* ABI stability promised via semantic versioning.
-* Distribute via GitHub Releases with checksums.
-
----
-
-## **15. Performance & Memory**
-
-* User-supplied allocators supported.
-* Explicit resource unload functions.
-* Profiling hooks for frame time.
-* Also need visibility into consumed RAM.
-
----
-
-## **16. Extensibility**
-
-* Extend via Lua API.
-* Source can be forked for custom builds.
-* Native C module injection of interest.
-
----
-
-## **17. Documentation & Samples**
-
-* C API documented with Doxygen.
-* Cheat sheets for C and Lua APIs.
-* Tiny, focused sample projects (sprite, tilemap, collision, audio, text, camera, particles).
-* Unit tests double as examples.
-
----
-
-
