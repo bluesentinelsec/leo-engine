@@ -21,9 +21,9 @@ set(CMAKE_CXX_STANDARD 17)
 set(CMAKE_CXX_STANDARD_REQUIRED ON)
 set(CMAKE_CXX_EXTENSIONS OFF)
 
-set(CMAKE_RUNTIME_OUTPUT_DIRECTORY ${CMAKE_BINARY_DIR})
-set(CMAKE_ARCHIVE_OUTPUT_DIRECTORY ${CMAKE_BINARY_DIR})
-set(CMAKE_LIBRARY_OUTPUT_DIRECTORY ${CMAKE_BINARY_DIR})
+set(CMAKE_EXPORT_COMPILE_COMMANDS ON)
+
+include(FetchContent)
 
 # ---- Build Options ----
 
@@ -53,7 +53,6 @@ if (LEO_BUILD_TESTS)
   include(CTest)
   enable_testing()
 
-  include(FetchContent)
   FetchContent_Declare(
     Catch2
     GIT_REPOSITORY https://github.com/catchorg/Catch2.git
@@ -84,9 +83,3 @@ if (LEO_BUILD_TESTS)
     )
   endif ()
 endif ()
-
-# TODO: export compile commands
-# TODO: set python find_package
-# TODO: add OBJC to languages for macOS?
-# TODO: Add dependencies: Lua, SDL3
-# TODO: Add sanitizers
