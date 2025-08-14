@@ -116,12 +116,14 @@ jobs:
             -DLEO_BUILD_TEST=ON
 
       - name: Build Linux Debug (Static)
+        working-directory: runtime
         run: |
           cmake --build build --config Debug --parallel
           # Specific target example:
           # cmake --build "$BUILD_DIR" --target your_target --parallel
 
       - name: Invoke Linux Tests Debug Static
+        working-directory: runtime
         run: |
             ./build/test_leo_runtime
 
