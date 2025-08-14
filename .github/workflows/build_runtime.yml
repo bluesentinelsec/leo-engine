@@ -22,17 +22,20 @@ jobs:
       - name: Checkout
         uses: actions/checkout@v4
 
-      - name: Configure (CMake)
+      - name: macOS arm64 clang debug static
+        working-directory: runtime
         run: |
-          cmake -S . -B build \
-            -G Ninja \
-            -DCMAKE_BUILD_TYPE="$CMAKE_BUILD_TYPE" \
-            -D${LIB_OPTION} \
-            -D${TEST_OPTION}
+          cmake -S . -B build -G Ninja -DCMAKE_BUILD_TYPE=Debug -DLEO_BUILD_SHARED=OFF -DLEO_BUILD_TEST=ON
+          cmake --build build --config Debug --parallel
+          ./build/test_leo_runtime
 
-      - name: Build
+
+      - name: macOS arm64 clang debug shared
+        working-directory: runtime
         run: |
-          cmake --build build --config "$CMAKE_BUILD_TYPE" --parallel
+          cmake -S . -B build -G Ninja -DCMAKE_BUILD_TYPE=Debug -DLEO_BUILD_SHARED=ON -DLEO_BUILD_TEST=ON
+          cmake --build build --config Debug --parallel
+          ./build/test_leo_runtime
 
   windows-x64:
     name: Windows (x64, MSVC cl.exe)
