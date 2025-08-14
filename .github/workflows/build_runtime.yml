@@ -102,8 +102,8 @@ jobs:
           mkdir LEO-0.1.0-windows-x64-msvc\include\leo
           mkdir LEO-0.1.0-windows-x64-msvc\lib\
           xcopy include\leo LEO-0.1.0-windows-x64-msvc\include\leo /E /I /Y
-          copy build\Release\leo.dll LEO-0.1.0-windows-x64-msvc\
-          copy build\Release\leo.lib LEO-0.1.0-windows-x64-msvc\
+          copy build\Release\leo.dll LEO-0.1.0-windows-x64-msvc\lib\
+          copy build\Release\leo.lib LEO-0.1.0-windows-x64-msvc\lib\
           copy ..\LICENSE LEO-0.1.0-windows-x64-msvc\LICENSE.txt
           copy README.md LEO-0.1.0-windows-x64-msvc\
           tree /A /F LEO-0.1.0-windows-x64-msvc
