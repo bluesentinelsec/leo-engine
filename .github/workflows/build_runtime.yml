@@ -143,5 +143,5 @@ jobs:
           ./build/test_leo_runtime
           mkdir test_install
           cmake --install build --config Release --prefix test_install
-          tree test_install
+          ls -lsahR test_install
 
