@@ -54,7 +54,7 @@ jobs:
         working-directory: runtime
         run: |
           cmake -S . -B build -G "Visual Studio 17 2022" -A x64 -DCMAKE_BUILD_TYPE=Debug -DLEO_BUILD_SHARED=OFF -DLEO_BUILD_TEST=ON
-          cmake --build build --config "$env:CMAKE_BUILD_TYPE" --parallel
+          cmake --build build --config Debug --parallel
           .\build\Debug\test_leo_runtime.exe
 
       - name: Build Debug (Shared)
@@ -62,22 +62,8 @@ jobs:
         working-directory: runtime
         run: |
           cmake -S . -B build -G "Visual Studio 17 2022" -A x64 -DCMAKE_BUILD_TYPE=Debug -DLEO_BUILD_SHARED=ON -DLEO_BUILD_TEST=ON
-          cmake --build build --config "$env:CMAKE_BUILD_TYPE" --parallel
+          cmake --build build --config Debug --parallel
           .\build\Debug\test_leo_runtime.exe
-
-      - name: Package Debug
-        shell: pwsh
-        working-directory: runtime
-        run: |
-          mkdir LEO-0.1.0-windows-x64-msvc-debug\include\leo
-          mkdir LEO-0.1.0-windows-x64-msvc-debug\lib\
-          xcopy include\leo LEO-0.1.0-windows-x64-msvc-debug\include\leo /E /I /Y
-          copy build\Debug\leo.dll LEO-0.1.0-windows-x64-msvc-debug\lib\
-          copy build\Debug\leo.lib LEO-0.1.0-windows-x64-msvc-debug\lib\
-          copy build\Debug\leo.pdb LEO-0.1.0-windows-x64-msvc-debug\lib\
-          copy ..\LICENSE LEO-0.1.0-windows-x64-msvc-debug\LICENSE.txt
-          copy README.md LEO-0.1.0-windows-x64-msvc-debug\
-          tree /A /F LEO-0.1.0-windows-x64-msvc-debug
 
       - name: Build Release (Static)
         shell: pwsh
@@ -95,33 +81,6 @@ jobs:
           cmake --build build --config Release --parallel
           .\build\Release\test_leo_runtime.exe
 
-      - name: Package Release
-        shell: pwsh
-        working-directory: runtime
-        run: |
-          mkdir LEO-0.1.0-windows-x64-msvc\include\leo
-          mkdir LEO-0.1.0-windows-x64-msvc\lib\
-          xcopy include\leo LEO-0.1.0-windows-x64-msvc\include\leo /E /I /Y
-          copy build\Release\leo.dll LEO-0.1.0-windows-x64-msvc\lib\
-          copy build\Release\leo.lib LEO-0.1.0-windows-x64-msvc\lib\
-          copy ..\LICENSE LEO-0.1.0-windows-x64-msvc\LICENSE.txt
-          copy README.md LEO-0.1.0-windows-x64-msvc\
-          tree /A /F LEO-0.1.0-windows-x64-msvc
-
-
-      - name: Upload LEO-0.1.0-windows-x64-msvc artifact
-        uses: actions/upload-artifact@v4
-        with:
-          name: LEO-0.1.0-windows-x64-msvc
-          path: runtime/LEO-0.1.0-windows-x64-msvc
-          if-no-files-found: error
-
-      - name: Upload LEO-0.1.0-windows-x64-msvc-debug artifact
-        uses: actions/upload-artifact@v4
-        with:
-          name: LEO-0.1.0-windows-x64-msvc-debug
-          path: runtime/LEO-0.1.0-windows-x64-msvc-debug
-          if-no-files-found: error
 
   debian12-gcc:
     name: Debian 12 (x64, gcc)
@@ -144,22 +103,27 @@ jobs:
       #   run: |
       #     apt-get install -y libsdl3-dev <your-deps>
 
-      - name: Configure (CMake)
+      - name: Configure Linux Debug (Static)
         env:
           CC: gcc
           CXX: g++
+        working-directory: runtime
         run: |
-          cmake -S . -B "$BUILD_DIR" \
+          cmake -S . -B build \
             -G Ninja \
-            -DCMAKE_BUILD_TYPE="$CMAKE_BUILD_TYPE" \
-            -D${LIB_OPTION} \
-            -D${TEST_OPTION}
+            -DCMAKE_BUILD_TYPE=Debug \
+            -DLEO_BUILD_SHARED=ON \
+            -DLEO_BUILD_TEST=ON
 
-      - name: Build
+      - name: Build Linux Debug (Static)
         run: |
-          cmake --build "$BUILD_DIR" --config "$CMAKE_BUILD_TYPE" --parallel
+          cmake --build build --config Debug --parallel
           # Specific target example:
           # cmake --build "$BUILD_DIR" --target your_target --parallel
+
+      - name: Invoke Linux Tests Debug Static
+        run: |
+            ./build/test_leo_runtime
 
 # Optional: upload built artifacts (uncomment & tweak)
 #      - name: Upload artifact
