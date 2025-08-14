@@ -70,11 +70,11 @@ jobs:
         working-directory: runtime
         run: |
           mkdir LEO-0.1.0-windows-x64-msvc-debug\include\leo
-          mkdir LEO-0.1.0-windows-x64-msvc-debug\lib\x64\leo
+          mkdir LEO-0.1.0-windows-x64-msvc-debug\lib\
           xcopy include\leo LEO-0.1.0-windows-x64-msvc-debug\include\leo /E /I /Y
-          copy build\Debug\leo.dll LEO-0.1.0-windows-x64-msvc-debug\lib\x64\
-          copy build\Debug\leo.lib LEO-0.1.0-windows-x64-msvc-debug\lib\x64\
-          copy build\Debug\leo.pdb LEO-0.1.0-windows-x64-msvc-debug\lib\x64\
+          copy build\Debug\leo.dll LEO-0.1.0-windows-x64-msvc-debug\lib\
+          copy build\Debug\leo.lib LEO-0.1.0-windows-x64-msvc-debug\lib\
+          copy build\Debug\leo.pdb LEO-0.1.0-windows-x64-msvc-debug\lib\
           copy ..\LICENSE LEO-0.1.0-windows-x64-msvc-debug\LICENSE.txt
           copy README.md LEO-0.1.0-windows-x64-msvc-debug\
           tree /A /F LEO-0.1.0-windows-x64-msvc-debug
@@ -100,10 +100,10 @@ jobs:
         working-directory: runtime
         run: |
           mkdir LEO-0.1.0-windows-x64-msvc\include\leo
-          mkdir LEO-0.1.0-windows-x64-msvc\lib\x64\leo
+          mkdir LEO-0.1.0-windows-x64-msvc\lib\
           xcopy include\leo LEO-0.1.0-windows-x64-msvc\include\leo /E /I /Y
-          copy build\Release\leo.dll LEO-0.1.0-windows-x64-msvc\lib\x64\
-          copy build\Release\leo.lib LEO-0.1.0-windows-x64-msvc\lib\x64\
+          copy build\Release\leo.dll LEO-0.1.0-windows-x64-msvc\
+          copy build\Release\leo.lib LEO-0.1.0-windows-x64-msvc\
           copy ..\LICENSE LEO-0.1.0-windows-x64-msvc\LICENSE.txt
           copy README.md LEO-0.1.0-windows-x64-msvc\
           tree /A /F LEO-0.1.0-windows-x64-msvc
@@ -113,7 +113,7 @@ jobs:
         uses: actions/upload-artifact@v4
         with:
           name: LEO-0.1.0-windows-x64-msvc
-          path: LEO-0.1.0-windows-x64-msvc.zip
+          path: LEO-0.1.0-windows-x64-msvc
           if-no-files-found: error
           working-directory: runtime
 
@@ -121,7 +121,7 @@ jobs:
         uses: actions/upload-artifact@v4
         with:
           name: LEO-0.1.0-windows-x64-msvc-debug
-          path: LEO-0.1.0-windows-x64-msvc-debug.zip
+          path: LEO-0.1.0-windows-x64-msvc-debug
           if-no-files-found: error
           working-directory: runtime
 
