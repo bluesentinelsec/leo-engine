@@ -103,29 +103,25 @@ jobs:
       #   run: |
       #     apt-get install -y libsdl3-dev <your-deps>
 
-      - name: Configure Linux Debug (Static)
+      - name: Debian Linux amd64 Debug (Static)
         env:
           CC: gcc
           CXX: g++
         working-directory: runtime
         run: |
-          cmake -S . -B build \
-            -G Ninja \
-            -DCMAKE_BUILD_TYPE=Debug \
-            -DLEO_BUILD_SHARED=ON \
-            -DLEO_BUILD_TEST=ON
-
-      - name: Build Linux Debug (Static)
-        working-directory: runtime
-        run: |
+          cmake -S . -B build -G Ninja -DCMAKE_BUILD_TYPE=Debug -DLEO_BUILD_SHARED=OFF -DLEO_BUILD_TEST=ON
           cmake --build build --config Debug --parallel
-          # Specific target example:
-          # cmake --build "$BUILD_DIR" --target your_target --parallel
+          ./build/test_leo_runtime
 
-      - name: Invoke Linux Tests Debug Static
+      - name: Debian Linux amd64 Debug (Shared)
+        env:
+          CC: gcc
+          CXX: g++
         working-directory: runtime
         run: |
-            ./build/test_leo_runtime
+          cmake -S . -B build -G Ninja -DCMAKE_BUILD_TYPE=Debug -DLEO_BUILD_SHARED=ON -DLEO_BUILD_TEST=ON
+          cmake --build build --config Debug --parallel
+          ./build/test_leo_runtime
 
 # Optional: upload built artifacts (uncomment & tweak)
 #      - name: Upload artifact
