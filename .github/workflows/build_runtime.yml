@@ -113,17 +113,15 @@ jobs:
         uses: actions/upload-artifact@v4
         with:
           name: LEO-0.1.0-windows-x64-msvc
-          path: LEO-0.1.0-windows-x64-msvc
+          path: runtime/LEO-0.1.0-windows-x64-msvc
           if-no-files-found: error
-          working-directory: runtime
 
       - name: Upload LEO-0.1.0-windows-x64-msvc-debug artifact
         uses: actions/upload-artifact@v4
         with:
           name: LEO-0.1.0-windows-x64-msvc-debug
-          path: LEO-0.1.0-windows-x64-msvc-debug
+          path: runtime/LEO-0.1.0-windows-x64-msvc-debug
           if-no-files-found: error
-          working-directory: runtime
 
   debian12-gcc:
     name: Debian 12 (x64, gcc)
