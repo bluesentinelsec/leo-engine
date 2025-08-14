@@ -61,7 +61,7 @@ jobs:
           cmake --build build --config Debug --parallel
           .\build\Debug\test_leo_runtime.exe
           mkdir test_install
-          cmake --install build --prefix test_install
+          cmake --install build --config Debug --prefix test_install
           tree /F test_install
           exit 1
 
