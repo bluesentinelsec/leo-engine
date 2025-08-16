@@ -30,12 +30,12 @@ option(LEO_BUILD_SHARED "Build Leo as a shared library" ON)
 option(LEO_BUILD_TESTS  "Build unit tests" ON)
 
 # ---- Package Dependencies ----
-FetchContent_Declare(
-        SDL3
-        GIT_REPOSITORY https://github.com/libsdl-org/SDL.git
-        GIT_TAG release-3.2.16
-)
-FetchContent_MakeAvailable(SDL3)
+#FetchContent_Declare(
+#        SDL3
+#        GIT_REPOSITORY https://github.com/libsdl-org/SDL.git
+#        GIT_TAG release-3.2.16
+#)
+#FetchContent_MakeAvailable(SDL3)
 
 # ---- Runtime Entrypoint ----
 include(sources.cmake) # <<<<<<<<<<<<< source code files are set here
@@ -56,7 +56,7 @@ target_include_directories(leo
     $<INSTALL_INTERFACE:include>
 )
 
-target_link_libraries(${PROJECT_NAME} PRIVATE SDL3::SDL3)
+#target_link_libraries(${PROJECT_NAME} PRIVATE SDL3::SDL3)
 
 # ---- Installation Rules ----
 # Install the library
@@ -122,6 +122,10 @@ if (LEO_BUILD_TESTS)
     PRIVATE
       ${ALIAS_NAME}
       Catch2::Catch2WithMain
+  )
+
+  target_include_directories(${TEST_RUNNER} PRIVATE 
+    $<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}/include>
   )
 
   include(Catch)

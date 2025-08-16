@@ -5,14 +5,12 @@ int leo_sum(int a, int b)
     return a + b;
 }
 
-LEO_API leo_EngineState * leo_NewEngineState()
+bool leo_InitWindow(int width, int height, const char *title)
 {
-    // TODO: implement sane defaults
-    return NULL;
+    return false;
 }
 
-LEO_API void leo_FreeEngineState(leo_EngineState *state)
+void leo_CloseWindow()
 {
-    // TODO: properly cleanup
     return;
 }
