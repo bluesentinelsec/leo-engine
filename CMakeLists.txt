@@ -5,7 +5,7 @@ set(PROJECT_NAME "leo")
 set(ALIAS_NAME "Leo::Runtime")
 set(TEST_RUNNER "test_leo_runtime")
 
-project(leo 
+project(leo
     VERSION 0.1.0
     DESCRIPTION "Leo Engine Runtime"
     HOMEPAGE_URL "https://github.com/bluesentinelsec/leo-engine"
@@ -59,14 +59,14 @@ else()
 endif()
 
 FetchContent_Declare(
-        SDL3
-        GIT_REPOSITORY https://github.com/libsdl-org/SDL.git
-        GIT_TAG release-3.2.16
+  SDL3
+  GIT_REPOSITORY https://github.com/libsdl-org/SDL.git
+  GIT_TAG        release-3.2.16
 )
 FetchContent_MakeAvailable(SDL3)
 
 # ---- Runtime Entrypoint ----
-include(sources.cmake) # <<<<<<<<<<<<< source code files are set here
+include(sources.cmake) # sets LEO_SOURCES and (optionally) LEO_TEST_SOURCES
 
 if (LEO_BUILD_SHARED)
   add_library(${PROJECT_NAME} SHARED ${LEO_SOURCES})
@@ -76,6 +76,23 @@ endif ()
 add_library(${ALIAS_NAME} ALIAS ${PROJECT_NAME})
 
 set_property(TARGET ${PROJECT_NAME} PROPERTY POSITION_INDEPENDENT_CODE ON)
+
+# --- Build-tree rpaths so targets can find each other in place ---
+# Origin for the exe dir; sibling ../lib for typical layouts; plus explicit build dirs
+set(_ORIGIN "$<IF:$<PLATFORM_ID:Darwin>,@loader_path,$ORIGIN>")
+set(_RPATHS
+  "${_ORIGIN}"
+  "${_ORIGIN}/../lib"
+  "${CMAKE_BINARY_DIR}"
+  "${CMAKE_BINARY_DIR}/_deps/sdl3-build"    # where SDL3::SDL3 .dylib/.so ends up in FetchContent
+)
+
+# Let the library know where dependents will look during build
+set_target_properties(${PROJECT_NAME} PROPERTIES
+  BUILD_RPATH "${_RPATHS}"
+  MACOSX_RPATH ON             # macOS: enable @rpath
+  INSTALL_NAME_DIR "@rpath"   # give the dylib an @rpath install_name
+)
 
 # ---- Includes and library dependency linkage ----
 target_include_directories(leo
@@ -87,24 +104,6 @@ target_include_directories(leo
 target_link_libraries(${PROJECT_NAME} PRIVATE SDL3::SDL3)
 
 # ---- Test setup (toggle) ----
-# --- Build-tree rpaths so tests run in-place ---
-# Origin for the exe dir; sibling ../lib for typical layouts; plus explicit build dirs
-set(_ORIGIN "$<IF:$<PLATFORM_ID:Darwin>,@loader_path,$ORIGIN>")
-set(_RPATHS
-  "${_ORIGIN}"
-  "${_ORIGIN}/../lib"
-  "${CMAKE_BINARY_DIR}"
-  "${CMAKE_BINARY_DIR}/_deps/sdl3-build"    # where SDL3::SDL3 .dylib/.so ends up in FetchContent
-)
-
-# Let both the library and the test exe know how to find each other during build
-set_target_properties(${PROJECT_NAME} PROPERTIES
-  BUILD_RPATH "${_RPATHS}"
-  # macOS: install_name should be @rpath/… so rpaths can resolve it
-  MACOSX_RPATH ON
-  INSTALL_NAME_DIR "@rpath"
-)
-
 if (LEO_BUILD_TESTS)
   include(CTest)
   enable_testing()
@@ -127,21 +126,49 @@ if (LEO_BUILD_TESTS)
       SDL3::SDL3
   )
 
-  target_include_directories(${TEST_RUNNER} PRIVATE 
+  target_include_directories(${TEST_RUNNER} PRIVATE
     $<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}/include>
   )
 
   include(Catch)
   catch_discover_tests(${TEST_RUNNER})
 
-if(WIN32 AND LEO_BUILD_TESTS)
-  add_custom_command(TARGET ${TEST_RUNNER} POST_BUILD
-    COMMAND ${CMAKE_COMMAND} -E copy_if_different
-            $<TARGET_RUNTIME_DLLS:${TEST_RUNNER}>
-            $<TARGET_FILE_DIR:${TEST_RUNNER}>
-    COMMAND_EXPAND_LISTS)
-endif()
+  # --- Use local shared libs for tests (copy next to exe + rpath to current dir) ---
 
+  # Windows: copy all runtime DLLs (includes SDL3 and leo if dynamic)
+  if(WIN32 AND LEO_BUILD_SHARED)
+    add_custom_command(TARGET ${TEST_RUNNER} POST_BUILD
+      COMMAND ${CMAKE_COMMAND} -E copy_if_different
+              $<TARGET_RUNTIME_DLLS:${TEST_RUNNER}>
+              $<TARGET_FILE_DIR:${TEST_RUNNER}>
+      COMMAND_EXPAND_LISTS)
+    # On Windows, no rpath. Exe naturally loads DLLs from its own folder.
+  endif()
+
+  # macOS: copy specific dylibs and make the exe search its own directory first
+  if(APPLE AND LEO_BUILD_SHARED)
+    add_custom_command(TARGET ${TEST_RUNNER} POST_BUILD
+      COMMAND ${CMAKE_COMMAND} -E copy_if_different
+              $<TARGET_FILE:${PROJECT_NAME}>
+              $<TARGET_FILE:SDL3::SDL3>
+              $<TARGET_FILE_DIR:${TEST_RUNNER}>
+    )
+    set_target_properties(${TEST_RUNNER} PROPERTIES
+      BUILD_RPATH "@loader_path"     # prefer current exe directory
+    )
+  endif()
+
+  # Linux/other ELF: copy specific .so and make the exe search its own directory first
+  if(UNIX AND NOT APPLE AND LEO_BUILD_SHARED)
+    add_custom_command(TARGET ${TEST_RUNNER} POST_BUILD
+      COMMAND ${CMAKE_COMMAND} -E copy_if_different
+              $<TARGET_FILE:${PROJECT_NAME}>
+              $<TARGET_FILE:SDL3::SDL3>
+              $<TARGET_FILE_DIR:${TEST_RUNNER}>
+    )
+    set_target_properties(${TEST_RUNNER} PROPERTIES
+      BUILD_RPATH "$ORIGIN"          # prefer current exe directory
+    )
+  endif()
 
 endif ()
-
