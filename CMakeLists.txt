@@ -16,6 +16,18 @@ if(APPLE)
   enable_language(OBJC)
 endif()
 
+# --- RPATH defaults ---
+# Prefer relative rpaths so binaries are movable:
+set(CMAKE_BUILD_RPATH_USE_ORIGIN ON)          # -> @loader_path (macOS) / $ORIGIN (ELF)
+set(CMAKE_INSTALL_RPATH_USE_LINK_PATH TRUE)   # add linked libs' install paths automatically
+
+# Where installed binaries should look for their dylibs/so's:
+if(APPLE)
+  set(CMAKE_INSTALL_RPATH "@loader_path" "@loader_path/../lib")
+else() # Linux, BSD, etc.
+  set(CMAKE_INSTALL_RPATH "$ORIGIN" "$ORIGIN/../lib")
+endif()
+
 # ---- Standards & policies ----
 set(CMAKE_C_STANDARD 17)
 set(CMAKE_C_STANDARD_REQUIRED ON)
@@ -75,6 +87,24 @@ target_include_directories(leo
 target_link_libraries(${PROJECT_NAME} PRIVATE SDL3::SDL3)
 
 # ---- Test setup (toggle) ----
+# --- Build-tree rpaths so tests run in-place ---
+# Origin for the exe dir; sibling ../lib for typical layouts; plus explicit build dirs
+set(_ORIGIN "$<IF:$<PLATFORM_ID:Darwin>,@loader_path,$ORIGIN>")
+set(_RPATHS
+  "${_ORIGIN}"
+  "${_ORIGIN}/../lib"
+  "${CMAKE_BINARY_DIR}"
+  "${CMAKE_BINARY_DIR}/_deps/sdl3-build"    # where SDL3::SDL3 .dylib/.so ends up in FetchContent
+)
+
+# Let both the library and the test exe know how to find each other during build
+set_target_properties(${PROJECT_NAME} PROPERTIES
+  BUILD_RPATH "${_RPATHS}"
+  # macOS: install_name should be @rpath/… so rpaths can resolve it
+  MACOSX_RPATH ON
+  INSTALL_NAME_DIR "@rpath"
+)
+
 if (LEO_BUILD_TESTS)
   include(CTest)
   enable_testing()
@@ -104,15 +134,14 @@ if (LEO_BUILD_TESTS)
   include(Catch)
   catch_discover_tests(${TEST_RUNNER})
 
-  if(LEO_BUILD_SHARED)
-    add_custom_command(
-      TARGET ${TEST_RUNNER} POST_BUILD
-      COMMAND ${CMAKE_COMMAND} -E copy_if_different
-              $<TARGET_RUNTIME_DLLS:${TEST_RUNNER}>
-              $<TARGET_FILE_DIR:${TEST_RUNNER}>
-      COMMAND_EXPAND_LISTS
-    )
-  endif()
+if(WIN32 AND LEO_BUILD_TESTS)
+  add_custom_command(TARGET ${TEST_RUNNER} POST_BUILD
+    COMMAND ${CMAKE_COMMAND} -E copy_if_different
+            $<TARGET_RUNTIME_DLLS:${TEST_RUNNER}>
+            $<TARGET_FILE_DIR:${TEST_RUNNER}>
+    COMMAND_EXPAND_LISTS)
+endif()
+
 
 endif ()
 
