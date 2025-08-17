@@ -12,6 +12,10 @@ project(leo
     LANGUAGES C CXX
 )
 
+if(APPLE)
+  enable_language(OBJC)
+endif()
+
 # ---- Standards & policies ----
 set(CMAKE_C_STANDARD 17)
 set(CMAKE_C_STANDARD_REQUIRED ON)
