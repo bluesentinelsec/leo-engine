@@ -30,12 +30,24 @@ option(LEO_BUILD_SHARED "Build Leo as a shared library" ON)
 option(LEO_BUILD_TESTS  "Build unit tests" ON)
 
 # ---- Package Dependencies ----
-#FetchContent_Declare(
-#        SDL3
-#        GIT_REPOSITORY https://github.com/libsdl-org/SDL.git
-#        GIT_TAG release-3.2.16
-#)
-#FetchContent_MakeAvailable(SDL3)
+set(SDL_INSTALL OFF CACHE BOOL "" FORCE)
+set(SDL_TEST    OFF CACHE BOOL "" FORCE)
+
+# If Leo is built as a shared lib, prefer shared SDL; otherwise use static SDL
+if(LEO_BUILD_SHARED)
+  set(SDL_SHARED ON  CACHE BOOL "" FORCE)
+  set(SDL_STATIC OFF CACHE BOOL "" FORCE)
+else()
+  set(SDL_SHARED OFF CACHE BOOL "" FORCE)
+  set(SDL_STATIC ON  CACHE BOOL "" FORCE)
+endif()
+
+FetchContent_Declare(
+        SDL3
+        GIT_REPOSITORY https://github.com/libsdl-org/SDL.git
+        GIT_TAG release-3.2.16
+)
+FetchContent_MakeAvailable(SDL3)
 
 # ---- Runtime Entrypoint ----
 include(sources.cmake) # <<<<<<<<<<<<< source code files are set here
@@ -56,51 +68,7 @@ target_include_directories(leo
     $<INSTALL_INTERFACE:include>
 )
 
-#target_link_libraries(${PROJECT_NAME} PRIVATE SDL3::SDL3)
-
-# ---- Installation Rules ----
-# Install the library
-install(TARGETS ${PROJECT_NAME}
-  EXPORT LeoTargets
-  LIBRARY DESTINATION lib
-  ARCHIVE DESTINATION lib
-  RUNTIME DESTINATION bin
-  INCLUDES DESTINATION include
-)
-
-# Install public headers
-install(DIRECTORY ${CMAKE_CURRENT_SOURCE_DIR}/include/
-  DESTINATION include
-  FILES_MATCHING PATTERN "*.h"
-)
-
-# Generate and install export file for CMake package
-install(EXPORT LeoTargets
-  FILE LeoTargets.cmake
-  NAMESPACE ${ALIAS_NAME}::
-  DESTINATION lib/cmake/leo
-)
-
-# Generate CMake package configuration files
-include(CMakePackageConfigHelpers)
-write_basic_package_version_file(
-  "${CMAKE_CURRENT_BINARY_DIR}/LeoConfigVersion.cmake"
-  VERSION ${PROJECT_VERSION}
-  COMPATIBILITY SameMajorVersion
-)
-
-configure_package_config_file(
-  "${CMAKE_CURRENT_SOURCE_DIR}/cmake/LeoConfig.cmake.in"
-  "${CMAKE_CURRENT_BINARY_DIR}/LeoConfig.cmake"
-  INSTALL_DESTINATION lib/cmake/leo
-)
-
-# Install CMake package configuration files
-install(FILES
-  "${CMAKE_CURRENT_BINARY_DIR}/LeoConfig.cmake"
-  "${CMAKE_CURRENT_BINARY_DIR}/LeoConfigVersion.cmake"
-  DESTINATION lib/cmake/leo
-)
+target_link_libraries(${PROJECT_NAME} PRIVATE SDL3::SDL3)
 
 # ---- Test setup (toggle) ----
 if (LEO_BUILD_TESTS)
@@ -122,6 +90,7 @@ if (LEO_BUILD_TESTS)
     PRIVATE
       ${ALIAS_NAME}
       Catch2::Catch2WithMain
+      SDL3::SDL3
   )
 
   target_include_directories(${TEST_RUNNER} PRIVATE 
@@ -140,3 +109,13 @@ if (LEO_BUILD_TESTS)
     )
   endif ()
 endif ()
+
+if(LEO_BUILD_SHARED)
+  add_custom_command(
+    TARGET ${TEST_RUNNER} POST_BUILD
+    COMMAND ${CMAKE_COMMAND} -E copy_if_different
+            $<TARGET_RUNTIME_DLLS:${TEST_RUNNER}>
+            $<TARGET_FILE_DIR:${TEST_RUNNER}>
+    COMMAND_EXPAND_LISTS
+  )
+endif()
