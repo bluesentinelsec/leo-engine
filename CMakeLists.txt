@@ -104,22 +104,15 @@ if (LEO_BUILD_TESTS)
   include(Catch)
   catch_discover_tests(${TEST_RUNNER})
 
-  if (LEO_BUILD_SHARED)
+  if(LEO_BUILD_SHARED)
     add_custom_command(
       TARGET ${TEST_RUNNER} POST_BUILD
       COMMAND ${CMAKE_COMMAND} -E copy_if_different
-              $<TARGET_FILE:${ALIAS_NAME}>
+              $<TARGET_RUNTIME_DLLS:${TEST_RUNNER}>
               $<TARGET_FILE_DIR:${TEST_RUNNER}>
+      COMMAND_EXPAND_LISTS
     )
-  endif ()
+  endif()
+
 endif ()
 
-if(LEO_BUILD_SHARED)
-  add_custom_command(
-    TARGET ${TEST_RUNNER} POST_BUILD
-    COMMAND ${CMAKE_COMMAND} -E copy_if_different
-            $<TARGET_RUNTIME_DLLS:${TEST_RUNNER}>
-            $<TARGET_FILE_DIR:${TEST_RUNNER}>
-    COMMAND_EXPAND_LISTS
-  )
-endif()
