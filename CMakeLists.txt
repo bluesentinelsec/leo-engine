@@ -101,7 +101,7 @@ target_include_directories(leo
     $<INSTALL_INTERFACE:include>
 )
 
-target_link_libraries(${PROJECT_NAME} PRIVATE SDL3::SDL3)
+target_link_libraries(${PROJECT_NAME} PUBLIC SDL3::SDL3)
 
 # ---- Test setup (toggle) ----
 if (LEO_BUILD_TESTS)
