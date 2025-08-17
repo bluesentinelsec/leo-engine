@@ -13,9 +13,9 @@ extern "C" {
 LEO_API int leo_sum(int a, int b);
 
 // if false, use leo_GetError() to print reason
-bool leo_InitWindow(int width, int height, const char *title);
+LEO_API bool leo_InitWindow(int width, int height, const char *title);
 
-void leo_CloseWindow();
+LEO_API void leo_CloseWindow();
 
 
 #ifdef __cplusplus
