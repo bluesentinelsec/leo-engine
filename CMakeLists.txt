@@ -131,7 +131,12 @@ if (LEO_BUILD_TESTS)
   )
 
   include(Catch)
-  catch_discover_tests(${TEST_RUNNER})
+  catch_discover_tests(${TEST_RUNNER}
+    WORKING_DIRECTORY $<TARGET_FILE_DIR:${TEST_RUNNER}>
+    DL_PATHS
+      $<TARGET_FILE_DIR:${PROJECT_NAME}>  # where leo.dll is
+      $<TARGET_FILE_DIR:SDL3::SDL3>       # where SDL3.dll is
+  )
 
   # --- Use local shared libs for tests (copy next to exe + rpath to current dir) ---
 
