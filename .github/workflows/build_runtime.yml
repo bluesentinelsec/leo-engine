@@ -21,6 +21,7 @@ jobs:
           cmake -S . -B build -G Ninja -DCMAKE_BUILD_TYPE=Debug -DLEO_BUILD_SHARED=OFF -DLEO_BUILD_TEST=ON
           cmake --build build --config Debug --parallel
           ./build/test_leo_runtime
+          rm -rf build
 
 
       - name: macOS arm64 clang debug shared
@@ -28,6 +29,7 @@ jobs:
           cmake -S . -B build -G Ninja -DCMAKE_BUILD_TYPE=Debug -DLEO_BUILD_SHARED=ON -DLEO_BUILD_TEST=ON
           cmake --build build --config Debug --parallel
           ./build/test_leo_runtime
+          rm -rf build
 
 
       - name: macOS arm64 clang release static
@@ -35,12 +37,14 @@ jobs:
           cmake -S . -B build -G Ninja -DCMAKE_BUILD_TYPE=Release -DLEO_BUILD_SHARED=OFF -DLEO_BUILD_TEST=ON
           cmake --build build --config Release --parallel
           ./build/test_leo_runtime
+          rm -rf build
 
       - name: macOS arm64 clang release shared
         run: |
           cmake -S . -B build -G Ninja -DCMAKE_BUILD_TYPE=Release -DLEO_BUILD_SHARED=ON -DLEO_BUILD_TEST=ON
           cmake --build build --config Release --parallel
           ./build/test_leo_runtime
+          rm -rf build
 
   windows-x64:
     name: Windows (x64, MSVC cl.exe)
@@ -102,6 +106,7 @@ jobs:
           cmake -S . -B build -G Ninja -DCMAKE_BUILD_TYPE=Debug -DLEO_BUILD_SHARED=OFF -DLEO_BUILD_TEST=ON
           cmake --build build --config Debug --parallel
           ./build/test_leo_runtime
+          rm -rf build
 
       - name: Debian Linux amd64 Debug (Shared)
         env:
@@ -111,6 +116,7 @@ jobs:
           cmake -S . -B build -G Ninja -DCMAKE_BUILD_TYPE=Debug -DLEO_BUILD_SHARED=ON -DLEO_BUILD_TEST=ON
           cmake --build build --config Debug --parallel
           ./build/test_leo_runtime
+          rm -rf build
 
       - name: Debian Linux amd64 Release (Static)
         env:
@@ -120,6 +126,7 @@ jobs:
           cmake -S . -B build -G Ninja -DCMAKE_BUILD_TYPE=Release -DLEO_BUILD_SHARED=OFF -DLEO_BUILD_TEST=ON
           cmake --build build --config Release --parallel
           ./build/test_leo_runtime
+          rm -rf build
 
       - name: Debian Linux amd64 Release (Shared)
         env:
@@ -129,4 +136,5 @@ jobs:
           cmake -S . -B build -G Ninja -DCMAKE_BUILD_TYPE=Release -DLEO_BUILD_SHARED=ON -DLEO_BUILD_TEST=ON
           cmake --build build --config Release --parallel
           ./build/test_leo_runtime
+          rm -rf build
 
