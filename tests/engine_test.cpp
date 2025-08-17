@@ -11,6 +11,6 @@ TEST_CASE("leo_sum adds two ints", "[runtime]") {
 }
 
 TEST_CASE("Can initialize and close game window (happy path)", "[engine]") {
-    // TODO: implement tests for:
-    // leo_InitWindow() and leo_CloseWindow()
+    leo_InitWindow(10, 20, "test");
+    leo_CloseWindow();
 }
