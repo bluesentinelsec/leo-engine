@@ -27,12 +27,7 @@ bool leo_InitWindow(int width, int height, const char* title)
 		return false;
 	}
 
-#ifdef DEBUG
 	Uint64 windowFlags = SDL_WINDOW_RESIZABLE;
-#else
-	Uint64 windowFlags = SDL_WINDOW_FULLSCREEN;
-#endif
-
 	globalWindow = SDL_CreateWindow(title, width, height, windowFlags);
 	if (!globalWindow)
 	{
@@ -79,4 +74,19 @@ LeoWindow leo_GetWindow(void)
 LeoRenderer leo_GetRenderer(void)
 {
 	return (LeoRenderer)globalRenderer;
+}
+
+bool leo_SetFullscreen(bool enabled)
+{
+	if (!globalWindow)
+	{
+		leo_SetError("leo_SetFullscreen called before leo_InitWindow");
+		return false;
+	}
+	if (SDL_SetWindowFullscreen(globalWindow, enabled) < 0)
+	{
+		leo_SetError("%s", SDL_GetError());
+		return false;
+	}
+	return true;
 }

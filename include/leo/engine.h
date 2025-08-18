@@ -19,6 +19,7 @@ LEO_API LeoWindow leo_GetWindow(void);
 
 LEO_API LeoRenderer leo_GetRenderer(void);
 
+LEO_API bool leo_SetFullscreen(bool enabled);
 
 #ifdef __cplusplus
 }
