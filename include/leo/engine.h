@@ -8,11 +8,16 @@
 extern "C" {
 #endif
 
+typedef void* LeoWindow;
+typedef void* LeoRenderer;
 
-// if false, use leo_GetError() to print reason
 LEO_API bool leo_InitWindow(int width, int height, const char* title);
 
 LEO_API void leo_CloseWindow();
+
+LEO_API LeoWindow leo_GetWindow(void);
+
+LEO_API LeoRenderer leo_GetRenderer(void);
 
 
 #ifdef __cplusplus
