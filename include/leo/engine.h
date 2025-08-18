@@ -9,11 +9,8 @@ extern "C" {
 #endif
 
 
-// deprecated
-LEO_API int leo_sum(int a, int b);
-
 // if false, use leo_GetError() to print reason
-LEO_API bool leo_InitWindow(int width, int height, const char *title);
+LEO_API bool leo_InitWindow(int width, int height, const char* title);
 
 LEO_API void leo_CloseWindow();
 
