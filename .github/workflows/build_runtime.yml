@@ -84,7 +84,7 @@ jobs:
           set -eux
           apt-get update
           DEBIAN_FRONTEND=noninteractive apt-get install -y --no-install-recommends \
-            build-essential cmake ninja-build pkg-config git ca-certificates libsdl2-dev
+            build-essential cmake ninja-build pkg-config git ca-certificates libsdl2-dev xvfb
           update-ca-certificates
 
       - uses: actions/checkout@v4
@@ -103,5 +103,8 @@ jobs:
       - name: Build
         run: cmake --build build-${{ matrix.build_type }}-${{ matrix.shared }} --parallel
 
-      - name: Test
-        run: ctest --test-dir build-${{ matrix.build_type }}-${{ matrix.shared }}
+      - name: Test (headless via Xvfb)
+        run: |
+          xvfb-run -a -s "-screen 0 1280x720x24" \
+            ctest --test-dir build-${{ matrix.build_type }}-${{ matrix.shared }} --output-on-failure
+
