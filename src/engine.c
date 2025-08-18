@@ -6,6 +6,11 @@
 SDL_Window* globalWindow = NULL;
 SDL_Renderer* globalRenderer = NULL;
 
+/* ---------- internal state for the simple game loop ---------- */
+static int s_inFrame = 0; /* are we between Begin/EndDrawing? */
+static int s_quit = 0; /* latched quit flag */
+static Uint8 s_clearR = 0, s_clearG = 0, s_clearB = 0, s_clearA = 255; /* last clear color */
+
 
 bool leo_InitWindow(int width, int height, const char* title)
 {
@@ -44,6 +49,14 @@ bool leo_InitWindow(int width, int height, const char* title)
 		return false;
 	}
 
+	/* initialize loop state */
+	s_inFrame = 0;
+	s_quit = 0;
+	s_clearR = 0;
+	s_clearG = 0;
+	s_clearB = 0;
+	s_clearA = 255;
+
 
 	return true;
 }
@@ -62,6 +75,8 @@ void leo_CloseWindow()
 		globalWindow = NULL;
 	}
 
+	s_inFrame = 0;
+	s_quit = 0;
 
 	SDL_Quit();
 }
@@ -89,4 +104,67 @@ bool leo_SetFullscreen(bool enabled)
 		return false;
 	}
 	return true;
+}
+
+bool leo_WindowShouldClose(void)
+{
+	SDL_Event e;
+	while (SDL_PollEvent(&e))
+	{
+		switch (e.type)
+		{
+		case SDL_EVENT_QUIT:
+			s_quit = 1;
+			break;
+
+		case SDL_EVENT_WINDOW_CLOSE_REQUESTED:
+			s_quit = 1;
+			break;
+
+		default:
+			break;
+		}
+	}
+
+	return s_quit != 0;
+}
+
+void leo_BeginDrawing(void)
+{
+	if (!globalRenderer) return;
+	s_inFrame = 1;
+	/* Raylib pattern: user calls ClearBackground() explicitly after BeginDrawing().
+	   We don’t clear automatically here to preserve that feel. */
+}
+
+void leo_ClearBackground(int r, int g, int b, int a)
+{
+	if (!globalRenderer) return;
+
+	/* Clamp to 0..255 to be safe */
+	if (r < 0) r = 0;
+	if (r > 255) r = 255;
+	if (g < 0) g = 0;
+	if (g > 255) g = 255;
+	if (b < 0) b = 0;
+	if (b > 255) b = 255;
+	if (a < 0) a = 0;
+	if (a > 255) a = 255;
+
+	s_clearR = (Uint8)r;
+	s_clearG = (Uint8)g;
+	s_clearB = (Uint8)b;
+	s_clearA = (Uint8)a;
+
+	/* Clear the current render target immediately */
+	SDL_SetRenderDrawColor(globalRenderer, s_clearR, s_clearG, s_clearB, s_clearA);
+	SDL_RenderClear(globalRenderer);
+}
+
+void leo_EndDrawing(void)
+{
+	if (!globalRenderer) return;
+	/* Present the backbuffer */
+	SDL_RenderPresent(globalRenderer);
+	s_inFrame = 0;
 }
