@@ -2,131 +2,106 @@ name: Build & Test Leo Engine Runtime
 
 on:
   push:
-    branches:
-      - "**"
+    branches: ["**"]
   pull_request:
-    branches:
-      - "**"
+    branches: ["**"]
+
+# Optional: cancel older runs on the same branch/PR
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+env:
+  CTEST_OUTPUT_ON_FAILURE: "1"
 
 jobs:
-  macos-arm64:
+  macos:
     name: macOS (arm64, clang)
-    runs-on: macos-14 
+    runs-on: macos-14
+    strategy:
+      fail-fast: false
+      matrix:
+        build_type: [Debug, Release]
+        shared: [ON, OFF]
     steps:
-      - name: Checkout
-        uses: actions/checkout@v4
+      - uses: actions/checkout@v4
 
-      - name: macOS arm64 clang debug static
-        run: |
-          cmake -S . -B build -G Ninja -DCMAKE_BUILD_TYPE=Debug -DLEO_BUILD_SHARED=OFF -DLEO_BUILD_TEST=ON
-          cmake --build build --config Debug --parallel
-          ./build/test_leo_runtime
+      - name: Configure
+        run: >
+          cmake -S . -B build-${{ matrix.build_type }}-${{ matrix.shared }}
+          -G Ninja
+          -DCMAKE_BUILD_TYPE=${{ matrix.build_type }}
+          -DLEO_BUILD_SHARED=${{ matrix.shared }}
+          -DLEO_BUILD_TESTS=ON
 
+      - name: Build
+        run: cmake --build build-${{ matrix.build_type }}-${{ matrix.shared }} --parallel
 
-      - name: macOS arm64 clang debug shared
-        run: |
-          cmake -S . -B build -G Ninja -DCMAKE_BUILD_TYPE=Debug -DLEO_BUILD_SHARED=ON -DLEO_BUILD_TEST=ON
-          cmake --build build --config Debug --parallel
-          ./build/test_leo_runtime
+      - name: Test
+        run: ctest --test-dir build-${{ matrix.build_type }}-${{ matrix.shared }}
 
-
-      - name: macOS arm64 clang release static
-        run: |
-          cmake -S . -B build -G Ninja -DCMAKE_BUILD_TYPE=Release -DLEO_BUILD_SHARED=OFF -DLEO_BUILD_TEST=ON
-          cmake --build build --config Release --parallel
-          ./build/test_leo_runtime
-
-      - name: macOS arm64 clang release shared
-        run: |
-          cmake -S . -B build -G Ninja -DCMAKE_BUILD_TYPE=Release -DLEO_BUILD_SHARED=ON -DLEO_BUILD_TEST=ON
-          cmake --build build --config Release --parallel
-          ./build/test_leo_runtime
-
-  windows-x64:
-    name: Windows (x64, MSVC cl.exe)
+  windows-msvc:
+    name: Windows (x64, MSVC)
     runs-on: windows-2022
+    strategy:
+      fail-fast: false
+      matrix:
+        build_type: [Debug, Release]
+        shared: [ON, OFF]
     steps:
-      - name: Checkout
-        uses: actions/checkout@v4
+      - uses: actions/checkout@v4
 
-      - name: Build Debug (Static)
+      # Multi-config generator: pass -C at build/test time
+      - name: Configure
         shell: pwsh
-        run: |
-          cmake -S . -B build -G "Visual Studio 17 2022" -A x64 -DCMAKE_BUILD_TYPE=Debug -DLEO_BUILD_SHARED=OFF -DLEO_BUILD_TEST=ON
-          cmake --build build --config Debug --parallel
-          .\build\Debug\test_leo_runtime.exe
+        run: >
+          cmake -S . -B build-${{ matrix.build_type }}-${{ matrix.shared }}
+          -G "Visual Studio 17 2022" -A x64
+          -DLEO_BUILD_SHARED=${{ matrix.shared }}
+          -DLEO_BUILD_TESTS=ON
 
-      - name: Build Debug (Shared)
+      - name: Build
         shell: pwsh
-        run: |
-          cmake -S . -B build -G "Visual Studio 17 2022" -A x64 -DCMAKE_BUILD_TYPE=Debug -DLEO_BUILD_SHARED=ON -DLEO_BUILD_TEST=ON
-          cmake --build build --config Debug --parallel
-          .\build\Debug\test_leo_runtime.exe
+        run: cmake --build build-${{ matrix.build_type }}-${{ matrix.shared }} --config ${{ matrix.build_type }} --parallel
 
-      - name: Build Release (Static)
+      - name: Test
         shell: pwsh
-        run: |
-          cmake -S . -B build -G "Visual Studio 17 2022" -A x64 -DCMAKE_BUILD_TYPE=Release -DLEO_BUILD_SHARED=OFF -DLEO_BUILD_TEST=ON
-          cmake --build build --config Release --parallel
-          .\build\Release\test_leo_runtime.exe
-
-      - name: Build Release (Shared)
-        shell: pwsh
-        run: |
-          cmake -S . -B build -G "Visual Studio 17 2022" -A x64 -DCMAKE_BUILD_TYPE=Release -DLEO_BUILD_SHARED=ON -DLEO_BUILD_TEST=ON
-          cmake --build build --config Release --parallel
-          .\build\Release\test_leo_runtime.exe
-
+        run: ctest --test-dir build-${{ matrix.build_type }}-${{ matrix.shared }} -C ${{ matrix.build_type }}
 
   debian12-gcc:
     name: Debian 12 (x64, gcc)
     runs-on: ubuntu-latest
     container:
       image: debian:12
+    strategy:
+      fail-fast: false
+      matrix:
+        build_type: [Debug, Release]
+        shared: [ON, OFF]
     steps:
-      - name: Install build tools
+      - name: Install toolchain
         run: |
+          set -eux
           apt-get update
           DEBIAN_FRONTEND=noninteractive apt-get install -y --no-install-recommends \
-            build-essential cmake ninja-build pkg-config git ca-certificates libsdl2-dev 
-            update-ca-certificates
+            build-essential cmake ninja-build pkg-config git ca-certificates
+          update-ca-certificates
 
-      - name: Checkout
-        uses: actions/checkout@v4
+      - uses: actions/checkout@v4
 
-      - name: Debian Linux amd64 Debug (Static)
+      - name: Configure
         env:
           CC: gcc
           CXX: g++
-        run: |
-          cmake -S . -B build -G Ninja -DCMAKE_BUILD_TYPE=Debug -DLEO_BUILD_SHARED=OFF -DLEO_BUILD_TEST=ON
-          cmake --build build --config Debug --parallel
-          ./build/test_leo_runtime
+        run: >
+          cmake -S . -B build-${{ matrix.build_type }}-${{ matrix.shared }}
+          -G Ninja
+          -DCMAKE_BUILD_TYPE=${{ matrix.build_type }}
+          -DLEO_BUILD_SHARED=${{ matrix.shared }}
+          -DLEO_BUILD_TESTS=ON
 
-      - name: Debian Linux amd64 Debug (Shared)
-        env:
-          CC: gcc
-          CXX: g++
-        run: |
-          cmake -S . -B build -G Ninja -DCMAKE_BUILD_TYPE=Debug -DLEO_BUILD_SHARED=ON -DLEO_BUILD_TEST=ON
-          cmake --build build --config Debug --parallel
-          ./build/test_leo_runtime
+      - name: Build
+        run: cmake --build build-${{ matrix.build_type }}-${{ matrix.shared }} --parallel
 
-      - name: Debian Linux amd64 Release (Static)
-        env:
-          CC: gcc
-          CXX: g++
-        run: |
-          cmake -S . -B build -G Ninja -DCMAKE_BUILD_TYPE=Release -DLEO_BUILD_SHARED=OFF -DLEO_BUILD_TEST=ON
-          cmake --build build --config Release --parallel
-          ./build/test_leo_runtime
-
-      - name: Debian Linux amd64 Release (Shared)
-        env:
-          CC: gcc
-          CXX: g++
-        run: |
-          cmake -S . -B build -G Ninja -DCMAKE_BUILD_TYPE=Release -DLEO_BUILD_SHARED=ON -DLEO_BUILD_TEST=ON
-          cmake --build build --config Release --parallel
-          ./build/test_leo_runtime
-
+      - name: Test
+        run: ctest --test-dir build-${{ matrix.build_type }}-${{ matrix.shared }}
