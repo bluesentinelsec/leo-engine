@@ -15,6 +15,13 @@ bool leo_InitWindow(int width, int height, const char* title)
 		leo_SetError("%s\n", SDL_GetError());
 		return false;
 	}
+
+#ifdef DEBUG
+	Uint64 windowFlags = SDL_WINDOW_RESIZABLE;
+#else
+	Uint64 windowFlags = SDL_WINDOW_FULLSCREEN;
+#endif
+
 	return true;
 }
 
