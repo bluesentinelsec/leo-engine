@@ -17,12 +17,6 @@ if (APPLE)
     enable_language(OBJC)          # allow .m files on macOS
 endif ()
 
-if (CMAKE_BUILD_TYPE MATCHES Debug)
-    add_definitions(-DDEBUG)
-else ()
-    add_definitions(-DNDEBUG)
-endif ()
-
 # Language standards
 set(CMAKE_C_STANDARD 17)
 set(CMAKE_C_STANDARD_REQUIRED ON)
@@ -108,6 +102,7 @@ target_include_directories(${PROJECT_NAME}
         $<INSTALL_INTERFACE:include>
 )
 
+
 # Build-tree RPATH so local runs find deps without env tweaks
 set(_ORIGIN "$<IF:$<PLATFORM_ID:Darwin>,@loader_path,$ORIGIN>")
 set(_RPATHS
@@ -121,9 +116,11 @@ set_target_properties(${PROJECT_NAME} PROPERTIES
         INSTALL_NAME_DIR "@rpath"
 )
 
+
 # =========================
 # Tests
 # =========================
+
 if (LEO_BUILD_TESTS)
     include(CTest)
     enable_testing()
@@ -192,4 +189,16 @@ if (LEO_BUILD_TESTS)
             )
         endif ()
     endif ()
+endif ()
+
+target_compile_definitions(${PROJECT_NAME} PRIVATE
+        $<$<CONFIG:Debug>:DEBUG>
+        $<$<NOT:$<CONFIG:Debug>>:NDEBUG>
+)
+
+if (LEO_BUILD_TESTS)
+    target_compile_definitions(${TEST_RUNNER} PRIVATE
+            $<$<CONFIG:Debug>:DEBUG>
+            $<$<NOT:$<CONFIG:Debug>>:NDEBUG>
+    )
 endif ()
