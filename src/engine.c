@@ -3,8 +3,8 @@
 
 #include <SDL3/SDL.h>
 
-SDL_Window* window = NULL;
-SDL_Renderer* renderer = NULL;
+SDL_Window* globalWindow = NULL;
+SDL_Renderer* globalRenderer = NULL;
 
 
 bool leo_InitWindow(int width, int height, const char* title)
@@ -22,10 +22,22 @@ bool leo_InitWindow(int width, int height, const char* title)
 	Uint64 windowFlags = SDL_WINDOW_FULLSCREEN;
 #endif
 
+	globalWindow = SDL_CreateWindow(title, width, height, windowFlags);
+	if (!globalWindow)
+	{
+		leo_SetError("%s\n", SDL_GetError());
+		return false;
+	}
+
+
 	return true;
 }
 
 void leo_CloseWindow()
 {
+	if (globalWindow)
+	{
+		SDL_DestroyWindow(globalWindow);
+	}
 	SDL_Quit();
 }
