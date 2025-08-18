@@ -44,9 +44,16 @@ include(FetchContent)
 # ---- Build Options ----
 option(LEO_BUILD_SHARED "Build Leo as a shared library" ON)
 option(LEO_BUILD_TESTS  "Build unit tests" ON)
+option(LEO_VENDOR_SDL   "Bundle SDL3 into Leo's install prefix" ON)  # <— new toggle (default ON)
 
 # ---- Package Dependencies ----
-set(SDL_INSTALL OFF CACHE BOOL "" FORCE)
+# When vendoring SDL, let SDL install itself during `cmake --install`.
+# Otherwise, use a parent/system-provided SDL3.
+if(LEO_VENDOR_SDL)
+  set(SDL_INSTALL ON  CACHE BOOL "" FORCE)
+else()
+  set(SDL_INSTALL OFF CACHE BOOL "" FORCE)
+endif()
 set(SDL_TEST    OFF CACHE BOOL "" FORCE)
 
 # If Leo is built as a shared lib, prefer shared SDL; otherwise use static SDL
@@ -70,6 +77,7 @@ include(sources.cmake) # sets LEO_SOURCES and (optionally) LEO_TEST_SOURCES
 
 if (LEO_BUILD_SHARED)
   add_library(${PROJECT_NAME} SHARED ${LEO_SOURCES})
+  target_compile_definitions(${PROJECT_NAME} PRIVATE LEO_BUILDING_DLL)  # export macro for Windows
 else ()
   add_library(${PROJECT_NAME} STATIC ${LEO_SOURCES})
 endif ()
@@ -101,6 +109,7 @@ target_include_directories(leo
     $<INSTALL_INTERFACE:include>
 )
 
+# SDL is PUBLIC so consumers inherit it (and Windows gets DLLs via TARGET_RUNTIME_DLLS)
 target_link_libraries(${PROJECT_NAME} PUBLIC SDL3::SDL3)
 
 # ---- Test setup (toggle) ----
@@ -131,6 +140,7 @@ if (LEO_BUILD_TESTS)
   )
 
   include(Catch)
+  # Ensure discovery can find DLLs on Windows (before POST_BUILD copies run)
   catch_discover_tests(${TEST_RUNNER}
     WORKING_DIRECTORY $<TARGET_FILE_DIR:${TEST_RUNNER}>
     DL_PATHS
@@ -146,7 +156,8 @@ if (LEO_BUILD_TESTS)
       COMMAND ${CMAKE_COMMAND} -E copy_if_different
               $<TARGET_RUNTIME_DLLS:${TEST_RUNNER}>
               $<TARGET_FILE_DIR:${TEST_RUNNER}>
-      COMMAND_EXPAND_LISTS)
+      COMMAND_EXPAND_LISTS
+      COMMENT "Copying runtime DLLs (Leo, SDL3, etc.) next to ${TEST_RUNNER}")
     # On Windows, no rpath. Exe naturally loads DLLs from its own folder.
   endif()
 
@@ -157,7 +168,7 @@ if (LEO_BUILD_TESTS)
               $<TARGET_FILE:${PROJECT_NAME}>
               $<TARGET_FILE:SDL3::SDL3>
               $<TARGET_FILE_DIR:${TEST_RUNNER}>
-    )
+      COMMENT "Copying dylibs (Leo, SDL3) next to ${TEST_RUNNER}")
     set_target_properties(${TEST_RUNNER} PROPERTIES
       BUILD_RPATH "@loader_path"     # prefer current exe directory
     )
@@ -170,7 +181,7 @@ if (LEO_BUILD_TESTS)
               $<TARGET_FILE:${PROJECT_NAME}>
               $<TARGET_FILE:SDL3::SDL3>
               $<TARGET_FILE_DIR:${TEST_RUNNER}>
-    )
+      COMMENT "Copying shared objects (Leo, SDL3) next to ${TEST_RUNNER}")
     set_target_properties(${TEST_RUNNER} PROPERTIES
       BUILD_RPATH "$ORIGIN"          # prefer current exe directory
     )
