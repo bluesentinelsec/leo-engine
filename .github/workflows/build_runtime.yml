@@ -84,7 +84,7 @@ jobs:
           set -eux
           apt-get update
           DEBIAN_FRONTEND=noninteractive apt-get install -y --no-install-recommends \
-            build-essential cmake ninja-build pkg-config git ca-certificates libsdl2-dev xvfb
+            build-essential cmake ninja-build pkg-config git ca-certificates libsdl2-dev xvfb xauth
           update-ca-certificates
 
       - uses: actions/checkout@v4
