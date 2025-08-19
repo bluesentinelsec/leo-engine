@@ -57,3 +57,4 @@ dkms.conf
 build
 .idea
 cmake-build-debug
+.cache
