@@ -56,9 +56,9 @@ TEST_CASE("leo_DrawPixel draws exactly one pixel with the requested color", "[gr
 
 	// Create an ARGB8888 render target texture to control the pixel format + alpha.
 	SDL_Texture* target = SDL_CreateTexture(renderer,
-											SDL_PIXELFORMAT_ARGB8888,
-											SDL_TEXTUREACCESS_TARGET,
-											12, 10);
+		SDL_PIXELFORMAT_ARGB8888,
+		SDL_TEXTUREACCESS_TARGET,
+		12, 10);
 	REQUIRE(target != nullptr);
 
 	// Direct rendering to the texture
@@ -94,5 +94,107 @@ TEST_CASE("leo_DrawPixel draws exactly one pixel with the requested color", "[gr
 	SDL_DestroyTexture(target);
 
 	// You can present now if you want to complete the frame timing
+	leo_EndDrawing();
+}
+
+TEST_CASE("leo_DrawLine draws horizontal and vertical lines with correct color", "[graphics][line]")
+{
+	EngineFixture fx(12, 10, "line-test");
+
+	auto* renderer = static_cast<SDL_Renderer*>(leo_GetRenderer());
+	REQUIRE(renderer != nullptr);
+
+	// Create a known, readable render target
+	SDL_Texture* target = SDL_CreateTexture(renderer,
+		SDL_PIXELFORMAT_ARGB8888,
+		SDL_TEXTUREACCESS_TARGET,
+		12, 10);
+	REQUIRE(target != nullptr);
+	REQUIRE(SDL_SetRenderTarget(renderer, target));
+
+	// Common clear
+	leo_BeginDrawing();
+	leo_ClearBackground(0, 0, 0, 255);
+
+	SECTION("Horizontal line exact coverage")
+	{
+		const int y = 4;
+		const int x0 = 2, x1 = 8;
+		const leo_Color c = { 200, 10, 120, 255 };
+
+		leo_DrawLine(x0, y, x1, y, c);
+
+		// Pixels on the line are the requested color
+		for (int x = x0; x <= x1; ++x)
+		{
+			uint8_t r = 0, g = 0, b = 0, a = 0;
+			REQUIRE(read_pixel(renderer, x, y, r, g, b, a));
+			CHECK(a == 255);
+			CHECK(r == 200);
+			CHECK(g == 10);
+			CHECK(b == 120);
+		}
+
+		// Neighbor rows remain black (above and below within the span)
+		for (int x = x0; x <= x1; ++x)
+		{
+			uint8_t r = 0, g = 0, b = 0, a = 0;
+			REQUIRE(read_pixel(renderer, x, y-1, r, g, b, a));
+			CHECK(a == 255);
+			CHECK(r == 0);
+			CHECK(g == 0);
+			CHECK(b == 0);
+
+			REQUIRE(read_pixel(renderer, x, y+1, r, g, b, a));
+			CHECK(a == 255);
+			CHECK(r == 0);
+			CHECK(g == 0);
+			CHECK(b == 0);
+		}
+	}
+
+	SECTION("Vertical line exact coverage")
+	{
+		// Re-clear before second section
+		leo_ClearBackground(0, 0, 0, 255);
+
+		const int x = 6;
+		const int y0 = 2, y1 = 8;
+		const leo_Color c = { 5, 230, 40, 255 };
+
+		leo_DrawLine(x, y0, x, y1, c);
+
+		// Pixels on the line are the requested color
+		for (int y = y0; y <= y1; ++y)
+		{
+			uint8_t r = 0, g = 0, b = 0, a = 0;
+			REQUIRE(read_pixel(renderer, x, y, r, g, b, a));
+			CHECK(a == 255);
+			CHECK(r == 5);
+			CHECK(g == 230);
+			CHECK(b == 40);
+		}
+
+		// Neighbor columns remain black (left and right within the span)
+		for (int y = y0; y <= y1; ++y)
+		{
+			uint8_t r = 0, g = 0, b = 0, a = 0;
+			REQUIRE(read_pixel(renderer, x-1, y, r, g, b, a));
+			CHECK(a == 255);
+			CHECK(r == 0);
+			CHECK(g == 0);
+			CHECK(b == 0);
+
+			REQUIRE(read_pixel(renderer, x+1, y, r, g, b, a));
+			CHECK(a == 255);
+			CHECK(r == 0);
+			CHECK(g == 0);
+			CHECK(b == 0);
+		}
+	}
+
+	// Restore & cleanup
+	REQUIRE(SDL_SetRenderTarget(renderer, nullptr));
+	SDL_DestroyTexture(target);
 	leo_EndDrawing();
 }
