@@ -29,6 +29,12 @@ LEO_API void leo_BeginDrawing(void);
 
 LEO_API void leo_EndDrawing(void);
 
+// Timing-related functions
+LEO_API void leo_SetTargetFPS(int fps); // Set target FPS (maximum)
+LEO_API float leo_GetFrameTime(void); // Get time in seconds for last frame drawn (delta time)
+LEO_API double leo_GetTime(void); // Get elapsed time in seconds since InitWindow()
+LEO_API int leo_GetFPS(void); // Get current FPS
+
 
 #ifdef __cplusplus
 }

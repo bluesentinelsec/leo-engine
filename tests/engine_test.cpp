@@ -230,3 +230,106 @@ TEST_CASE("leo_ClearBackground sets draw color and clamps values", "[engine][dra
 	leo_CloseWindow();
 	CHECK(SDL_WasInit(0) == 0);
 }
+
+// ============================
+// Timing API tests
+// ============================
+
+TEST_CASE("leo_GetTime is monotonic after InitWindow", "[engine][time]")
+{
+	resetSDLState();
+	REQUIRE(leo_InitWindow(320, 200, "Time Test") == true);
+
+	const double t0 = leo_GetTime();
+	// Small sleep to ensure measurable progress (10–20ms)
+	SDL_Delay(20);
+	const double t1 = leo_GetTime();
+
+	CHECK(t1 >= t0);
+	CHECK((t1 - t0) >= 0.010); // at least ~10ms advanced
+
+	leo_CloseWindow();
+	CHECK(SDL_WasInit(0) == 0);
+}
+
+TEST_CASE("leo_GetFrameTime updates after Begin/EndDrawing", "[engine][time]")
+{
+	resetSDLState();
+	REQUIRE(leo_InitWindow(320, 200, "FrameTime Test") == true);
+
+	// First frame with some work (~8ms) so it's measurable
+	leo_BeginDrawing();
+	SDL_Delay(8);
+	leo_EndDrawing();
+
+	float dt = leo_GetFrameTime();
+	CHECK(dt > 0.0f);
+	CHECK(dt >= 0.006f); // should be at least ~6ms given the delay
+
+	// A quick second frame should still be non-zero
+	leo_BeginDrawing();
+	leo_EndDrawing();
+	dt = leo_GetFrameTime();
+	CHECK(dt >= 0.0f);
+
+	leo_CloseWindow();
+	CHECK(SDL_WasInit(0) == 0);
+}
+
+TEST_CASE("leo_SetTargetFPS enforces minimum frame time", "[engine][time]")
+{
+	resetSDLState();
+	REQUIRE(leo_InitWindow(320, 200, "TargetFPS Test") == true);
+
+	// Cap at 60 FPS ➜ expected frame time ≈ 1/60 ≈ 0.0167s
+	leo_SetTargetFPS(60);
+
+	// Run a few capped frames with almost no work
+	float lastDt = 0.0f;
+	for (int i = 0; i < 3; ++i)
+	{
+		leo_BeginDrawing();
+		// minimal/no work
+		leo_EndDrawing();
+		lastDt = leo_GetFrameTime();
+	}
+
+	// Allow generous tolerance in CI (sleep granularity); we just want to see
+	// that the cap *raised* the frame time to near the target.
+	const float target = 1.0f / 60.0f; // ~0.0167
+	CHECK(lastDt >= target * 0.85f); // not too far under (~15% slack)
+	CHECK(lastDt <= target + 0.03f); // allow ~30ms total to absorb timer quantization
+
+	leo_CloseWindow();
+	CHECK(SDL_WasInit(0) == 0);
+}
+
+TEST_CASE("leo_GetFPS yields a sane value after ~1s of capped frames", "[engine][time]")
+{
+	resetSDLState();
+	REQUIRE(leo_InitWindow(320, 200, "FPS Test") == true);
+
+	leo_SetTargetFPS(60);
+
+	// Drive frames for ~1.1s so the 1-second rolling window updates.
+	const Uint64 freq = SDL_GetPerformanceFrequency();
+	const Uint64 start = SDL_GetPerformanceCounter();
+	for (;;)
+	{
+		leo_BeginDrawing();
+		// do almost nothing; rely on cap
+		leo_EndDrawing();
+
+		const Uint64 now = SDL_GetPerformanceCounter();
+		if (now - start > (Uint64)(1.1 * (double)freq)) break;
+	}
+
+	const int fps = leo_GetFPS();
+	// Very loose bounds so it passes under Xvfb and shared runners;
+	// we only assert that it's in a plausible range.
+	CHECK(fps >= 30);
+	CHECK(fps <= 90);
+
+	leo_CloseWindow();
+	CHECK(SDL_WasInit(0) == 0);
+}
