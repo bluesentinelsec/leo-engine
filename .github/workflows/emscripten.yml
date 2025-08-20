@@ -1,4 +1,4 @@
-name: Web (Emscripten - Headless Browser)
+name: Web (Emscripten)
 
 on:
   workflow_dispatch:
@@ -9,30 +9,28 @@ on:
       - "CMakeLists.txt"
       - "cmake/**"
       - "tests/**"
-      - ".github/workflows/emscripten-browser.yml"
+      - ".github/workflows/emscripten.yml"
 
 jobs:
-  emscripten-browser-tests:
+  emscripten-build-and-test:
     runs-on: ubuntu-22.04
     steps:
-      - uses: actions/checkout@v4
+      - name: Checkout
+        uses: actions/checkout@v4
 
-      - name: Install deps (emsdk + chromium)
+      - name: Install system deps
         run: |
           sudo apt-get update -y
-          sudo apt-get install -y build-essential cmake git python3 python3-pip curl pkg-config zip xvfb
-          sudo apt-get install -y chromium-browser || true  # on 22.04 may be a snap; fallback below
-          if ! command -v chromium-browser >/dev/null 2>&1; then
-            # Install Google Chrome stable if chromium-browser missing
-            wget -q -O - https://dl.google.com/linux/linux_signing_key.pub | sudo apt-key add -
-            echo "deb [arch=amd64] http://dl.google.com/linux/chrome/deb/ stable main" | sudo tee /etc/apt/sources.list.d/google-chrome.list
-            sudo apt-get update -y
-            sudo apt-get install -y google-chrome-stable
-          fi
-          git clone https://github.com/emscripten-core/emsdk.git
-          (cd emsdk && ./emsdk install latest && ./emsdk activate latest)
+          sudo apt-get install -y build-essential cmake git python3 python3-pip curl pkg-config zip
 
-      - name: Configure (build tests)
+      - name: Setup Emscripten SDK
+        run: |
+          git clone https://github.com/emscripten-core/emsdk.git
+          cd emsdk
+          ./emsdk install latest
+          ./emsdk activate latest
+
+      - name: Configure (emcmake + CMake) with tests
         run: |
           source ./emsdk/emsdk_env.sh
           emcmake cmake -S . -B build-wasm \
@@ -49,19 +47,14 @@ jobs:
           source ./emsdk/emsdk_env.sh
           cmake --build build-wasm -j
 
-      - name: Run tests in headless browser with emrun
-        env:
-          EM_TEST_BROWSER: google-chrome  # or chromium-browser if available
+      - name: List outputs
+        run: |
+          ls -lsah build-wasm || true
+          find build-wasm -maxdepth 2 -type f -name "test_leo_runtime.*" -print
+
+      - name: Run Catch2 under Node (skip window/graphics)
         run: |
           source ./emsdk/emsdk_env.sh
-          HTML=build-wasm/test_leo_runtime.html
-          if [ ! -f "$HTML" ]; then
-            echo "Missing $HTML"; ls -l build-wasm; exit 1
-          fi
-          # Prefer Chrome if present, else chromium
-          BROWSER=$(command -v google-chrome || command -v chromium-browser)
-          echo "Using browser: $BROWSER"
-          # Pass Catch2 filters in quotes if needed, e.g., "-- ~[slow]"
-          # XVFB to give emrun a virtual display in CI:
-          xvfb-run -a emrun --no_browser --timeout 180 --browser "$BROWSER" "$HTML"
+          # Catch2 test specs are passed as plain args; skip engine/window/graphics suites for Node
+          node build-wasm/test_leo_runtime.js "~[engine] ~[graphics] ~[draw] ~[loop]"
 

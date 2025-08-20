@@ -28,9 +28,9 @@ set(CMAKE_CXX_EXTENSIONS OFF)
 set(CMAKE_EXPORT_COMPILE_COMMANDS ON)
 
 if (EMSCRIPTEN)
-    set(CMAKE_C_EXTENSIONS ON)
-    set(CMAKE_CXX_EXTENSIONS ON)
-endif ()
+  set(CMAKE_C_EXTENSIONS ON)
+  set(CMAKE_CXX_EXTENSIONS ON)
+endif()
 
 # =========================
 # RPATH (relocatable builds)
@@ -160,17 +160,14 @@ if (LEO_BUILD_TESTS)
             $<TARGET_FILE_DIR:SDL3::SDL3>
     )
 
-    if (LEO_BUILD_TESTS AND EMSCRIPTEN)
-        # Build an .html runner and integrate with emrun
-        target_link_options(${TEST_RUNNER} PRIVATE
-                "--emrun"
-                "-sENVIRONMENT=web"
-                "-sEXIT_RUNTIME=1"
-                "-sALLOW_MEMORY_GROWTH=1"
-                # optional niceties:
-                "-sASSERTIONS=1"
-        )
-    endif ()
+    if (EMSCRIPTEN)
+    # Build for Node environment and allow exit() to terminate process.
+    target_link_options(${TEST_RUNNER} PRIVATE
+      "-sENVIRONMENT=node"
+      "-sEXIT_RUNTIME=1"
+      "-sALLOW_MEMORY_GROWTH=1"
+    )
+    endif()
 
     # ---- Post-build runtime handling (shared builds only) ----
     if (LEO_BUILD_SHARED)
