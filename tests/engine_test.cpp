@@ -144,7 +144,7 @@ TEST_CASE("leo_WindowShouldClose stays false until a quit/close event arrives", 
 	// Push an SDL_QUIT event and verify it latches true.
 	SDL_Event quitEv{};
 	quitEv.type = SDL_EVENT_QUIT;
-	REQUIRE(SDL_PushEvent(&quitEv) >= 0);
+	REQUIRE(SDL_PushEvent(&quitEv));
 
 	CHECK(leo_WindowShouldClose() == true);
 	// It remains true on subsequent calls (latched).
@@ -169,7 +169,7 @@ TEST_CASE("leo_WindowShouldClose reacts to WINDOW_CLOSE_REQUESTED", "[engine][lo
 	SDL_Event e{};
 	e.type = SDL_EVENT_WINDOW_CLOSE_REQUESTED;
 	e.window.windowID = SDL_GetWindowID(win);
-	REQUIRE(SDL_PushEvent(&e) >= 0);
+	REQUIRE(SDL_PushEvent(&e));
 
 	CHECK(leo_WindowShouldClose() == true);
 
