@@ -160,6 +160,15 @@ if (LEO_BUILD_TESTS)
             $<TARGET_FILE_DIR:SDL3::SDL3>
     )
 
+    if (EMSCRIPTEN)
+    # Build for Node environment and allow exit() to terminate process.
+    target_link_options(${TEST_RUNNER} PRIVATE
+      "-sENVIRONMENT=node"
+      "-sEXIT_RUNTIME=1"
+      "-sALLOW_MEMORY_GROWTH=1"
+    )
+    endif()
+
     # ---- Post-build runtime handling (shared builds only) ----
     if (LEO_BUILD_SHARED)
         if (WIN32)
