@@ -28,9 +28,9 @@ set(CMAKE_CXX_EXTENSIONS OFF)
 set(CMAKE_EXPORT_COMPILE_COMMANDS ON)
 
 if (EMSCRIPTEN)
-  set(CMAKE_C_EXTENSIONS ON)
-  set(CMAKE_CXX_EXTENSIONS ON)
-endif()
+    set(CMAKE_C_EXTENSIONS ON)
+    set(CMAKE_CXX_EXTENSIONS ON)
+endif ()
 
 # =========================
 # RPATH (relocatable builds)
@@ -51,6 +51,9 @@ option(LEO_BUILD_SHARED "Build Leo as a shared library" ON)
 option(LEO_BUILD_TESTS "Build unit tests" ON)
 option(LEO_VENDOR_SDL "Bundle SDL3 into install" ON)  # ON: vendored SDL; OFF: system/parent SDL
 
+if (EMSCRIPTEN)
+    set(LEO_BUILD_SHARED OFF CACHE BOOL "" FORCE)
+endif ()
 # =========================
 # Dependencies (SDL3)
 # =========================
@@ -72,12 +75,35 @@ else ()
     set(SDL_STATIC ON CACHE BOOL "" FORCE)
 endif ()
 
-FetchContent_Declare(
-        SDL3
-        GIT_REPOSITORY https://github.com/libsdl-org/SDL.git
-        GIT_TAG release-3.2.16
-)
-FetchContent_MakeAvailable(SDL3)
+
+find_package(SDL3 CONFIG QUIET)
+
+if (NOT SDL3_FOUND AND LEO_VENDOR_SDL)
+    include(FetchContent)
+    set(SDL_INSTALL ON CACHE BOOL "" FORCE)
+    set(SDL_TEST OFF CACHE BOOL "" FORCE)
+    # Toggle shared/static only for native; Emscripten is static anyway
+    if (NOT EMSCRIPTEN)
+        if (LEO_BUILD_SHARED)
+            set(SDL_SHARED ON CACHE BOOL "" FORCE)
+            set(SDL_STATIC OFF CACHE BOOL "" FORCE)
+        else ()
+            set(SDL_SHARED OFF CACHE BOOL "" FORCE)
+            set(SDL_STATIC ON CACHE BOOL "" FORCE)
+        endif ()
+    endif ()
+
+    FetchContent_Declare(
+            SDL3
+            GIT_REPOSITORY https://github.com/libsdl-org/SDL.git
+            GIT_TAG release-3.2.16
+    )
+    FetchContent_MakeAvailable(SDL3)
+endif ()
+
+if (NOT TARGET SDL3::SDL3)
+    message(FATAL_ERROR "SDL3::SDL3 not found. Set LEO_VENDOR_SDL=ON or provide SDL3.")
+endif ()
 
 # =========================
 # Sources
@@ -161,13 +187,13 @@ if (LEO_BUILD_TESTS)
     )
 
     if (EMSCRIPTEN)
-    # Build for Node environment and allow exit() to terminate process.
-    target_link_options(${TEST_RUNNER} PRIVATE
-      "-sENVIRONMENT=node"
-      "-sEXIT_RUNTIME=1"
-      "-sALLOW_MEMORY_GROWTH=1"
-    )
-    endif()
+        # Build for Node environment and allow exit() to terminate process.
+        target_link_options(${TEST_RUNNER} PRIVATE
+                "-sENVIRONMENT=node"
+                "-sEXIT_RUNTIME=1"
+                "-sALLOW_MEMORY_GROWTH=1"
+        )
+    endif ()
 
     # ---- Post-build runtime handling (shared builds only) ----
     if (LEO_BUILD_SHARED)
