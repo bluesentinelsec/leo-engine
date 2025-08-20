@@ -61,3 +61,21 @@ void leo_DrawCircle(int centerX, int centerY, float radius, leo_Color color)
 		}
 	}
 }
+
+void leo_DrawRectangle(int posX, int posY, int width, int height, leo_Color color)
+{
+	SDL_Renderer* renderer = (SDL_Renderer*)leo_GetRenderer();
+	if (!renderer) return;
+
+	SDL_SetRenderDrawColor(renderer, color.r, color.g, color.b, color.a);
+
+	// Try using SDL's built-in rectangle filling first
+	SDL_Rect rect = { posX, posY, width, height };
+	
+	// For filled rectangles, we need to draw horizontal lines
+	// This is more efficient than individual pixels
+	for (int y = 0; y < height; y++)
+	{
+		SDL_RenderLine(renderer, posX, posY + y, posX + width - 1, posY + y);
+	}
+}

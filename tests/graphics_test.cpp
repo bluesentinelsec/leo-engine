@@ -376,3 +376,214 @@ TEST_CASE("leo_DrawCircle draws circles with correct color and coverage", "[grap
 	SDL_DestroyTexture(target);
 	leo_EndDrawing();
 }
+
+TEST_CASE("leo_DrawRectangle draws filled rectangles with correct color and coverage", "[graphics][rectangle]")
+{
+	EngineFixture fx(20, 20, "rectangle-test");
+
+	auto* renderer = static_cast<SDL_Renderer*>(leo_GetRenderer());
+	REQUIRE(renderer != nullptr);
+
+	// Create a known, readable render target
+	SDL_Texture* target = SDL_CreateTexture(renderer,
+		SDL_PIXELFORMAT_ARGB8888,
+		SDL_TEXTUREACCESS_TARGET,
+		20, 20);
+	REQUIRE(target != nullptr);
+	REQUIRE(SDL_SetRenderTarget(renderer, target));
+
+	// Common clear
+	leo_BeginDrawing();
+	leo_ClearBackground(0, 0, 0, 255);
+
+	SECTION("Small rectangle (5x3) exact coverage")
+	{
+		const int posX = 5, posY = 5;
+		const int width = 5, height = 3;
+		const leo_Color c = { 100, 150, 200, 255 };
+
+		leo_DrawRectangle(posX, posY, width, height, c);
+
+		// Test corners of the rectangle
+		uint8_t r = 0, g = 0, b = 0, a = 0;
+		
+		// Top-left corner
+		REQUIRE(read_pixel(renderer, posX, posY, r, g, b, a));
+		CHECK(a == 255);
+		CHECK(r == 100);
+		CHECK(g == 150);
+		CHECK(b == 200);
+
+		// Top-right corner
+		REQUIRE(read_pixel(renderer, posX + width - 1, posY, r, g, b, a));
+		CHECK(a == 255);
+		CHECK(r == 100);
+		CHECK(g == 150);
+		CHECK(b == 200);
+
+		// Bottom-left corner
+		REQUIRE(read_pixel(renderer, posX, posY + height - 1, r, g, b, a));
+		CHECK(a == 255);
+		CHECK(r == 100);
+		CHECK(g == 150);
+		CHECK(b == 200);
+
+		// Bottom-right corner
+		REQUIRE(read_pixel(renderer, posX + width - 1, posY + height - 1, r, g, b, a));
+		CHECK(a == 255);
+		CHECK(r == 100);
+		CHECK(g == 150);
+		CHECK(b == 200);
+
+		// Test center of the rectangle
+		REQUIRE(read_pixel(renderer, posX + width/2, posY + height/2, r, g, b, a));
+		CHECK(a == 255);
+		CHECK(r == 100);
+		CHECK(g == 150);
+		CHECK(b == 200);
+
+		// Test that pixels outside the rectangle are not drawn
+		REQUIRE(read_pixel(renderer, posX - 1, posY, r, g, b, a));
+		CHECK(a == 255);
+		CHECK(r == 0);
+		CHECK(g == 0);
+		CHECK(b == 0);
+
+		REQUIRE(read_pixel(renderer, posX + width, posY, r, g, b, a));
+		CHECK(a == 255);
+		CHECK(r == 0);
+		CHECK(g == 0);
+		CHECK(b == 0);
+
+		REQUIRE(read_pixel(renderer, posX, posY - 1, r, g, b, a));
+		CHECK(a == 255);
+		CHECK(r == 0);
+		CHECK(g == 0);
+		CHECK(b == 0);
+
+		REQUIRE(read_pixel(renderer, posX, posY + height, r, g, b, a));
+		CHECK(a == 255);
+		CHECK(r == 0);
+		CHECK(g == 0);
+		CHECK(b == 0);
+	}
+
+	SECTION("Large rectangle (8x6) with different color")
+	{
+		// Re-clear before second section
+		leo_ClearBackground(0, 0, 0, 255);
+
+		const int posX = 2, posY = 2;
+		const int width = 8, height = 6;
+		const leo_Color c = { 255, 0, 128, 255 };
+
+		leo_DrawRectangle(posX, posY, width, height, c);
+
+		// Test key points inside the rectangle
+		uint8_t r = 0, g = 0, b = 0, a = 0;
+		
+		// Top-left corner
+		REQUIRE(read_pixel(renderer, posX, posY, r, g, b, a));
+		CHECK(a == 255);
+		CHECK(r == 255);
+		CHECK(g == 0);
+		CHECK(b == 128);
+
+		// Bottom-right corner
+		REQUIRE(read_pixel(renderer, posX + width - 1, posY + height - 1, r, g, b, a));
+		CHECK(a == 255);
+		CHECK(r == 255);
+		CHECK(g == 0);
+		CHECK(b == 128);
+
+		// Center point
+		REQUIRE(read_pixel(renderer, posX + width/2, posY + height/2, r, g, b, a));
+		CHECK(a == 255);
+		CHECK(r == 255);
+		CHECK(g == 0);
+		CHECK(b == 128);
+
+		// Test that pixels outside are not drawn
+		REQUIRE(read_pixel(renderer, posX + width, posY, r, g, b, a));
+		CHECK(a == 255);
+		CHECK(r == 0);
+		CHECK(g == 0);
+		CHECK(b == 0);
+	}
+
+	SECTION("Rectangle at edge of texture")
+	{
+		// Re-clear before third section
+		leo_ClearBackground(0, 0, 0, 255);
+
+		const int posX = 15, posY = 15;
+		const int width = 4, height = 4;
+		const leo_Color c = { 0, 255, 0, 255 };
+
+		leo_DrawRectangle(posX, posY, width, height, c);
+
+		// Test that the rectangle is drawn correctly even near edges
+		uint8_t r = 0, g = 0, b = 0, a = 0;
+		
+		// Top-left corner (should be at 15,15)
+		REQUIRE(read_pixel(renderer, posX, posY, r, g, b, a));
+		CHECK(a == 255);
+		CHECK(r == 0);
+		CHECK(g == 255);
+		CHECK(b == 0);
+
+		// Bottom-right corner (should be at 18,18)
+		REQUIRE(read_pixel(renderer, posX + width - 1, posY + height - 1, r, g, b, a));
+		CHECK(a == 255);
+		CHECK(r == 0);
+		CHECK(g == 255);
+		CHECK(b == 0);
+
+		// Test that pixels outside the texture bounds are not drawn
+		// This should fail gracefully or not draw
+		REQUIRE(read_pixel(renderer, posX + width, posY, r, g, b, a));
+		CHECK(a == 255);
+		CHECK(r == 0);
+		CHECK(g == 0);
+		CHECK(b == 0);
+	}
+
+	SECTION("Single pixel rectangle")
+	{
+		// Re-clear before fourth section
+		leo_ClearBackground(0, 0, 0, 255);
+
+		const int posX = 10, posY = 10;
+		const int width = 1, height = 1;
+		const leo_Color c = { 128, 128, 128, 255 };
+
+		leo_DrawRectangle(posX, posY, width, height, c);
+
+		// Test that the single pixel is drawn
+		uint8_t r = 0, g = 0, b = 0, a = 0;
+		
+		REQUIRE(read_pixel(renderer, posX, posY, r, g, b, a));
+		CHECK(a == 255);
+		CHECK(r == 128);
+		CHECK(g == 128);
+		CHECK(b == 128);
+
+		// Test that neighboring pixels are not drawn
+		REQUIRE(read_pixel(renderer, posX + 1, posY, r, g, b, a));
+		CHECK(a == 255);
+		CHECK(r == 0);
+		CHECK(g == 0);
+		CHECK(b == 0);
+
+		REQUIRE(read_pixel(renderer, posX, posY + 1, r, g, b, a));
+		CHECK(a == 255);
+		CHECK(r == 0);
+		CHECK(g == 0);
+		CHECK(b == 0);
+	}
+
+	// Restore & cleanup
+	REQUIRE(SDL_SetRenderTarget(renderer, nullptr));
+	SDL_DestroyTexture(target);
+	leo_EndDrawing();
+}
