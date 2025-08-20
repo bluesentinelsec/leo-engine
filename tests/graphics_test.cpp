@@ -198,3 +198,181 @@ TEST_CASE("leo_DrawLine draws horizontal and vertical lines with correct color",
 	SDL_DestroyTexture(target);
 	leo_EndDrawing();
 }
+
+TEST_CASE("leo_DrawCircle draws circles with correct color and coverage", "[graphics][circle]")
+{
+	EngineFixture fx(20, 20, "circle-test");
+
+	auto* renderer = static_cast<SDL_Renderer*>(leo_GetRenderer());
+	REQUIRE(renderer != nullptr);
+
+	// Create a known, readable render target
+	SDL_Texture* target = SDL_CreateTexture(renderer,
+		SDL_PIXELFORMAT_ARGB8888,
+		SDL_TEXTUREACCESS_TARGET,
+		20, 20);
+	REQUIRE(target != nullptr);
+	REQUIRE(SDL_SetRenderTarget(renderer, target));
+
+	// Common clear
+	leo_BeginDrawing();
+	leo_ClearBackground(0, 0, 0, 255);
+
+	SECTION("Small circle (radius 3) exact coverage")
+	{
+		const int centerX = 10, centerY = 10;
+		const float radius = 3.0f;
+		const leo_Color c = { 100, 150, 200, 255 };
+
+		leo_DrawCircle(centerX, centerY, radius, c);
+
+		// Test key points on the circle perimeter
+		// Rightmost point
+		uint8_t r = 0, g = 0, b = 0, a = 0;
+		REQUIRE(read_pixel(renderer, centerX + 3, centerY, r, g, b, a));
+		CHECK(a == 255);
+		CHECK(r == 100);
+		CHECK(g == 150);
+		CHECK(b == 200);
+
+		// Bottom point
+		REQUIRE(read_pixel(renderer, centerX, centerY + 3, r, g, b, a));
+		CHECK(a == 255);
+		CHECK(r == 100);
+		CHECK(g == 150);
+		CHECK(b == 200);
+
+		// Leftmost point
+		REQUIRE(read_pixel(renderer, centerX - 3, centerY, r, g, b, a));
+		CHECK(a == 255);
+		CHECK(r == 100);
+		CHECK(g == 150);
+		CHECK(b == 200);
+
+		// Top point
+		REQUIRE(read_pixel(renderer, centerX, centerY - 3, r, g, b, a));
+		CHECK(a == 255);
+		CHECK(r == 100);
+		CHECK(g == 150);
+		CHECK(b == 200);
+
+		// Diagonal points (should be drawn)
+		REQUIRE(read_pixel(renderer, centerX + 2, centerY + 2, r, g, b, a));
+		CHECK(a == 255);
+		CHECK(r == 100);
+		CHECK(g == 150);
+		CHECK(b == 200);
+
+		// Test that pixels outside the circle are not drawn
+		REQUIRE(read_pixel(renderer, centerX + 4, centerY, r, g, b, a));
+		CHECK(a == 255);
+		CHECK(r == 0);
+		CHECK(g == 0);
+		CHECK(b == 0);
+
+		REQUIRE(read_pixel(renderer, centerX, centerY + 4, r, g, b, a));
+		CHECK(a == 255);
+		CHECK(r == 0);
+		CHECK(g == 0);
+		CHECK(b == 0);
+	}
+
+	SECTION("Medium circle (radius 5) with different color")
+	{
+		// Re-clear before second section
+		leo_ClearBackground(0, 0, 0, 255);
+
+		const int centerX = 10, centerY = 10;
+		const float radius = 5.0f;
+		const leo_Color c = { 255, 0, 128, 255 };
+
+		leo_DrawCircle(centerX, centerY, radius, c);
+
+		// Test key points on the circle perimeter
+		uint8_t r = 0, g = 0, b = 0, a = 0;
+		
+		// Rightmost point
+		REQUIRE(read_pixel(renderer, centerX + 5, centerY, r, g, b, a));
+		CHECK(a == 255);
+		CHECK(r == 255);
+		CHECK(g == 0);
+		CHECK(b == 128);
+
+		// Bottom point
+		REQUIRE(read_pixel(renderer, centerX, centerY + 5, r, g, b, a));
+		CHECK(a == 255);
+		CHECK(r == 255);
+		CHECK(g == 0);
+		CHECK(b == 128);
+
+		// Test that pixels outside the circle are not drawn
+		REQUIRE(read_pixel(renderer, centerX + 6, centerY, r, g, b, a));
+		CHECK(a == 255);
+		CHECK(r == 0);
+		CHECK(g == 0);
+		CHECK(b == 0);
+	}
+
+	SECTION("Circle at edge of texture")
+	{
+		// Re-clear before third section
+		leo_ClearBackground(0, 0, 0, 255);
+
+		const int centerX = 5, centerY = 5;
+		const float radius = 4.0f;
+		const leo_Color c = { 0, 255, 0, 255 };
+
+		leo_DrawCircle(centerX, centerY, radius, c);
+
+		// Test that the circle is drawn correctly even near edges
+		uint8_t r = 0, g = 0, b = 0, a = 0;
+		
+		// Rightmost point (should be at x=9)
+		REQUIRE(read_pixel(renderer, centerX + 4, centerY, r, g, b, a));
+		CHECK(a == 255);
+		CHECK(r == 0);
+		CHECK(g == 255);
+		CHECK(b == 0);
+
+		// Test that pixels outside the circle are not drawn
+		REQUIRE(read_pixel(renderer, centerX + 5, centerY, r, g, b, a));
+		CHECK(a == 255);
+		CHECK(r == 0);
+		CHECK(g == 0);
+		CHECK(b == 0);
+	}
+
+	SECTION("Float radius handling")
+	{
+		// Re-clear before fourth section
+		leo_ClearBackground(0, 0, 0, 255);
+
+		const int centerX = 10, centerY = 10;
+		const float radius = 2.7f; // Should round to 3
+		const leo_Color c = { 128, 128, 128, 255 };
+
+		leo_DrawCircle(centerX, centerY, radius, c);
+
+		// Test that the circle is drawn with rounded radius
+		uint8_t r = 0, g = 0, b = 0, a = 0;
+		
+		// Should draw at radius 3 (rounded from 2.7)
+		REQUIRE(read_pixel(renderer, centerX + 3, centerY, r, g, b, a));
+		CHECK(a == 255);
+		CHECK(r == 128);
+		CHECK(g == 128);
+		CHECK(b == 128);
+
+		// Should not draw at radius 4
+		REQUIRE(read_pixel(renderer, centerX + 4, centerY, r, g, b, a));
+		CHECK(a == 255);
+		CHECK(r == 0);
+		CHECK(g == 0);
+		CHECK(b == 0);
+	}
+
+	// Restore & cleanup
+	REQUIRE(SDL_SetRenderTarget(renderer, nullptr));
+	SDL_DestroyTexture(target);
+	leo_EndDrawing();
+}
