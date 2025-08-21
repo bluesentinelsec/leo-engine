@@ -131,7 +131,7 @@ bool leo_SetFullscreen(bool enabled)
 		leo_SetError("leo_SetFullscreen called before leo_InitWindow");
 		return false;
 	}
-	if (SDL_SetWindowFullscreen(globalWindow, enabled) < 0)
+	if (!SDL_SetWindowFullscreen(globalWindow, enabled))
 	{
 		leo_SetError("%s", SDL_GetError());
 		return false;
