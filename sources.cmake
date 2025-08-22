@@ -3,6 +3,7 @@ set(LEO_SOURCES
         src/error.c
         src/graphics.c
         src/keyboard.c
+        src/image.c
 )
 
 set(LEO_TEST_SOURCES
@@ -10,4 +11,5 @@ set(LEO_TEST_SOURCES
         tests/error_test.cpp
         tests/graphics_test.cpp
         tests/keyboard_test.cpp
+        tests/image_test.cpp
 )
