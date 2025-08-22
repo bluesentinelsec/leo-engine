@@ -1,5 +1,6 @@
 #include "leo/engine.h"
 #include "leo/error.h"
+#include "leo/keyboard.h"
 
 #include <SDL3/SDL.h>
 
@@ -111,6 +112,7 @@ void leo_CloseWindow()
 	s_targetFPS = 0;
 	s_targetFrameSecs = 0.0;
 
+	leo_CleanupKeyboard();
 	SDL_Quit();
 }
 
@@ -157,6 +159,11 @@ bool leo_WindowShouldClose(void)
 		default:
 			break;
 		}
+	}
+	leo_UpdateKeyboard();
+	if (leo_IsExitKeyPressed())
+	{
+		s_quit = 1;
 	}
 
 	return s_quit != 0;
