@@ -48,9 +48,9 @@ LEO_API void leo_CleanupKeyboard(void);
 #ifdef TESTING
 // Expose internal state for testing purposes
 // These variables allow keyboard_test.cpp to directly manipulate and verify state
-extern int s_numKeys;
-extern bool* s_currentKeys;
-extern bool* s_prevKeys;
+extern LEO_API int s_numKeys;
+extern LEO_API bool* s_currentKeys;
+extern LEO_API bool* s_prevKeys;
 
 // Test mode functions
 LEO_API void leo_EnableTestMode(void);

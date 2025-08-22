@@ -11,9 +11,9 @@
 // Global keyboard state variables
 #ifdef TESTING
 // When testing, make variables accessible to test code
-extern LEO_API int s_numKeys = 0;
-extern LEO_API bool* s_currentKeys = NULL;
-extern LEO_API bool* s_prevKeys = NULL;
+int s_numKeys = 0;
+bool* s_currentKeys = NULL;
+bool* s_prevKeys = NULL;
 static bool s_testMode = false; // Test mode flag
 #else
 // In production, keep variables static for encapsulation
