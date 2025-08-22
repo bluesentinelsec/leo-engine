@@ -1,3 +1,12 @@
+#ifndef LEO_KEYBOARD_H
+#define LEO_KEYBOARD_H
+
+#include <SDL3/SDL.h>
+
+#ifdef __cplusplus
+extern "C" {
+#endif
+
 #pragma once
 
 // Input-related functions: keyboard
@@ -24,4 +33,32 @@ int leo_GetCharPressed(void);
 
 // Set a custom key to exit program (default is ESC)
 void leo_SetExitKey(int key);
+
+// Update keyboard state (call this each frame)
+void leo_UpdateKeyboard(void);
+
+// Check if the exit key is pressed
+bool leo_IsExitKeyPressed(void);
+
+// Cleanup keyboard resources (call this when shutting down)
+void leo_CleanupKeyboard(void);
+
+#ifdef TESTING
+// Expose internal state for testing purposes
+// These variables allow keyboard_test.cpp to directly manipulate and verify state
+extern int s_numKeys;
+extern bool* s_currentKeys;
+extern bool* s_prevKeys;
+
+// Test mode functions
+void leo_EnableTestMode(void);
+void leo_DisableTestMode(void);
+void leo_SetTestKeyState(SDL_Scancode scancode, bool pressed);
+#endif
+
+#ifdef __cplusplus
+} // extern "C"
+#endif
+
+#endif // LEO_KEYBOARD_H
 

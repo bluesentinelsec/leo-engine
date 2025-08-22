@@ -234,11 +234,13 @@ endif ()
 target_compile_definitions(${PROJECT_NAME} PRIVATE
         $<$<CONFIG:Debug>:DEBUG>
         $<$<NOT:$<CONFIG:Debug>>:NDEBUG>
+        $<$<BOOL:${LEO_BUILD_TESTS}>:TESTING>
 )
 
 if (LEO_BUILD_TESTS)
     target_compile_definitions(${TEST_RUNNER} PRIVATE
             $<$<CONFIG:Debug>:DEBUG>
             $<$<NOT:$<CONFIG:Debug>>:NDEBUG>
+            TESTING
     )
 endif ()
