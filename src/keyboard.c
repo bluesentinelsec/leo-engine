@@ -11,9 +11,9 @@
 // Global keyboard state variables
 #ifdef TESTING
 // When testing, make variables accessible to test code
-int s_numKeys = 0;
-bool* s_currentKeys = NULL;
-bool* s_prevKeys = NULL;
+extern LEO_API int s_numKeys = 0;
+extern LEO_API bool* s_currentKeys = NULL;
+extern LEO_API bool* s_prevKeys = NULL;
 static bool s_testMode = false; // Test mode flag
 #else
 // In production, keep variables static for encapsulation
@@ -30,12 +30,16 @@ static void leo_InitKeyboard(void)
 	if (!s_keyboardInitialized)
 	{
 #ifdef TESTING
-		if (!s_testMode) {
+		if (!s_testMode)
+		{
 			// Only get SDL state when not in test mode
 			SDL_GetKeyboardState(&s_numKeys); // get numKeys
-		} else {
+		}
+		else
+		{
 			// In test mode, use a reasonable default if not set
-			if (s_numKeys == 0) {
+			if (s_numKeys == 0)
+			{
 				s_numKeys = 512; // Reasonable default for testing
 			}
 		}
@@ -54,12 +58,13 @@ static void leo_InitKeyboard(void)
 void leo_UpdateKeyboard(void)
 {
 	leo_InitKeyboard();
-	
+
 	// Copy current state to previous state
 	memcpy(s_prevKeys, s_currentKeys, s_numKeys * sizeof(bool));
-	
+
 #ifdef TESTING
-	if (!s_testMode) {
+	if (!s_testMode)
+	{
 		// Get current SDL keyboard state (normal mode)
 		const bool* sdlKeys = SDL_GetKeyboardState(NULL);
 		memcpy(s_currentKeys, sdlKeys, s_numKeys * sizeof(bool));
@@ -74,16 +79,20 @@ void leo_UpdateKeyboard(void)
 
 #ifdef TESTING
 // Test mode functions
-void leo_EnableTestMode(void) {
+void leo_EnableTestMode(void)
+{
 	s_testMode = true;
 }
 
-void leo_DisableTestMode(void) {
+void leo_DisableTestMode(void)
+{
 	s_testMode = false;
 }
 
-void leo_SetTestKeyState(SDL_Scancode scancode, bool pressed) {
-	if (scancode >= 0 && scancode < s_numKeys) {
+void leo_SetTestKeyState(SDL_Scancode scancode, bool pressed)
+{
+	if (scancode >= 0 && scancode < s_numKeys)
+	{
 		s_currentKeys[scancode] = pressed;
 	}
 }
@@ -92,13 +101,16 @@ void leo_SetTestKeyState(SDL_Scancode scancode, bool pressed) {
 bool leo_IsKeyPressed(int key)
 {
 	leo_InitKeyboard();
-	
+
 	SDL_Scancode scancode;
-	
+
 	// Check if the key is already a scan code (0-511 range)
-	if (key >= 0 && key < s_numKeys) {
+	if (key >= 0 && key < s_numKeys)
+	{
 		scancode = (SDL_Scancode)key;
-	} else {
+	}
+	else
+	{
 		// Convert key code to scan code if needed
 		SDL_Keymod modstate;
 		scancode = SDL_GetScancodeFromKey(key, &modstate);
@@ -107,12 +119,13 @@ bool leo_IsKeyPressed(int key)
 			scancode = (SDL_Scancode)key; // Assume it's already a scan code
 		}
 	}
-	
+
 	// Ensure the scan code is within bounds before accessing the array
-	if (scancode < 0 || scancode >= s_numKeys) {
+	if (scancode < 0 || scancode >= s_numKeys)
+	{
 		return false; // Out of bounds
 	}
-	
+
 	// Key is pressed if it's down now but wasn't down before
 	return s_currentKeys[scancode] && !s_prevKeys[scancode];
 }
@@ -120,13 +133,16 @@ bool leo_IsKeyPressed(int key)
 bool leo_IsKeyPressedRepeat(int key)
 {
 	leo_InitKeyboard();
-	
+
 	SDL_Scancode scancode;
-	
+
 	// Check if the key is already a scan code (0-511 range)
-	if (key >= 0 && key < s_numKeys) {
+	if (key >= 0 && key < s_numKeys)
+	{
 		scancode = (SDL_Scancode)key;
-	} else {
+	}
+	else
+	{
 		// Convert key code to scan code if needed
 		SDL_Keymod modstate;
 		scancode = SDL_GetScancodeFromKey(key, &modstate);
@@ -135,12 +151,13 @@ bool leo_IsKeyPressedRepeat(int key)
 			scancode = (SDL_Scancode)key; // Assume it's already a scan code
 		}
 	}
-	
+
 	// Ensure the scan code is within bounds before accessing the array
-	if (scancode < 0 || scancode >= s_numKeys) {
+	if (scancode < 0 || scancode >= s_numKeys)
+	{
 		return false; // Out of bounds
 	}
-	
+
 	// Key is "pressed again" if it's currently down and was down before
 	return s_currentKeys[scancode] && s_prevKeys[scancode];
 }
@@ -148,13 +165,16 @@ bool leo_IsKeyPressedRepeat(int key)
 bool leo_IsKeyDown(int key)
 {
 	leo_InitKeyboard();
-	
+
 	SDL_Scancode scancode;
-	
+
 	// Check if the key is already a scan code (0-511 range)
-	if (key >= 0 && key < s_numKeys) {
+	if (key >= 0 && key < s_numKeys)
+	{
 		scancode = (SDL_Scancode)key;
-	} else {
+	}
+	else
+	{
 		// Convert key code to scan code if needed
 		SDL_Keymod modstate;
 		scancode = SDL_GetScancodeFromKey(key, &modstate);
@@ -163,12 +183,13 @@ bool leo_IsKeyDown(int key)
 			scancode = (SDL_Scancode)key; // Assume it's already a scan code
 		}
 	}
-	
+
 	// Ensure the scan code is within bounds before accessing the array
-	if (scancode < 0 || scancode >= s_numKeys) {
+	if (scancode < 0 || scancode >= s_numKeys)
+	{
 		return false; // Out of bounds
 	}
-	
+
 	// Key is down if it's currently pressed
 	return s_currentKeys[scancode];
 }
@@ -176,13 +197,16 @@ bool leo_IsKeyDown(int key)
 bool leo_IsKeyReleased(int key)
 {
 	leo_InitKeyboard();
-	
+
 	SDL_Scancode scancode;
-	
+
 	// Check if the key is already a scan code (0-511 range)
-	if (key >= 0 && key < s_numKeys) {
+	if (key >= 0 && key < s_numKeys)
+	{
 		scancode = (SDL_Scancode)key;
-	} else {
+	}
+	else
+	{
 		// Convert key code to scan code if needed
 		SDL_Keymod modstate;
 		scancode = SDL_GetScancodeFromKey(key, &modstate);
@@ -191,12 +215,13 @@ bool leo_IsKeyReleased(int key)
 			scancode = (SDL_Scancode)key; // Assume it's already a scan code
 		}
 	}
-	
+
 	// Ensure the scan code is within bounds before accessing the array
-	if (scancode < 0 || scancode >= s_numKeys) {
+	if (scancode < 0 || scancode >= s_numKeys)
+	{
 		return false; // Out of bounds
 	}
-	
+
 	// Key is released if it was down before but isn't down now
 	return !s_currentKeys[scancode] && s_prevKeys[scancode];
 }
@@ -204,13 +229,16 @@ bool leo_IsKeyReleased(int key)
 bool leo_IsKeyUp(int key)
 {
 	leo_InitKeyboard();
-	
+
 	SDL_Scancode scancode;
-	
+
 	// Check if the key is already a scan code (0-511 range)
-	if (key >= 0 && key < s_numKeys) {
+	if (key >= 0 && key < s_numKeys)
+	{
 		scancode = (SDL_Scancode)key;
-	} else {
+	}
+	else
+	{
 		// Convert key code to scan code if needed
 		SDL_Keymod modstate;
 		scancode = SDL_GetScancodeFromKey(key, &modstate);
@@ -219,12 +247,13 @@ bool leo_IsKeyUp(int key)
 			scancode = (SDL_Scancode)key; // Assume it's already a scan code
 		}
 	}
-	
+
 	// Ensure the scan code is within bounds before accessing the array
-	if (scancode < 0 || scancode >= s_numKeys) {
+	if (scancode < 0 || scancode >= s_numKeys)
+	{
 		return true; // Out of bounds keys are considered "up"
 	}
-	
+
 	// Key is up if it's not currently pressed
 	return !s_currentKeys[scancode];
 }
@@ -232,7 +261,7 @@ bool leo_IsKeyUp(int key)
 int leo_GetKeyPressed(void)
 {
 	leo_InitKeyboard();
-	
+
 	// Find the first key that was just pressed this frame
 	for (int i = 0; i < s_numKeys; i++)
 	{
@@ -242,7 +271,7 @@ int leo_GetKeyPressed(void)
 			return SDL_GetKeyFromScancode((SDL_Scancode)i, SDL_KMOD_NONE, false);
 		}
 	}
-	
+
 	return 0; // 0 = no key queued
 }
 
@@ -250,13 +279,13 @@ int leo_GetCharPressed(void)
 {
 	// Get the first key that was just pressed
 	int keyPressed = leo_GetKeyPressed();
-	
+
 	// Convert to character if it's a printable ASCII character
 	if (keyPressed >= 32 && keyPressed <= 126) // Printable ASCII range
 	{
 		return keyPressed;
 	}
-	
+
 	return 0; // 0 = no char queued
 }
 
