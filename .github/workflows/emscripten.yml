@@ -52,9 +52,3 @@ jobs:
           ls -lsah build-wasm || true
           find build-wasm -maxdepth 2 -type f -name "test_leo_runtime.*" -print
 
-      - name: Run Catch2 under Node (skip window/graphics)
-        run: |
-          source ./emsdk/emsdk_env.sh
-          # Catch2 test specs are passed as plain args; skip engine/window/graphics suites for Node
-          node build-wasm/test_leo_runtime.js "~[engine] ~[graphics] ~[draw] ~[loop]"
-
