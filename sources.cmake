@@ -5,6 +5,7 @@ set(LEO_SOURCES
         src/keyboard.c
         src/image.c
         src/audio.c
+        src/font.c
         external/miniaudio/miniaudio.c
         external/getopt/getopt.c
 )
@@ -17,4 +18,7 @@ set(LEO_TEST_SOURCES
         tests/image_test.cpp
         tests/caller_testing.cpp
         tests/audio_test.cpp
+        tests/font_test.cpp
+        tests/font_step2_load_draw_test.cpp
+        tests/font_step3_spacing_rotation_test.cpp
 )
