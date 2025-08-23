@@ -67,7 +67,8 @@ static leo_Font _load_from_ttf_bytes(const unsigned char* ttf, int ttfSize, int 
 	stbtt_bakedchar* baked = NULL;
 	int bakeRes = 0;
 
-	for (int attempt = 0; attempt < 3; ++attempt)
+	int attempt;
+	for (attempt = 0; attempt < 3; ++attempt)
 	{
 		free(bitmap);
 		free(baked);
@@ -102,7 +103,8 @@ static leo_Font _load_from_ttf_bytes(const unsigned char* ttf, int ttfSize, int 
 		leo_SetError("leo_LoadFont: OOM (rgba)");
 		goto fail;
 	}
-	for (int i = 0; i < atlasW * atlasH; ++i)
+	int i;
+	for (i = 0; i < atlasW * atlasH; ++i)
 	{
 		unsigned char a = bitmap[i];
 		rgba[4 * i + 0] = 255;
@@ -248,7 +250,8 @@ static void _draw_text_impl(leo_Font font, const char* text,
 	const double angle = (double)rotationDeg;
 	const bool doRotate = (rotationDeg != 0.0f);
 
-	for (const unsigned char* p = (const unsigned char*)text; *p; ++p)
+	const unsigned char* p;
+	for (p = (const unsigned char*)text; *p; ++p)
 	{
 		int ch = (int)*p;
 		if (ch < tbl->first || ch >= tbl->first + tbl->count)
@@ -357,7 +360,8 @@ leo_Vector2 leo_MeasureTextEx(leo_Font font, const char* text, float fontSize, f
 	float x = 0.0f, y = 0.0f;
 	float maxRight = 0.0f;
 
-	for (const unsigned char* p = (const unsigned char*)text; *p; ++p)
+	const unsigned char* p;
+	for (p = (const unsigned char*)text; *p; ++p)
 	{
 		int ch = (int)*p;
 		if (ch < tbl->first || ch >= tbl->first + tbl->count) continue;

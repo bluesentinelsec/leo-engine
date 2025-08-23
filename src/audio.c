@@ -73,7 +73,7 @@ static void _fill_advisory_fields(leo_Sound* out, const ma_sound* snd)
 {
 	if (!out || !snd) return;
 	ma_uint32 ch = 0, sr = 0;
-	ma_sound_get_data_format(snd, NULL, &ch, &sr, NULL, 0);
+	ma_sound_get_data_format((ma_sound*)snd, NULL, &ch, &sr, NULL, 0);
 	out->channels = (int)ch;
 	out->sampleRate = (int)sr;
 }
