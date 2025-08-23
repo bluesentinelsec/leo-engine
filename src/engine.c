@@ -373,6 +373,14 @@ void leo_BeginMode2D(leo_Camera2D camera)
 	{
 		// degrade gracefully: overwrite top
 	}
+	// Guard rails for raylib-style behavior
+	if (camera.zoom <= 0.0f) camera.zoom = 1.0f;
+	// Optional: keep rotation bounded (raylib doesn't require it, but it's harmless)
+	if (camera.rotation > 360.0f || camera.rotation < -360.0f)
+	{
+		int k = (int)(camera.rotation / 360.0f);
+		camera.rotation -= 360.0f * (float)k;
+	}
 	s_camStack[s_camTop] = camera;
 	_rebuildCameraMatrix(&s_camStack[s_camTop]);
 }
@@ -399,6 +407,7 @@ leo_Camera2D leo_GetCurrentCamera2D(void)
 
 leo_Vector2 leo_GetWorldToScreen2D(leo_Vector2 p, leo_Camera2D cam)
 {
+	if (cam.zoom <= 0.0f) cam.zoom = 1.0f;
 	float m11, m12, m21, m22, tx, ty;
 	_buildCam3x2(&cam, &m11, &m12, &m21, &m22, &tx, &ty);
 	leo_Vector2 out = {
@@ -410,6 +419,7 @@ leo_Vector2 leo_GetWorldToScreen2D(leo_Vector2 p, leo_Camera2D cam)
 
 leo_Vector2 leo_GetScreenToWorld2D(leo_Vector2 p, leo_Camera2D cam)
 {
+	if (cam.zoom <= 0.0f) cam.zoom = 1.0f;
 	float m11, m12, m21, m22, tx, ty;
 	_buildCam3x2(&cam, &m11, &m12, &m21, &m22, &tx, &ty);
 	const float sx = p.x - tx;
