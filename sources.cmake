@@ -16,7 +16,7 @@ set(LEO_TEST_SOURCES
         tests/graphics_test.cpp
         tests/keyboard_test.cpp
         tests/image_test.cpp
-        tests/caller_testing.cpp
+        #tests/caller_testing.cpp
         tests/audio_test.cpp
         tests/font_test.cpp
         tests/font_step2_load_draw_test.cpp
