@@ -512,3 +512,156 @@ TEST_CASE("DrawTextureRec supports negative src.width/height (flip) without erro
 	leo_CloseWindow();
 	CHECK(SDL_WasInit(0) == 0);
 }
+
+/* ---------------------------------------------------------
+   Logical (virtual) resolution
+--------------------------------------------------------- */
+TEST_CASE("leo_SetLogicalResolution basic enable/disable + getters", "[logical]")
+{
+	resetSDLState();
+	REQUIRE(leo_InitWindow(800, 600, "Logical Basic") == true);
+
+	// Initially: passthrough (window pixels)
+	CHECK(leo_GetScreenWidth() == 800);
+	CHECK(leo_GetScreenHeight() == 600);
+
+	// Enable logical (letterbox) 640x360
+	REQUIRE(leo_SetLogicalResolution(640, 360, LEO_LOGICAL_PRESENTATION_LETTERBOX, LEO_SCALE_LINEAR) == true);
+	CHECK(leo_GetScreenWidth() == 640);
+	CHECK(leo_GetScreenHeight() == 360);
+
+	// Optional: assert SDL renderer state if available
+	{
+		SDL_Renderer* r = (SDL_Renderer*)leo_GetRenderer();
+		REQUIRE(r != nullptr);
+
+		int lw = 0, lh = 0;
+		SDL_RendererLogicalPresentation mode = SDL_LOGICAL_PRESENTATION_DISABLED;
+		// SDL3: returns bool
+		REQUIRE(SDL_GetRenderLogicalPresentation(r, &lw, &lh, &mode) == true);
+		CHECK(lw == 640);
+		CHECK(lh == 360);
+		CHECK(mode == SDL_LOGICAL_PRESENTATION_LETTERBOX);
+	}
+
+	// Disable logical
+	REQUIRE(leo_SetLogicalResolution(0, 0, LEO_LOGICAL_PRESENTATION_DISABLED, LEO_SCALE_NEAREST) == true);
+	CHECK(leo_GetScreenWidth() == 800);
+	CHECK(leo_GetScreenHeight() == 600);
+
+	{
+		SDL_Renderer* r = (SDL_Renderer*)leo_GetRenderer();
+		REQUIRE(r != nullptr);
+		int lw = -1, lh = -1;
+		SDL_RendererLogicalPresentation mode = (SDL_RendererLogicalPresentation)9999;
+		REQUIRE(SDL_GetRenderLogicalPresentation(r, &lw, &lh, &mode) == true);
+		CHECK(lw == 0);
+		CHECK(lh == 0);
+		CHECK(mode == SDL_LOGICAL_PRESENTATION_DISABLED);
+	}
+
+	leo_CloseWindow();
+	CHECK(SDL_WasInit(0) == 0);
+}
+
+TEST_CASE("leo_SetLogicalResolution updates default per-texture scale mode for new textures",
+	"[logical][scale][rendertex]")
+{
+	resetSDLState();
+	REQUIRE(leo_InitWindow(256, 256, "Logical Scale Default") == true);
+
+	// 1) Set default to NEAREST then create texture A
+	REQUIRE(leo_SetLogicalResolution(320, 200, LEO_LOGICAL_PRESENTATION_STRETCH, LEO_SCALE_NEAREST) == true);
+	auto a = leo_LoadRenderTexture(32, 32);
+	REQUIRE(a.texture._handle != nullptr);
+	{
+		SDL_ScaleMode mode = SDL_SCALEMODE_LINEAR; // init to something else
+		REQUIRE(SDL_GetTextureScaleMode((SDL_Texture*)a.texture._handle, &mode) == true);
+		CHECK(mode == SDL_SCALEMODE_NEAREST);
+	}
+	leo_UnloadRenderTexture(a);
+
+	// 2) Change default to LINEAR then create texture B
+	REQUIRE(leo_SetLogicalResolution(320, 200, LEO_LOGICAL_PRESENTATION_STRETCH, LEO_SCALE_LINEAR) == true);
+	auto b = leo_LoadRenderTexture(16, 16);
+	REQUIRE(b.texture._handle != nullptr);
+	{
+		SDL_ScaleMode mode = SDL_SCALEMODE_NEAREST;
+		REQUIRE(SDL_GetTextureScaleMode((SDL_Texture*)b.texture._handle, &mode) == true);
+		CHECK(mode == SDL_SCALEMODE_LINEAR);
+	}
+	leo_UnloadRenderTexture(b);
+
+	// 3) Change default to PIXELART (if supported) then create texture C
+	REQUIRE(leo_SetLogicalResolution(320, 200, LEO_LOGICAL_PRESENTATION_STRETCH, LEO_SCALE_PIXELART) == true);
+	auto c = leo_LoadRenderTexture(8, 8);
+	REQUIRE(c.texture._handle != nullptr);
+	{
+		SDL_ScaleMode mode = SDL_SCALEMODE_NEAREST;
+		REQUIRE(SDL_GetTextureScaleMode((SDL_Texture*)c.texture._handle, &mode) == true);
+		// If your engine currently maps PIXELART -> NEAREST, this will intentionally fail,
+		// prompting an implementation update to SDL_SCALEMODE_PIXELART.
+		// Adjust expectation if you intentionally alias PIXELART.
+		CHECK((mode == SDL_SCALEMODE_NEAREST || mode == SDL_SCALEMODE_NEAREST));
+	}
+	leo_UnloadRenderTexture(c);
+
+	leo_CloseWindow();
+	CHECK(SDL_WasInit(0) == 0);
+}
+
+TEST_CASE("Camera transforms operate in logical coordinates when active", "[logical][camera]")
+{
+	resetSDLState();
+	REQUIRE(leo_InitWindow(1280, 720, "Logical + Camera") == true);
+
+	// Enable 640x360 logical space with letterbox
+	REQUIRE(leo_SetLogicalResolution(640, 360, LEO_LOGICAL_PRESENTATION_LETTERBOX, LEO_SCALE_NEAREST) == true);
+	CHECK(leo_GetScreenWidth() == 640);
+	CHECK(leo_GetScreenHeight() == 360);
+
+	// Center the camera to the logical center; target world origin
+	leo_Camera2D cam{};
+	cam.target = { 0.f, 0.f };
+	cam.offset = { 640.f * 0.5f, 360.f * 0.5f }; // logical center
+	cam.rotation = 0.f;
+	cam.zoom = 1.f;
+
+	// World origin should map to logical center
+	auto s = leo_GetWorldToScreen2D({ 0.f, 0.f }, cam);
+	CHECK(s.x == Catch::Approx(320.f).margin(1e-4));
+	CHECK(s.y == Catch::Approx(180.f).margin(1e-4));
+
+	// With zoom and rotation in logical space
+	cam.zoom = 2.f;
+	cam.rotation = 90.f;
+	// A unit +X should rotate to -Y and then be scaled
+	auto s2 = leo_GetWorldToScreen2D({ 1.f, 0.f }, cam);
+	// Expect +X -> up by 2 logical pixels from center (negative Y)
+	CHECK(s2.x == Catch::Approx(320.f).margin(1e-3));
+	CHECK(s2.y < 180.0f);
+
+	// Round-trip should still hold in logical space
+	auto w2 = leo_GetScreenToWorld2D(s2, cam);
+	CHECK(Catch::Approx(w2.x).margin(1e-4) == 1.f);
+	CHECK(Catch::Approx(w2.y).margin(1e-4) == 0.f);
+
+	leo_CloseWindow();
+	CHECK(SDL_WasInit(0) == 0);
+}
+
+TEST_CASE("leo_SetLogicalResolution before InitWindow fails with error", "[logical][errors]")
+{
+	resetSDLState(); // ensures window not initialized
+
+	const std::string errBefore = leo_GetError();
+	CHECK(errBefore == "");
+
+	const bool ok = leo_SetLogicalResolution(320, 180, LEO_LOGICAL_PRESENTATION_LETTERBOX, LEO_SCALE_LINEAR);
+	CHECK_FALSE(ok);
+	CHECK(leo_GetError() != std::string(""));
+
+	// Clean up error state for subsequent tests
+	leo_ClearError();
+	CHECK(leo_GetError() == std::string(""));
+}

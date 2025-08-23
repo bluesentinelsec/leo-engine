@@ -43,7 +43,7 @@ typedef struct
 {
 	leo_Vector2 target; // world-space point the camera looks at
 	leo_Vector2 offset; // screen-space offset in pixels (where 'target' appears)
-	float rotation; // degrees; with current math, positive acts counterclockwise in screen space
+	float rotation; // degrees; positive acts counterclockwise in screen space
 	float zoom; // 1.0 = no zoom
 } leo_Camera2D;
 
@@ -67,9 +67,9 @@ LEO_API void leo_EndDrawing(void);
 
 // Timing-related functions
 LEO_API void leo_SetTargetFPS(int fps); // Set target FPS (maximum)
-LEO_API float leo_GetFrameTime(void); // Get time in seconds for last frame drawn (delta time)
-LEO_API double leo_GetTime(void); // Get elapsed time in seconds since InitWindow()
-LEO_API int leo_GetFPS(void); // Get current FPS
+LEO_API float leo_GetFrameTime(void); // Seconds for last frame (delta time)
+LEO_API double leo_GetTime(void); // Seconds since InitWindow()
+LEO_API int leo_GetFPS(void); // Current FPS
 
 LEO_API int leo_GetScreenWidth(void);
 
@@ -96,9 +96,34 @@ LEO_API void leo_BeginTextureMode(leo_RenderTexture2D target);
 LEO_API void leo_EndTextureMode(void);
 
 // --- Texture drawing (for RenderTexture outputs) ---
-// Draws a sub-rectangle of 'tex' at 'position' in screen pixels.
-// If src.width or src.height is negative, it flips along that axis (raylib-compatible).
 LEO_API void leo_DrawTextureRec(leo_Texture2D tex, leo_Rectangle src, leo_Vector2 position, leo_Color tint);
+
+/* --- Logical (virtual) resolution API --- */
+typedef enum
+{
+	LEO_LOGICAL_PRESENTATION_DISABLED = 0, /* passthrough (no logical scaling) */
+	LEO_LOGICAL_PRESENTATION_STRETCH, /* stretch to fill window */
+	LEO_LOGICAL_PRESENTATION_LETTERBOX, /* preserve aspect, pad with bars */
+	LEO_LOGICAL_PRESENTATION_OVERSCAN /* preserve aspect, crop/zoom to fill */
+} leo_LogicalPresentation;
+
+/* SDL3 exposes per-texture scale modes; we keep a library-wide default that is
+   applied to textures we create (e.g., render textures). */
+typedef enum
+{
+	LEO_SCALE_NEAREST = 0,
+	LEO_SCALE_LINEAR,
+	LEO_SCALE_PIXELART /* SDL3’s pixel-art scaler */
+} leo_ScaleMode;
+
+/* Set or change the renderer’s logical resolution.
+   - width/height <= 0 disables logical scaling (passthrough).
+   - presentation selects stretch/letterbox/overscan.
+   - scale selects the *default per-texture* filtering we apply to textures we create.
+   - Returns true on success, false on failure (and sets leo error). */
+LEO_API bool leo_SetLogicalResolution(int width, int height,
+	leo_LogicalPresentation presentation,
+	leo_ScaleMode scale);
 
 #ifdef __cplusplus
 }

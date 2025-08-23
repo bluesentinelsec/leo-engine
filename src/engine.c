@@ -31,13 +31,20 @@ static int s_currentFPS = 0; /* last computed FPS value */
 static Uint64 s_fpsWindowStart = 0; /* start counter for FPS window */
 
 /* ---------- camera state ---------- */
-// A small stack is enough for typical nesting (UI overlays, etc.)
 static leo_Camera2D s_camStack[8];
 static int s_camTop = -1;
 
-// Current affine: screen <- world (row-major 2x3)
+/* Current affine: screen <- world (row-major 2x3) */
 static float s_m11 = 1.0f, s_m12 = 0.0f, s_tx = 0.0f;
 static float s_m21 = 0.0f, s_m22 = 1.0f, s_ty = 0.0f;
+
+/* ---------- logical resolution state ---------- */
+static int s_hasLogical = 0;
+static int s_logicalW = 0;
+static int s_logicalH = 0;
+
+/* ---------- default per-texture scale mode (applied on creation) ---------- */
+static SDL_ScaleMode s_defaultScaleMode = SDL_SCALEMODE_LINEAR;
 
 static inline float _deg2rad(float deg) { return deg * 0.01745329251994329577f; } // pi/180
 
@@ -55,16 +62,13 @@ static void _rebuildCameraMatrix(const leo_Camera2D* c)
 	}
 	const float z = (c->zoom <= 0.0f) ? 1.0f : c->zoom;
 	const float rad = _deg2rad(c->rotation);
-	const float cr = cosf(rad);
-	const float sr = sinf(rad);
+	const float cr = cosf(rad), sr = sinf(rad);
 
-	// A = S*R
 	const float a = z * cr; // m11
 	const float b = z * sr; // m12
 	const float c21 = -z * sr; // m21
 	const float d = z * cr; // m22
 
-	// T = offset - A * target
 	const float Txx = c->offset.x - (a * c->target.x + b * c->target.y);
 	const float Tyy = c->offset.y - (c21 * c->target.x + d * c->target.y);
 
@@ -76,14 +80,12 @@ static void _rebuildCameraMatrix(const leo_Camera2D* c)
 	s_ty = Tyy;
 }
 
-// Build a one-off matrix from a provided camera (for public helpers)
 static void _buildCam3x2(const leo_Camera2D* c,
 	float* m11, float* m12, float* m21, float* m22, float* tx, float* ty)
 {
 	const float z = (c->zoom <= 0.0f) ? 1.0f : c->zoom;
 	const float rad = _deg2rad(c->rotation);
-	const float cr = cosf(rad);
-	const float sr = sinf(rad);
+	const float cr = cosf(rad), sr = sinf(rad);
 	const float a = z * cr, b = z * sr, c21 = -z * sr, d = z * cr;
 	const float Txx = c->offset.x - (a * c->target.x + b * c->target.y);
 	const float Tyy = c->offset.y - (c21 * c->target.x + d * c->target.y);
@@ -156,7 +158,6 @@ bool leo_InitWindow(int width, int height, const char* title)
 		return false;
 	}
 
-	/* initialize loop state */
 	s_inFrame = 0;
 	s_quit = 0;
 	s_clearR = 0;
@@ -164,7 +165,6 @@ bool leo_InitWindow(int width, int height, const char* title)
 	s_clearB = 0;
 	s_clearA = 255;
 
-	/* initialize timing */
 	s_perfFreq = SDL_GetPerformanceFrequency();
 	s_startCounter = SDL_GetPerformanceCounter();
 	s_frameStartCounter = s_startCounter;
@@ -175,12 +175,18 @@ bool leo_InitWindow(int width, int height, const char* title)
 	s_targetFPS = 0;
 	s_targetFrameSecs = 0.0;
 
-	// camera to identity
 	s_camTop = -1;
 	_rebuildCameraMatrix(NULL);
 
-	// render-target stack
 	s_rtTop = -1;
+
+	// logical resolution: start disabled
+	s_hasLogical = 0;
+	s_logicalW = 0;
+	s_logicalH = 0;
+
+	// default per-texture scale mode
+	s_defaultScaleMode = SDL_SCALEMODE_LINEAR;
 
 	return true;
 }
@@ -192,7 +198,6 @@ void leo_CloseWindow()
 		SDL_DestroyRenderer(globalRenderer);
 		globalRenderer = NULL;
 	}
-
 	if (globalWindow)
 	{
 		SDL_DestroyWindow(globalWindow);
@@ -202,7 +207,6 @@ void leo_CloseWindow()
 	s_inFrame = 0;
 	s_quit = 0;
 
-	/* reset timing */
 	s_perfFreq = 0;
 	s_startCounter = 0;
 	s_frameStartCounter = 0;
@@ -213,26 +217,21 @@ void leo_CloseWindow()
 	s_targetFPS = 0;
 	s_targetFrameSecs = 0.0;
 
-	// camera reset
 	s_camTop = -1;
 	_rebuildCameraMatrix(NULL);
-
-	// render-target stack reset
 	s_rtTop = -1;
+
+	// logical resolution reset
+	s_hasLogical = 0;
+	s_logicalW = 0;
+	s_logicalH = 0;
 
 	leo_CleanupKeyboard();
 	SDL_Quit();
 }
 
-LeoWindow leo_GetWindow(void)
-{
-	return (LeoWindow)globalWindow;
-}
-
-LeoRenderer leo_GetRenderer(void)
-{
-	return (LeoRenderer)globalRenderer;
-}
+LeoWindow leo_GetWindow(void) { return (LeoWindow)globalWindow; }
+LeoRenderer leo_GetRenderer(void) { return (LeoRenderer)globalRenderer; }
 
 bool leo_SetFullscreen(bool enabled)
 {
@@ -257,23 +256,14 @@ bool leo_WindowShouldClose(void)
 		switch (e.type)
 		{
 		case SDL_EVENT_QUIT:
-			s_quit = 1;
-			break;
-
 		case SDL_EVENT_WINDOW_CLOSE_REQUESTED:
 			s_quit = 1;
 			break;
-
-		default:
-			break;
+		default: break;
 		}
 	}
 	leo_UpdateKeyboard();
-	if (leo_IsExitKeyPressed())
-	{
-		s_quit = 1;
-	}
-
+	if (leo_IsExitKeyPressed()) s_quit = 1;
 	return s_quit != 0;
 }
 
@@ -281,8 +271,6 @@ void leo_BeginDrawing(void)
 {
 	if (!globalRenderer) return;
 	s_inFrame = 1;
-	/* Raylib pattern: user calls ClearBackground() explicitly after BeginDrawing().
-	   We don’t clear automatically here to preserve that feel. */
 	s_frameStartCounter = SDL_GetPerformanceCounter();
 }
 
@@ -290,7 +278,6 @@ void leo_ClearBackground(int r, int g, int b, int a)
 {
 	if (!globalRenderer) return;
 
-	/* Clamp to 0..255 to be safe */
 	if (r < 0) r = 0;
 	if (r > 255) r = 255;
 	if (g < 0) g = 0;
@@ -305,7 +292,6 @@ void leo_ClearBackground(int r, int g, int b, int a)
 	s_clearB = (Uint8)b;
 	s_clearA = (Uint8)a;
 
-	/* Clear the current render target immediately */
 	SDL_SetRenderDrawColor(globalRenderer, s_clearR, s_clearG, s_clearB, s_clearA);
 	SDL_RenderClear(globalRenderer);
 }
@@ -314,41 +300,26 @@ void leo_EndDrawing(void)
 {
 	if (!globalRenderer) return;
 
-	/* Present only if we are drawing to the backbuffer (not to a texture). */
 	if (SDL_GetRenderTarget(globalRenderer) == NULL)
-	{
 		SDL_RenderPresent(globalRenderer);
-	}
 
 	Uint64 now = SDL_GetPerformanceCounter();
-	double elapsed = 0.0;
-	if (s_perfFreq)
-	{
-		elapsed = (double)(now - s_frameStartCounter) / (double)s_perfFreq;
-	}
+	double elapsed = s_perfFreq ? (double)(now - s_frameStartCounter) / (double)s_perfFreq : 0.0;
 
-	/* If a target FPS is set, sleep the remainder to hit the desired frame time. */
 	if (s_targetFPS > 0 && s_targetFrameSecs > 0.0 && elapsed < s_targetFrameSecs)
 	{
 		double remaining = s_targetFrameSecs - elapsed;
 		if (remaining > 0.0)
 		{
-			/* Convert to ms for SDL_Delay; clamp at 0 */
 			double ms = remaining * 1000.0;
-			if (ms > 0.0) SDL_Delay((Uint32)(ms + 0.5)); /* round */
+			if (ms > 0.0) SDL_Delay((Uint32)(ms + 0.5));
 		}
-		/* Recompute total frame time including the delay */
 		now = SDL_GetPerformanceCounter();
-		if (s_perfFreq)
-		{
-			elapsed = (double)(now - s_frameStartCounter) / (double)s_perfFreq;
-		}
+		if (s_perfFreq) elapsed = (double)(now - s_frameStartCounter) / (double)s_perfFreq;
 	}
 
-	/* Update last frame time (float seconds) */
 	s_lastFrameTime = (float)elapsed;
 
-	/* Rolling FPS: count frames inside ~1s windows */
 	s_fpsCounter += 1;
 	if (s_perfFreq && (now - s_fpsWindowStart) >= s_perfFreq)
 	{
@@ -368,15 +339,12 @@ void leo_SetTargetFPS(int fps)
 		s_targetFrameSecs = 0.0;
 		return;
 	}
-	if (fps > 1000) fps = 1000; /* guard against silly values */
+	if (fps > 1000) fps = 1000;
 	s_targetFPS = fps;
 	s_targetFrameSecs = 1.0 / (double)fps;
 }
 
-float leo_GetFrameTime(void)
-{
-	return s_lastFrameTime; /* seconds for the most recently completed frame */
-}
+float leo_GetFrameTime(void) { return s_lastFrameTime; }
 
 double leo_GetTime(void)
 {
@@ -387,7 +355,6 @@ double leo_GetTime(void)
 
 int leo_GetFPS(void)
 {
-	/* If we haven’t accumulated a full second yet, estimate from the last frame time. */
 	if (s_currentFPS == 0 && s_lastFrameTime > 0.0f)
 	{
 		int est = (int)(1.0f / s_lastFrameTime + 0.5f);
@@ -397,9 +364,77 @@ int leo_GetFPS(void)
 	return s_currentFPS;
 }
 
+/* Map Leo enums to SDL3 presentation/scale (kept local) */
+static SDL_RendererLogicalPresentation _to_sdl_presentation(leo_LogicalPresentation p)
+{
+	switch (p)
+	{
+	case LEO_LOGICAL_PRESENTATION_STRETCH: return SDL_LOGICAL_PRESENTATION_STRETCH;
+	case LEO_LOGICAL_PRESENTATION_LETTERBOX: return SDL_LOGICAL_PRESENTATION_LETTERBOX;
+	case LEO_LOGICAL_PRESENTATION_OVERSCAN: return SDL_LOGICAL_PRESENTATION_OVERSCAN;
+	case LEO_LOGICAL_PRESENTATION_DISABLED:
+	default: return SDL_LOGICAL_PRESENTATION_DISABLED;
+	}
+}
+
+static SDL_ScaleMode _to_sdl_scale(leo_ScaleMode m)
+{
+	switch (m)
+	{
+	case LEO_SCALE_NEAREST: return SDL_SCALEMODE_NEAREST;
+	case LEO_SCALE_PIXELART: return SDL_SCALEMODE_NEAREST; /* SDL3 adds pixel-art scaler */
+	case LEO_SCALE_LINEAR:
+	default: return SDL_SCALEMODE_LINEAR;
+	}
+}
+
+bool leo_SetLogicalResolution(int width, int height,
+	leo_LogicalPresentation presentation,
+	leo_ScaleMode scale)
+{
+	if (!globalRenderer)
+	{
+		leo_SetError("leo_SetLogicalResolution called before leo_InitWindow");
+		return false;
+	}
+
+	/* Record default per-texture scale mode we’ll apply to newly created textures. */
+	s_defaultScaleMode = _to_sdl_scale(scale);
+
+	if (width <= 0 || height <= 0)
+	{
+		/* Disable logical presentation */
+		if (!SDL_SetRenderLogicalPresentation(globalRenderer, 0, 0, SDL_LOGICAL_PRESENTATION_DISABLED))
+		{
+			leo_SetError("%s", SDL_GetError());
+			return false;
+		}
+		s_hasLogical = 0;
+		s_logicalW = 0;
+		s_logicalH = 0;
+		return true;
+	}
+
+	SDL_RendererLogicalPresentation sp = _to_sdl_presentation(presentation);
+	if (!SDL_SetRenderLogicalPresentation(globalRenderer, width, height, sp))
+	{
+		leo_SetError("%s", SDL_GetError());
+		return false;
+	}
+
+	/* With logical presentation enabled, all SDL coordinates are now in logical pixels.
+	   Our camera math already works in “screen space” pixels, so this maps cleanly. */
+	s_hasLogical = 1;
+	s_logicalW = width;
+	s_logicalH = height;
+	return true;
+}
+
 int leo_GetScreenWidth(void)
 {
 	if (!globalWindow) return 0;
+	/* Expose logical size when active for a raylib-like mental model */
+	if (s_hasLogical && s_logicalW > 0) return s_logicalW;
 	int w = 0, h = 0;
 	SDL_GetWindowSizeInPixels(globalWindow, &w, &h);
 	return w;
@@ -408,6 +443,7 @@ int leo_GetScreenWidth(void)
 int leo_GetScreenHeight(void)
 {
 	if (!globalWindow) return 0;
+	if (s_hasLogical && s_logicalH > 0) return s_logicalH;
 	int w = 0, h = 0;
 	SDL_GetWindowSizeInPixels(globalWindow, &w, &h);
 	return h;
@@ -419,17 +455,9 @@ int leo_GetScreenHeight(void)
 void leo_BeginMode2D(leo_Camera2D camera)
 {
 	const int cap = (int)(sizeof(s_camStack) / sizeof(s_camStack[0]));
-	if (s_camTop + 1 < cap)
-	{
-		s_camTop++;
-	}
-	else
-	{
-		// degrade gracefully: overwrite top
-	}
-	// Guard rails for raylib-style behavior
+	if (s_camTop + 1 < cap) { s_camTop++; } /* else overwrite top */
+
 	if (camera.zoom <= 0.0f) camera.zoom = 1.0f;
-	// Optional: keep rotation bounded (raylib doesn't require it, but it's harmless)
 	if (camera.rotation > 360.0f || camera.rotation < -360.0f)
 	{
 		int k = (int)(camera.rotation / 360.0f);
@@ -448,7 +476,6 @@ void leo_EndMode2D(void)
 leo_Camera2D leo_GetCurrentCamera2D(void)
 {
 	if (s_camTop >= 0) return s_camStack[s_camTop];
-	// identity camera
 	leo_Camera2D id;
 	id.target.x = 0.0f;
 	id.target.y = 0.0f;
@@ -464,10 +491,7 @@ leo_Vector2 leo_GetWorldToScreen2D(leo_Vector2 p, leo_Camera2D cam)
 	if (cam.zoom <= 0.0f) cam.zoom = 1.0f;
 	float m11, m12, m21, m22, tx, ty;
 	_buildCam3x2(&cam, &m11, &m12, &m21, &m22, &tx, &ty);
-	leo_Vector2 out = {
-		m11 * p.x + m12 * p.y + tx,
-		m21 * p.x + m22 * p.y + ty
-	};
+	leo_Vector2 out = { m11 * p.x + m12 * p.y + tx, m21 * p.x + m22 * p.y + ty };
 	return out;
 }
 
@@ -476,14 +500,10 @@ leo_Vector2 leo_GetScreenToWorld2D(leo_Vector2 p, leo_Camera2D cam)
 	if (cam.zoom <= 0.0f) cam.zoom = 1.0f;
 	float m11, m12, m21, m22, tx, ty;
 	_buildCam3x2(&cam, &m11, &m12, &m21, &m22, &tx, &ty);
-	const float sx = p.x - tx;
-	const float sy = p.y - ty;
+	const float sx = p.x - tx, sy = p.y - ty;
 	const float det = m11 * m22 - m12 * m21;
 	const float inv = (det != 0.0f) ? (1.0f / det) : 1.0f;
-	leo_Vector2 out = {
-		inv * (m22 * sx - m12 * sy),
-		inv * (-m21 * sx + m11 * sy)
-	};
+	leo_Vector2 out = { inv * (m22 * sx - m12 * sy), inv * (-m21 * sx + m11 * sy) };
 	return out;
 }
 
@@ -500,7 +520,9 @@ leo_RenderTexture2D leo_LoadRenderTexture(int width, int height)
 	SDL_Texture* tex = SDL_CreateTexture(globalRenderer, fmt, SDL_TEXTUREACCESS_TARGET, width, height);
 	if (!tex) return rt;
 
+	/* Blend and default scale mode for textures we create */
 	SDL_SetTextureBlendMode(tex, SDL_BLENDMODE_BLEND);
+	SDL_SetTextureScaleMode(tex, s_defaultScaleMode);
 
 	rt.width = width;
 	rt.height = height;
