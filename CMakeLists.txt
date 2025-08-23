@@ -130,9 +130,9 @@ target_link_libraries(${PROJECT_NAME} PUBLIC SDL3::SDL3)
 target_include_directories(${PROJECT_NAME}
         PUBLIC
         $<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}/include>
+        $<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}/external>
         $<INSTALL_INTERFACE:include>
 )
-
 
 # Build-tree RPATH so local runs find deps without env tweaks
 set(_ORIGIN "$<IF:$<PLATFORM_ID:Darwin>,@loader_path,$ORIGIN>")
