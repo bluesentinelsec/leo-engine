@@ -4,6 +4,8 @@
 
 #include <SDL3/SDL.h>
 
+#include <math.h>
+
 SDL_Window* globalWindow = NULL;
 SDL_Renderer* globalRenderer = NULL;
 
@@ -24,6 +26,71 @@ static float s_lastFrameTime = 0.0f; /* seconds */
 static int s_fpsCounter = 0; /* frames counted in the current 1s window */
 static int s_currentFPS = 0; /* last computed FPS value */
 static Uint64 s_fpsWindowStart = 0; /* start counter for FPS window */
+
+/* ---------- camera state ---------- */
+// A small stack is enough for typical nesting (UI overlays, etc.)
+static leo_Camera2D s_camStack[8];
+static int s_camTop = -1;
+
+// Current affine: screen <- world (row-major 2x3)
+static float s_m11 = 1.0f, s_m12 = 0.0f, s_tx = 0.0f;
+static float s_m21 = 0.0f, s_m22 = 1.0f, s_ty = 0.0f;
+
+static inline float _deg2rad(float deg) { return deg * 0.01745329251994329577f; } // pi/180
+
+static void _rebuildCameraMatrix(const leo_Camera2D* c)
+{
+	if (!c)
+	{
+		s_m11 = 1.0f;
+		s_m12 = 0.0f;
+		s_tx = 0.0f;
+		s_m21 = 0.0f;
+		s_m22 = 1.0f;
+		s_ty = 0.0f;
+		return;
+	}
+	const float z = (c->zoom <= 0.0f) ? 1.0f : c->zoom;
+	const float rad = _deg2rad(c->rotation);
+	const float cr = cosf(rad);
+	const float sr = sinf(rad);
+
+	// A = S*R
+	const float a = z * cr; // m11
+	const float b = z * sr; // m12
+	const float c21 = -z * sr; // m21
+	const float d = z * cr; // m22
+
+	// T = offset - A * target
+	const float Txx = c->offset.x - (a * c->target.x + b * c->target.y);
+	const float Tyy = c->offset.y - (c21 * c->target.x + d * c->target.y);
+
+	s_m11 = a;
+	s_m12 = b;
+	s_tx = Txx;
+	s_m21 = c21;
+	s_m22 = d;
+	s_ty = Tyy;
+}
+
+// Build a one-off matrix from a provided camera (for public helpers)
+static void _buildCam3x2(const leo_Camera2D* c,
+	float* m11, float* m12, float* m21, float* m22, float* tx, float* ty)
+{
+	const float z = (c->zoom <= 0.0f) ? 1.0f : c->zoom;
+	const float rad = _deg2rad(c->rotation);
+	const float cr = cosf(rad);
+	const float sr = sinf(rad);
+	const float a = z * cr, b = z * sr, c21 = -z * sr, d = z * cr;
+	const float Txx = c->offset.x - (a * c->target.x + b * c->target.y);
+	const float Tyy = c->offset.y - (c21 * c->target.x + d * c->target.y);
+	if (m11) *m11 = a;
+	if (m12) *m12 = b;
+	if (m21) *m21 = c21;
+	if (m22) *m22 = d;
+	if (tx) *tx = Txx;
+	if (ty) *ty = Tyy;
+}
 
 bool leo_InitWindow(int width, int height, const char* title)
 {
@@ -81,6 +148,9 @@ bool leo_InitWindow(int width, int height, const char* title)
 	s_targetFPS = 0;
 	s_targetFrameSecs = 0.0;
 
+	// camera to identity
+	s_camTop = -1;
+	_rebuildCameraMatrix(NULL);
 	return true;
 }
 
@@ -111,6 +181,10 @@ void leo_CloseWindow()
 	s_currentFPS = 0;
 	s_targetFPS = 0;
 	s_targetFrameSecs = 0.0;
+
+	// camera reset
+	s_camTop = -1;
+	_rebuildCameraMatrix(NULL);
 
 	leo_CleanupKeyboard();
 	SDL_Quit();
@@ -283,4 +357,68 @@ int leo_GetFPS(void)
 		return est;
 	}
 	return s_currentFPS;
+}
+
+/* -------------------------
+   Camera2D API
+------------------------- */
+void leo_BeginMode2D(leo_Camera2D camera)
+{
+	const int cap = (int)(sizeof(s_camStack) / sizeof(s_camStack[0]));
+	if (s_camTop + 1 < cap)
+	{
+		s_camTop++;
+	}
+	else
+	{
+		// degrade gracefully: overwrite top
+	}
+	s_camStack[s_camTop] = camera;
+	_rebuildCameraMatrix(&s_camStack[s_camTop]);
+}
+
+void leo_EndMode2D(void)
+{
+	if (s_camTop >= 0) s_camTop--;
+	_rebuildCameraMatrix(s_camTop >= 0 ? &s_camStack[s_camTop] : NULL);
+}
+
+leo_Camera2D leo_GetCurrentCamera2D(void)
+{
+	if (s_camTop >= 0) return s_camStack[s_camTop];
+	// identity camera
+	leo_Camera2D id;
+	id.target.x = 0.0f;
+	id.target.y = 0.0f;
+	id.offset.x = 0.0f;
+	id.offset.y = 0.0f;
+	id.rotation = 0.0f;
+	id.zoom = 1.0f;
+	return id;
+}
+
+leo_Vector2 leo_GetWorldToScreen2D(leo_Vector2 p, leo_Camera2D cam)
+{
+	float m11, m12, m21, m22, tx, ty;
+	_buildCam3x2(&cam, &m11, &m12, &m21, &m22, &tx, &ty);
+	leo_Vector2 out = {
+		m11 * p.x + m12 * p.y + tx,
+		m21 * p.x + m22 * p.y + ty
+	};
+	return out;
+}
+
+leo_Vector2 leo_GetScreenToWorld2D(leo_Vector2 p, leo_Camera2D cam)
+{
+	float m11, m12, m21, m22, tx, ty;
+	_buildCam3x2(&cam, &m11, &m12, &m21, &m22, &tx, &ty);
+	const float sx = p.x - tx;
+	const float sy = p.y - ty;
+	const float det = m11 * m22 - m12 * m21;
+	const float inv = (det != 0.0f) ? (1.0f / det) : 1.0f;
+	leo_Vector2 out = {
+		inv * (m22 * sx - m12 * sy),
+		inv * (-m21 * sx + m11 * sy)
+	};
+	return out;
 }

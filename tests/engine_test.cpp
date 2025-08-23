@@ -328,3 +328,41 @@ TEST_CASE("leo_GetFPS returns a non-negative integer", "[engine][time][smoke]")
 	leo_CloseWindow();
 	CHECK(SDL_WasInit(0) == 0);
 }
+
+TEST_CASE("Camera round-trip world<->screen", "[camera]")
+{
+	leo_Camera2D cam{};
+	cam.target = { 100.f, 50.f };
+	cam.offset = { 10.f, 20.f };
+	cam.rotation = 30.f;
+	cam.zoom = 2.f;
+
+	leo_Vector2 w{ 123.f, 77.f };
+	auto s = leo_GetWorldToScreen2D(w, cam);
+	auto w2 = leo_GetScreenToWorld2D(s, cam);
+
+	CHECK(Catch::Approx(w2.x).margin(1e-4) == w.x);
+	CHECK(Catch::Approx(w2.y).margin(1e-4) == w.y);
+}
+
+TEST_CASE("Begin/EndMode2D stack", "[camera]")
+{
+	auto base = leo_GetCurrentCamera2D();
+	CHECK(base.zoom == 1.f);
+
+	leo_Camera2D a{};
+	a.zoom = 2.f;
+	leo_BeginMode2D(a);
+	CHECK(leo_GetCurrentCamera2D().zoom == 2.f);
+
+	leo_Camera2D b{};
+	b.zoom = 3.f;
+	leo_BeginMode2D(b);
+	CHECK(leo_GetCurrentCamera2D().zoom == 3.f);
+
+	leo_EndMode2D();
+	CHECK(leo_GetCurrentCamera2D().zoom == 2.f);
+
+	leo_EndMode2D();
+	CHECK(leo_GetCurrentCamera2D().zoom == 1.f);
+}
