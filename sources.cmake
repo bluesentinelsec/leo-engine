@@ -24,5 +24,5 @@ set(LEO_TEST_SOURCES
         tests/font_step2_load_draw_test.cpp
         tests/font_step3_spacing_rotation_test.cpp
         tests/collisions_test.cpp
-        tests/mouse.cpp
+        tests/mouse_test.cpp
 )
