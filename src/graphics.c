@@ -88,39 +88,82 @@ void leo_DrawCircle(int centerX, int centerY, float radius, leo_Color color)
 	}
 }
 
+
+// Helper: filled quad via SDL_RenderGeometry (two triangles).
+static inline void _render_filled_quad(SDL_Renderer* r,
+	const leo_Vector2 p0, const leo_Vector2 p1,
+	const leo_Vector2 p2, const leo_Vector2 p3,
+	leo_Color color)
+{
+	SDL_Vertex v[4];
+	v[0].position.x = p0.x;
+	v[0].position.y = p0.y;
+	v[1].position.x = p1.x;
+	v[1].position.y = p1.y;
+	v[2].position.x = p2.x;
+	v[2].position.y = p2.y;
+	v[3].position.x = p3.x;
+	v[3].position.y = p3.y;
+
+	// Convert to floats (0–1)
+	const float rf = color.r / 255.0f;
+	const float gf = color.g / 255.0f;
+	const float bf = color.b / 255.0f;
+	const float af = color.a / 255.0f;
+
+	SDL_FColor fc = { rf, gf, bf, af };
+	v[0].color = fc;
+	v[1].color = fc;
+	v[2].color = fc;
+	v[3].color = fc;
+
+	// No texture coords needed, but zero them anyway
+	for (int i = 0; i < 4; ++i)
+	{
+		v[i].tex_coord.x = 0.0f;
+		v[i].tex_coord.y = 0.0f;
+	}
+
+	// Two triangles: (0,1,2) and (0,2,3)
+	static const int idx[6] = { 0, 1, 2, 0, 2, 3 };
+
+	SDL_RenderGeometry(r, /*texture*/NULL, v, 4, idx, 6);
+}
+
+
 void leo_DrawRectangle(int posX, int posY, int width, int height, leo_Color color)
 {
 	SDL_Renderer* r = _gfxRenderer();
 	if (!r) return;
-	_gfxSetColor(r, color);
 
-	// Transform the 4 corners
+	// Transform the 4 corners (world -> screen)
 	const leo_Camera2D cam = leo_GetCurrentCamera2D();
 	leo_Vector2 p0 = leo_GetWorldToScreen2D((leo_Vector2){ (float)posX, (float)posY }, cam);
 	leo_Vector2 p1 = leo_GetWorldToScreen2D((leo_Vector2){ (float)(posX + width), (float)posY }, cam);
 	leo_Vector2 p2 = leo_GetWorldToScreen2D((leo_Vector2){ (float)(posX + width), (float)(posY + height) }, cam);
 	leo_Vector2 p3 = leo_GetWorldToScreen2D((leo_Vector2){ (float)posX, (float)(posY + height) }, cam);
 
-	// Fast path: if edges are axis-aligned in screen space, fill an SDL_FRect.
+	// If the screen-space quad is axis-aligned, FillRect is cheaper.
 	const float eps = 0.0001f;
 	const bool horiz0 = SDL_fabsf(p0.y - p1.y) < eps;
 	const bool horiz2 = SDL_fabsf(p2.y - p3.y) < eps;
 	const bool vert0 = SDL_fabsf(p0.x - p3.x) < eps;
 	const bool vert1 = SDL_fabsf(p1.x - p2.x) < eps;
+
 	if (horiz0 && horiz2 && vert0 && vert1)
 	{
-		const int minx = (int)(SDL_min(SDL_min(p0.x, p1.x), SDL_min(p2.x, p3.x)) + 0.5f);
-		const int maxx = (int)(SDL_max(SDL_max(p0.x, p1.x), SDL_max(p2.x, p3.x)) + 0.5f);
-		const int miny = (int)(SDL_min(SDL_min(p0.y, p1.y), SDL_min(p2.y, p3.y)) + 0.5f);
-		const int maxy = (int)(SDL_max(SDL_max(p0.y, p1.y), SDL_max(p2.y, p3.y)) + 0.5f);
-		SDL_FRect fr = { (float)minx, (float)miny, (float)(maxx - minx), (float)(maxy - miny) };
+		// Axis-aligned fast path
+		const float minx = SDL_min(SDL_min(p0.x, p1.x), SDL_min(p2.x, p3.x));
+		const float maxx = SDL_max(SDL_max(p0.x, p1.x), SDL_max(p2.x, p3.x));
+		const float miny = SDL_min(SDL_min(p0.y, p1.y), SDL_min(p2.y, p3.y));
+		const float maxy = SDL_max(SDL_max(p0.y, p1.y), SDL_max(p2.y, p3.y));
+
+		SDL_FRect fr = { minx, miny, maxx - minx, maxy - miny };
+		_gfxSetColor(r, color);
 		SDL_RenderFillRect(r, &fr);
 		return;
 	}
 
-	// Fallback: draw outline as a 4-segment polygon
-	SDL_RenderLine(r, (int)(p0.x + 0.5f), (int)(p0.y + 0.5f), (int)(p1.x + 0.5f), (int)(p1.y + 0.5f));
-	SDL_RenderLine(r, (int)(p1.x + 0.5f), (int)(p1.y + 0.5f), (int)(p2.x + 0.5f), (int)(p2.y + 0.5f));
-	SDL_RenderLine(r, (int)(p2.x + 0.5f), (int)(p2.y + 0.5f), (int)(p3.x + 0.5f), (int)(p3.y + 0.5f));
-	SDL_RenderLine(r, (int)(p3.x + 0.5f), (int)(p3.y + 0.5f), (int)(p0.x + 0.5f), (int)(p0.y + 0.5f));
+	// General case: draw a filled rotated quad
+	_render_filled_quad(r, p0, p1, p2, p3, color);
 }

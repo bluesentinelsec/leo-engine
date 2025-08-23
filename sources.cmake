@@ -7,6 +7,7 @@ set(LEO_SOURCES
 )
 
 set(LEO_TEST_SOURCES
+        tests/game_test.cpp
         tests/engine_test.cpp
         tests/error_test.cpp
         tests/graphics_test.cpp
