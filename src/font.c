@@ -193,7 +193,7 @@ leo_Font leo_LoadFont(const char* fileName, int pixelSize)
 	return font;
 }
 
-leo_Font leo_LoadFontFromMemory(const char* /*fileType*/,
+leo_Font leo_LoadFontFromMemory(const char* fileType,
 	const unsigned char* data, int dataSize,
 	int pixelSize)
 {
