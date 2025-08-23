@@ -244,3 +244,9 @@ if (LEO_BUILD_TESTS)
             TESTING
     )
 endif ()
+
+add_custom_command(TARGET ${TEST_RUNNER} POST_BUILD
+        COMMAND ${CMAKE_COMMAND} -E copy_directory
+        ${CMAKE_CURRENT_SOURCE_DIR}/resources
+        $<TARGET_FILE_DIR:${TEST_RUNNER}>/resources
+        COMMENT "Copying test resources directory next to ${TEST_RUNNER}")

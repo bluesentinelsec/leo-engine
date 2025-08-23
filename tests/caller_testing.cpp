@@ -4,11 +4,7 @@
 #include "leo/graphics.h"
 #include "leo/keyboard.h"
 #include "leo/color.h"
-
-#include <SDL3/SDL.h>
-#include <math.h>
-#include <stdlib.h>
-#include <time.h>
+#include "leo/image.h"  // <-- add this
 
 TEST_CASE("game", "[game]")
 {
@@ -21,28 +17,44 @@ TEST_CASE("game", "[game]")
 	REQUIRE(leo_SetLogicalResolution(windowWidth, windowHeight,
 		LEO_LOGICAL_PRESENTATION_LETTERBOX, LEO_SCALE_PIXELART) == true);
 
-	const int screenWidth  = leo_GetScreenWidth();
+	const int screenWidth = leo_GetScreenWidth();
 	const int screenHeight = leo_GetScreenHeight();
-
-	srand((unsigned)time(NULL));
 
 	leo_SetTargetFPS(60);
 
+	// --- Load texture (GPU) ---
+	leo_Texture2D tex = leo_LoadTexture("resources/images/character_64x64.png");
+	REQUIRE(leo_IsTextureReady(tex));
+
+	// Full source rect
+	leo_Rectangle src = { 0.0f, 0.0f, (float)tex.width, (float)tex.height };
+	// Centered position
+	leo_Vector2 pos = {
+		(float)((screenWidth - tex.width) / 2),
+		(float)((screenHeight - tex.height) / 2)
+	};
+	// White tint (no color modulation)
+	leo_Color tint = { 255, 255, 255, 255 };
+
 	while (!leo_WindowShouldClose())
 	{
-		// --- Update ---------------------------------------------------------
+		// --- Update ---
 		leo_UpdateKeyboard();
 
-
-		// --- Draw -----------------------------------------------------------
+		// --- Draw ---
 		leo_BeginDrawing();
+		leo_ClearBackground(20, 20, 24, 255);
 
-		leo_EndMode2D();
+		// If you use a camera elsewhere, call leo_BeginMode2D(cam) before drawing.
+		// Here we draw in screen space:
+		leo_DrawTextureRec(tex, src, pos, tint);
 
-        break; // comment this when testng
+		leo_EndDrawing();
 
+		break; // remove to see it animate / run normally
 	}
 
+	// Cleanup
+	leo_UnloadTexture(&tex);
 	leo_CloseWindow();
-	return;
 }
