@@ -74,7 +74,7 @@ TEST_CASE_METHOD(ImageTestEnv, "LoadTextureFromMemory (PNG buffer)", "[image][me
 	leo_UnloadTexture(&tex);
 }
 
-TEST_CASE_METHOD(ImageTestEnv, "LoadTextureFromTexture (GPU→GPU copy)", "[image][copy]")
+TEST_CASE_METHOD(ImageTestEnv, "LoadTextureFromTexture (GPUxGPU copy)", "[image][copy]")
 {
 	const char* path = "resources/images/character_64x64.png";
 	leo_Texture2D src = leo_LoadTexture(path);
