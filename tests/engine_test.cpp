@@ -3,14 +3,18 @@
 #include "leo/error.h"
 #include <SDL3/SDL.h>
 #include <string>
+#include <cmath>
 
-// Helper function to reset SDL state
-void resetSDLState()
+// Helper: reset engine/SDL state between tests
+static void resetSDLState()
 {
-	leo_CloseWindow(); // Use leo_CloseWindow for cleanup
-	leo_ClearError(); // Clear any existing error
+	leo_CloseWindow();
+	leo_ClearError();
 }
 
+/* ---------------------------------------------------------
+   Window + init
+--------------------------------------------------------- */
 TEST_CASE("leo_InitWindow initializes SDL, window, and renderer correctly", "[engine]")
 {
 	resetSDLState();
@@ -46,7 +50,6 @@ TEST_CASE("leo_InitWindow initializes SDL, window, and renderer correctly", "[en
 
 TEST_CASE("leo_CloseWindow cleans up resources properly", "[engine]")
 {
-	// Ensure clean state before each test case
 	resetSDLState();
 
 	SECTION("Closes initialized window and renderer")
@@ -59,13 +62,12 @@ TEST_CASE("leo_CloseWindow cleans up resources properly", "[engine]")
 		leo_CloseWindow();
 		CHECK(leo_GetWindow() == nullptr);
 		CHECK(leo_GetRenderer() == nullptr);
-		CHECK(SDL_WasInit(0) == 0); // Verify SDL_Quit was called
-		CHECK(leo_GetError() == std::string("")); // No error on cleanup
+		CHECK(SDL_WasInit(0) == 0);
+		CHECK(leo_GetError() == std::string(""));
 	}
 
 	SECTION("Safe to call when nothing is initialized")
 	{
-		// Should be clean after resetSDLState
 		CHECK(leo_GetWindow() == nullptr);
 		CHECK(leo_GetRenderer() == nullptr);
 		CHECK(leo_GetError() == std::string(""));
@@ -80,7 +82,6 @@ TEST_CASE("leo_CloseWindow cleans up resources properly", "[engine]")
 
 TEST_CASE("Multiple init and close cycles", "[engine]")
 {
-	// Ensure clean state before each test case
 	resetSDLState();
 
 	SECTION("Initialize and close window multiple times")
@@ -109,16 +110,13 @@ TEST_CASE("leo_SetFullscreen toggles fullscreen on and off", "[engine]")
 	SDL_Window* window = (SDL_Window*)leo_GetWindow();
 	REQUIRE(window != nullptr);
 
-	// Turn on fullscreen
 	REQUIRE(leo_SetFullscreen(true) == true);
 
 	int fs_w = 0, fs_h = 0;
 	SDL_GetWindowSize(window, &fs_w, &fs_h);
-	// Don't assert exact flags on macOS; just ensure it's a sensible, non-trivial size
 	CHECK(fs_w > 0);
 	CHECK(fs_h > 0);
 
-	// Turn it back off; SDL should restore prior windowed size
 	REQUIRE(leo_SetFullscreen(false) == true);
 
 	int ww = 0, wh = 0;
@@ -138,17 +136,14 @@ TEST_CASE("leo_WindowShouldClose stays false until a quit/close event arrives", 
 	resetSDLState();
 	REQUIRE(leo_InitWindow(640, 360, "Loop Test") == true);
 
-	// Initially, with no events, it should be false.
 	CHECK(leo_WindowShouldClose() == false);
 
-	// Push an SDL_QUIT event and verify it latches true.
 	SDL_Event quitEv{};
 	quitEv.type = SDL_EVENT_QUIT;
 	REQUIRE(SDL_PushEvent(&quitEv));
 
 	CHECK(leo_WindowShouldClose() == true);
-	// It remains true on subsequent calls (latched).
-	CHECK(leo_WindowShouldClose() == true);
+	CHECK(leo_WindowShouldClose() == true); // latched
 
 	leo_CloseWindow();
 	CHECK(SDL_WasInit(0) == 0);
@@ -162,10 +157,8 @@ TEST_CASE("leo_WindowShouldClose reacts to WINDOW_CLOSE_REQUESTED", "[engine][lo
 	SDL_Window* win = (SDL_Window*)leo_GetWindow();
 	REQUIRE(win != nullptr);
 
-	// Should be false before any event.
 	CHECK(leo_WindowShouldClose() == false);
 
-	// Push a window close request for our window.
 	SDL_Event e{};
 	e.type = SDL_EVENT_WINDOW_CLOSE_REQUESTED;
 	e.window.windowID = SDL_GetWindowID(win);
@@ -177,17 +170,18 @@ TEST_CASE("leo_WindowShouldClose reacts to WINDOW_CLOSE_REQUESTED", "[engine][lo
 	CHECK(SDL_WasInit(0) == 0);
 }
 
+/* ---------------------------------------------------------
+   Drawing + clear
+--------------------------------------------------------- */
 TEST_CASE("leo_BeginDrawing / leo_EndDrawing basic sequencing", "[engine][draw]")
 {
 	resetSDLState();
 	REQUIRE(leo_InitWindow(320, 200, "BeginEnd Test") == true);
 
-	// Begin → Clear → End should not crash and should present.
 	leo_BeginDrawing();
 	leo_ClearBackground(12, 34, 56, 78);
 	leo_EndDrawing();
 
-	// Another frame works too.
 	leo_BeginDrawing();
 	leo_ClearBackground(0, 0, 0, 255);
 	leo_EndDrawing();
@@ -204,12 +198,10 @@ TEST_CASE("leo_ClearBackground sets draw color and clamps values", "[engine][dra
 	SDL_Renderer* renderer = (SDL_Renderer*)leo_GetRenderer();
 	REQUIRE(renderer != nullptr);
 
-	// Normal values
 	leo_BeginDrawing();
 	leo_ClearBackground(10, 20, 30, 255);
 
 	Uint8 r = 0, g = 0, b = 0, a = 0;
-	// Verify renderer draw color matches the last clear color
 	REQUIRE(SDL_GetRenderDrawColor(renderer, &r, &g, &b, &a) == true);
 	CHECK(r == 10);
 	CHECK(g == 20);
@@ -217,7 +209,6 @@ TEST_CASE("leo_ClearBackground sets draw color and clamps values", "[engine][dra
 	CHECK(a == 255);
 	leo_EndDrawing();
 
-	// Clamping behavior
 	leo_BeginDrawing();
 	leo_ClearBackground(-5, 999, 128, -1); // expect clamped to (0,255,128,0)
 	REQUIRE(SDL_GetRenderDrawColor(renderer, &r, &g, &b, &a) == true);
@@ -231,22 +222,20 @@ TEST_CASE("leo_ClearBackground sets draw color and clamps values", "[engine][dra
 	CHECK(SDL_WasInit(0) == 0);
 }
 
-// ============================
-// Timing API tests
-// ============================
-
+/* ---------------------------------------------------------
+   Timing
+--------------------------------------------------------- */
 TEST_CASE("leo_GetTime is monotonic after InitWindow", "[engine][time]")
 {
 	resetSDLState();
 	REQUIRE(leo_InitWindow(320, 200, "Time Test") == true);
 
 	const double t0 = leo_GetTime();
-	// Small sleep to ensure measurable progress (10–20ms)
 	SDL_Delay(20);
 	const double t1 = leo_GetTime();
 
 	CHECK(t1 >= t0);
-	CHECK((t1 - t0) >= 0.010); // at least ~10ms advanced
+	CHECK((t1 - t0) >= 0.010); // ~10ms
 
 	leo_CloseWindow();
 	CHECK(SDL_WasInit(0) == 0);
@@ -257,16 +246,14 @@ TEST_CASE("leo_GetFrameTime updates after Begin/EndDrawing", "[engine][time]")
 	resetSDLState();
 	REQUIRE(leo_InitWindow(320, 200, "FrameTime Test") == true);
 
-	// First frame with some work (~8ms) so it's measurable
 	leo_BeginDrawing();
 	SDL_Delay(8);
 	leo_EndDrawing();
 
 	float dt = leo_GetFrameTime();
 	CHECK(dt > 0.0f);
-	CHECK(dt >= 0.006f); // should be at least ~6ms given the delay
+	CHECK(dt >= 0.006f);
 
-	// A quick second frame should still be non-zero
 	leo_BeginDrawing();
 	leo_EndDrawing();
 	dt = leo_GetFrameTime();
@@ -276,21 +263,16 @@ TEST_CASE("leo_GetFrameTime updates after Begin/EndDrawing", "[engine][time]")
 	CHECK(SDL_WasInit(0) == 0);
 }
 
-// --- Minimal, CI-friendly timing smoke tests ---
-
 TEST_CASE("leo_SetTargetFPS accepts typical values without side effects", "[engine][time][smoke]")
 {
 	resetSDLState();
 	REQUIRE(leo_InitWindow(320, 200, "SetTargetFPS Smoke") == true);
 
-	// A few representative values, including edge-ish cases.
 	const int values[] = { 0, 1, 30, 60, 240, 10000, -5 };
 	for (int fps: values)
 	{
-		// Should not crash and should not set any error.
 		leo_SetTargetFPS(fps);
 
-		// Run a tiny frame to ensure nothing explodes and frame time is well-formed.
 		leo_BeginDrawing();
 		leo_EndDrawing();
 
@@ -308,18 +290,15 @@ TEST_CASE("leo_GetFPS returns a non-negative integer", "[engine][time][smoke]")
 	resetSDLState();
 	REQUIRE(leo_InitWindow(320, 200, "GetFPS Smoke") == true);
 
-	// Drive a few frames quickly (no timing guarantees).
 	for (int i = 0; i < 5; ++i)
 	{
 		leo_BeginDrawing();
 		leo_EndDrawing();
 	}
 
-	// We don't assert a range; CI can be noisy. Just ensure it's well-formed.
 	int fps = leo_GetFPS();
 	CHECK(fps >= 0);
 
-	// Call again after another frame, still well-formed.
 	leo_BeginDrawing();
 	leo_EndDrawing();
 	fps = leo_GetFPS();
@@ -329,6 +308,9 @@ TEST_CASE("leo_GetFPS returns a non-negative integer", "[engine][time][smoke]")
 	CHECK(SDL_WasInit(0) == 0);
 }
 
+/* ---------------------------------------------------------
+   Camera math
+--------------------------------------------------------- */
 TEST_CASE("Camera round-trip world<->screen", "[camera]")
 {
 	leo_Camera2D cam{};
@@ -365,4 +347,168 @@ TEST_CASE("Begin/EndMode2D stack", "[camera]")
 
 	leo_EndMode2D();
 	CHECK(leo_GetCurrentCamera2D().zoom == 1.f);
+}
+
+TEST_CASE("WorldToScreen with identity vs. offset/zoom/rotation sanity", "[camera]")
+{
+	// Identity camera
+	leo_Camera2D id{};
+	id.target = { 0, 0 };
+	id.offset = { 0, 0 };
+	id.rotation = 0;
+	id.zoom = 1;
+
+	leo_Vector2 p{ 10.f, -5.f };
+	auto s = leo_GetWorldToScreen2D(p, id);
+	CHECK(s.x == Catch::Approx(10.f));
+	CHECK(s.y == Catch::Approx(-5.f));
+
+	// With offset only
+	id.offset = { 200.f, 100.f };
+	s = leo_GetWorldToScreen2D({ 0, 0 }, id);
+	CHECK(s.x == Catch::Approx(200.f));
+	CHECK(s.y == Catch::Approx(100.f));
+
+	// With zoom only
+	id.offset = { 0, 0 };
+	id.zoom = 2.f;
+	s = leo_GetWorldToScreen2D({ 1, 0 }, id);
+	CHECK(s.x == Catch::Approx(2.f));
+	CHECK(s.y == Catch::Approx(0.f));
+
+	// With rotation 90°
+	id.zoom = 1.f;
+	id.rotation = 90.f;
+	s = leo_GetWorldToScreen2D({ 1, 0 }, id);
+
+	// With the current matrix, +rotation moves +X toward -Y
+	CHECK(s.x == Catch::Approx(0.f).margin(1e-5));
+	CHECK(s.x == Catch::Approx(0.f).margin(1e-5));
+}
+
+/* ---------------------------------------------------------
+   RenderTexture pipeline
+--------------------------------------------------------- */
+TEST_CASE("RenderTexture lifecycle and basic usage", "[rendertex]")
+{
+	resetSDLState();
+	REQUIRE(leo_InitWindow(320, 200, "RT Lifecycle") == true);
+
+	// Load
+	auto rt = leo_LoadRenderTexture(64, 32);
+	REQUIRE(rt.texture._handle != nullptr);
+	REQUIRE(rt._rt_handle == rt.texture._handle);
+	CHECK(rt.width == 64);
+	CHECK(rt.height == 32);
+	CHECK(rt.texture.width == 64);
+	CHECK(rt.texture.height == 32);
+
+	// Begin/clear/end should change the current render target and then restore it.
+	SDL_Renderer* r = (SDL_Renderer*)leo_GetRenderer();
+	REQUIRE(r != nullptr);
+	CHECK(SDL_GetRenderTarget(r) == nullptr);
+
+	leo_BeginTextureMode(rt);
+	CHECK(SDL_GetRenderTarget(r) == (SDL_Texture*)rt._rt_handle);
+	leo_ClearBackground(7, 8, 9, 255); // Clears the texture target
+	leo_EndTextureMode();
+	CHECK(SDL_GetRenderTarget(r) == nullptr);
+
+	// Unload
+	leo_UnloadRenderTexture(rt);
+
+	leo_CloseWindow();
+	CHECK(SDL_WasInit(0) == 0);
+}
+
+TEST_CASE("BeginTextureMode nesting restores previous targets", "[rendertex]")
+{
+	resetSDLState();
+	REQUIRE(leo_InitWindow(320, 200, "RT Nesting") == true);
+
+	auto a = leo_LoadRenderTexture(32, 32);
+	auto b = leo_LoadRenderTexture(16, 16);
+	REQUIRE(a._rt_handle != nullptr);
+	REQUIRE(b._rt_handle != nullptr);
+
+	SDL_Renderer* r = (SDL_Renderer*)leo_GetRenderer();
+	REQUIRE(r != nullptr);
+	CHECK(SDL_GetRenderTarget(r) == nullptr);
+
+	leo_BeginTextureMode(a);
+	CHECK(SDL_GetRenderTarget(r) == (SDL_Texture*)a._rt_handle);
+
+	leo_BeginTextureMode(b);
+	CHECK(SDL_GetRenderTarget(r) == (SDL_Texture*)b._rt_handle);
+
+	leo_EndTextureMode();
+	CHECK(SDL_GetRenderTarget(r) == (SDL_Texture*)a._rt_handle);
+
+	leo_EndTextureMode();
+	CHECK(SDL_GetRenderTarget(r) == nullptr);
+
+	leo_UnloadRenderTexture(b);
+	leo_UnloadRenderTexture(a);
+
+	leo_CloseWindow();
+	CHECK(SDL_WasInit(0) == 0);
+}
+
+TEST_CASE("DrawTextureRec tints and resets modulation", "[rendertex][draw]")
+{
+	resetSDLState();
+	REQUIRE(leo_InitWindow(128, 64, "RT Draw Tint Reset") == true);
+
+	auto rt = leo_LoadRenderTexture(32, 16);
+	REQUIRE(rt.texture._handle != nullptr);
+	SDL_Texture* sdltex = (SDL_Texture*)rt.texture._handle;
+
+	// Draw with a non-neutral tint
+	leo_BeginDrawing();
+	leo_DrawTextureRec(rt.texture, /*src*/ { 0, 0, (float)rt.texture.width, (float)rt.texture.height },
+		/*pos*/ { 10.f, 10.f }, /*tint*/ { 10, 20, 200, 128 });
+	leo_EndDrawing();
+
+	// After draw, modulation should be back to neutral (255,255,255,255)
+	Uint8 rmod = 0, gmod = 0, bmod = 0, amod = 0;
+	REQUIRE(SDL_GetTextureColorMod(sdltex, &rmod, &gmod, &bmod) == true);
+	REQUIRE(SDL_GetTextureAlphaMod(sdltex, &amod) == true);
+	CHECK(rmod == 255);
+	CHECK(gmod == 255);
+	CHECK(bmod == 255);
+	CHECK(amod == 255);
+
+	leo_UnloadRenderTexture(rt);
+	leo_CloseWindow();
+	CHECK(SDL_WasInit(0) == 0);
+}
+
+TEST_CASE("DrawTextureRec supports negative src.width/height (flip) without error", "[rendertex][draw][smoke]")
+{
+	resetSDLState();
+	REQUIRE(leo_InitWindow(128, 64, "RT Negative Src") == true);
+
+	auto rt = leo_LoadRenderTexture(8, 8);
+	REQUIRE(rt.texture._handle != nullptr);
+
+	leo_BeginDrawing();
+	// Horizontal flip
+	leo_DrawTextureRec(rt.texture, /*src*/
+		{ (float)rt.texture.width, 0.f, -(float)rt.texture.width, (float)rt.texture.height },
+		/*pos*/ { 0.f, 0.f }, /*tint*/ { 255, 255, 255, 255 });
+	// Vertical flip
+	leo_DrawTextureRec(rt.texture, /*src*/
+		{ 0.f, (float)rt.texture.height, (float)rt.texture.width, -(float)rt.texture.height },
+		/*pos*/ { 10.f, 0.f }, /*tint*/ { 255, 255, 255, 255 });
+	// Both axes flipped
+	leo_DrawTextureRec(rt.texture, /*src*/ {
+			(float)rt.texture.width, (float)rt.texture.height, -(float)rt.texture.width, -(float)rt.texture.height
+		},
+		/*pos*/ { 20.f, 0.f }, /*tint*/ { 255, 255, 255, 255 });
+	leo_EndDrawing();
+
+	// If we got here, the normalization path worked without crashing.
+	leo_UnloadRenderTexture(rt);
+	leo_CloseWindow();
+	CHECK(SDL_WasInit(0) == 0);
 }

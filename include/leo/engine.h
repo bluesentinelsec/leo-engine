@@ -43,7 +43,7 @@ typedef struct
 {
 	leo_Vector2 target; // world-space point the camera looks at
 	leo_Vector2 offset; // screen-space offset in pixels (where 'target' appears)
-	float rotation; // degrees, positive rotates clockwise
+	float rotation; // degrees; with current math, positive acts counterclockwise in screen space
 	float zoom; // 1.0 = no zoom
 } leo_Camera2D;
 
