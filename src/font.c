@@ -312,7 +312,12 @@ void leo_DrawFPS(int x, int y)
 	int fps = leo_GetFPS();
 	char buf[32];
 	SDL_snprintf(buf, sizeof(buf), "%d FPS", fps);
-	leo_DrawText(buf, x, y, g_default_font.baseSize, (leo_Color){ 0, 255, 0, 255 });
+	leo_Color green;
+	green.r = 0;
+	green.g = 255;
+	green.b = 0;
+	green.a = 255;
+	leo_DrawText(buf, x, y, g_default_font.baseSize, green);
 }
 
 void leo_DrawText(const char* text, int posX, int posY, int fontSize, leo_Color color)
