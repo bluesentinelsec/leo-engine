@@ -4,6 +4,7 @@
 #include "leo/error.h"
 #include "leo/color.h"
 #include "leo/keyboard.h"
+#include "leo/mouse.h"
 
 #include <SDL3/SDL.h>
 #include <math.h>
@@ -188,6 +189,8 @@ bool leo_InitWindow(int width, int height, const char* title)
 	// default per-texture scale mode
 	s_defaultScaleMode = SDL_SCALEMODE_LINEAR;
 
+	leo_InitMouse();
+
 	return true;
 }
 
@@ -227,6 +230,7 @@ void leo_CloseWindow()
 	s_logicalH = 0;
 
 	leo_CleanupKeyboard();
+	leo_ShutdownMouse();
 	SDL_Quit();
 }
 
@@ -261,8 +265,10 @@ bool leo_WindowShouldClose(void)
 			break;
 		default: break;
 		}
+		leo_HandleMouseEvent(&e);
 	}
 	leo_UpdateKeyboard();
+	leo_UpdateMouse();
 	if (leo_IsExitKeyPressed()) s_quit = 1;
 	return s_quit != 0;
 }
