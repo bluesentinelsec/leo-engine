@@ -45,8 +45,8 @@ TEST_CASE_METHOD(GfxEnv3, "DrawTextPro: rotation path renders without crashing",
     leo_ClearBackground(30, 32, 40, 255);
 
     // Rotate around the start of the string
-    leo_DrawTextPro(font, "Rotate!", (leo_Vector2){320, 180}, (leo_Vector2){320, 180},
-                    30.0f, 24.0f, 1.0f, (leo_Color){255, 220, 120, 255});
+    leo_DrawTextPro(font, "Rotate!", leo_Vector2{320, 180}, leo_Vector2{320, 180},
+                    30.0f, 24.0f, 1.0f, leo_Color{255, 220, 120, 255});
     leo_EndDrawing();
 
     const char* err = leo_GetError();
