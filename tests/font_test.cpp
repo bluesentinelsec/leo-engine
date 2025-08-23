@@ -42,7 +42,7 @@ TEST_CASE_METHOD(GfxEnv, "Font API: draw calls are safe without a font", "[font]
 	leo_ClearBackground(10, 10, 14, 255);
 
 	// Should be no-ops; mainly verifying no crash and no error state.
-	leo_DrawText("hello", 8, 8, 16, (leo_Color){ 255, 255, 255, 255 });
+	leo_DrawText("hello", 8, 8, 16, leo_Color{ 255, 255, 255, 255 });
 	leo_DrawFPS(8, 28);
 
 	leo_EndDrawing();

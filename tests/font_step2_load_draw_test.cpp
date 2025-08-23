@@ -44,8 +44,8 @@ TEST_CASE_METHOD(GfxEnv2, "DrawTextEx and DrawText are safe and render", "[font]
 	leo_ClearBackground(20, 22, 28, 255);
 
 	// Should not crash; rendering correctness is manually verifiable if needed.
-	leo_DrawText("Hello, Leo!", 16, 16, 24, (leo_Color){ 255, 255, 255, 255 });
-	leo_DrawTextEx(font, "Spacing", (leo_Vector2){ 16, 56 }, 24.0f, 2.0f, (leo_Color){ 200, 240, 255, 255 });
+	leo_DrawText("Hello, Leo!", 16, 16, 24, leo_Color{ 255, 255, 255, 255 });
+	leo_DrawTextEx(font, "Spacing", leo_Vector2{ 16, 56 }, 24.0f, 2.0f, leo_Color{ 200, 240, 255, 255 });
 	leo_DrawFPS(16, 88);
 
 	leo_EndDrawing();
@@ -55,5 +55,5 @@ TEST_CASE_METHOD(GfxEnv2, "DrawTextEx and DrawText are safe and render", "[font]
 	CHECK(((err == nullptr) || (err[0] == '\0')));
 
 	leo_UnloadFont(&font);
-	leo_SetDefaultFont((leo_Font){ 0 });
+	leo_SetDefaultFont(leo_Font{ 0 });
 }
