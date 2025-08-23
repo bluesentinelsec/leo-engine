@@ -1,5 +1,8 @@
 #pragma once
 
+#ifdef __cplusplus
+extern "C" {
+#endif
 
 typedef struct
 {
@@ -8,3 +11,7 @@ typedef struct
 	unsigned char b; // Blue channel
 	unsigned char a; // Alpha channel (opacity: 0 = transparent, 255 = opaque)
 } leo_Color;
+
+#ifdef __cplusplus
+}
+#endif
