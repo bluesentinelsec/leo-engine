@@ -4,6 +4,8 @@
 #include <SDL3/SDL.h>
 #include <string>
 #include <cmath>
+#include <atomic>
+#include <vector>
 
 // Helper: reset engine/SDL state between tests
 static void resetSDLState()
