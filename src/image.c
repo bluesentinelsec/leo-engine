@@ -5,6 +5,7 @@
 #include "leo/image.h"
 #include "leo/error.h"
 #include "leo/engine.h"
+#include "leo/io.h"
 
 #include <SDL3/SDL.h>
 #include <stdbool.h>
@@ -97,6 +98,36 @@ static leo_Texture2D _upload_rgba(SDL_Renderer* r, const void* pixels, int w, in
 	return _wrap_tex(tex, w, h);
 }
 
+// Try to load an encoded image via Leo VFS. Returns RGBA8 pixels (malloc'd by STB) on success.
+// On failure, returns NULL (caller may fall back to direct file I/O).
+static stbi_uc* _stbi_load_from_vfs_rgba(const char* logicalName, int* w, int* h, int* comp)
+{
+	if (!logicalName || !*logicalName) return NULL;
+
+	size_t need = 0;
+	// Probe size first (buffer==NULL -> size in out_total).
+	if (leo_ReadAsset(logicalName, NULL, 0, &need) != 0 || need == 0)
+	{
+		// If leo_ReadAsset returned non-zero here it means “probe only” succeeded. We just keep going.
+	}
+	if (need == 0) return NULL; // not found in mounts
+
+	unsigned char* buf = (unsigned char*)malloc(need);
+	if (!buf)
+	{
+		leo_SetError("leo_LoadTexture: OOM reading '%s' from VFS", logicalName);
+		return NULL;
+	}
+	size_t got = leo_ReadAsset(logicalName, buf, need, NULL);
+	if (got != need)
+	{
+		free(buf);
+		return NULL;
+	}
+	stbi_uc* px = stbi_load_from_memory((const stbi_uc*)buf, (int)need, w, h, comp, 4);
+	free(buf);
+	return px;
+}
 // -------------------------------
 // Public API
 // -------------------------------

@@ -6,6 +6,7 @@
 #include "leo/engine.h"
 #include "leo/error.h"
 #include "leo/image.h"
+#include "leo/io.h"
 
 #include <fstream>
 #include <vector>
@@ -55,6 +56,23 @@ TEST_CASE_METHOD(ImageTestEnv, "LoadTexture from file (PNG)", "[image][file]")
 
 	leo_UnloadTexture(&tex);
 	CHECK_FALSE(leo_IsTextureReady(tex)); // handle is freed in SDL; struct still has width/height
+}
+
+TEST_CASE_METHOD(ImageTestEnv, "LoadTexture via VFS (directory mount, logical path)", "[image][vfs]")
+{
+	// Mount the resources folder as a VFS directory with high priority.
+	REQUIRE(leo_MountDirectory("resources", /*priority*/ 100));
+
+	// NOTE: logical path relative to the mount ("resources/"), not a filesystem path.
+	// This ensures we exercise the VFS branch, not the filesystem fallback.
+	const char* logical = "images/character_64x64.png";
+
+	leo_Texture2D tex = leo_LoadTexture(logical);
+	REQUIRE(leo_IsTextureReady(tex));
+	CHECK(tex.width == 64);
+	CHECK(tex.height == 64);
+
+	leo_UnloadTexture(&tex);
 }
 
 TEST_CASE_METHOD(ImageTestEnv, "LoadTextureFromMemory (PNG buffer)", "[image][memory]")
