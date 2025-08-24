@@ -222,6 +222,23 @@ static int file_size64(FILE* f, uint64_t* out_sz)
 #endif
 }
 
+static int zlib_header_seems_valid(const uint8_t* buf, size_t n)
+{
+	if (n < 2) return 0;
+	uint8_t cmf = buf[0], flg = buf[1];
+
+	// CM = 8 (deflate)
+	if ((cmf & 0x0F) != 8) return 0;
+	// CINFO (window size) <= 7 (32K)
+	if ((cmf >> 4) > 7) return 0;
+	// FCHECK makes (CMF*256 + FLG) % 31 == 0
+	if ((((uint16_t)cmf << 8) | flg) % 31 != 0) return 0;
+	// We never use a preset dictionary
+	if (flg & 0x20) return 0;
+
+	return 1;
+}
+
 /* ---- Public API ---------------------------------------------------------- */
 
 leo_pack_result leo_pack_open_file(leo_pack** out, const char* path, const char* password)
@@ -340,12 +357,11 @@ leo_pack_result leo_pack_extract_index(leo_pack* p, int index, void* dst, size_t
 		return (e->meta.flags & LEO_PE_OBFUSCATED) ? LEO_PACK_E_BAD_PASSWORD : LEO_PACK_E_FORMAT;
 	}
 
-	/* Read stored blob */
+	/* Read stored blob (with safety padding to tolerate small overreads in inflaters) */
 	if (file_seek64(p->f, e->meta.offset) != 0) return LEO_PACK_E_IO;
-	uint8_t* tmp = NULL;
 	size_t tmp_sz = (size_t)e->meta.size_stored;
-
-	tmp = (uint8_t*)LEO_PACK_LOCAL_ALLOC(tmp_sz);
+	size_t tmp_cap = tmp_sz + 64; /* input guard */
+	uint8_t* tmp = (uint8_t*)LEO_PACK_LOCAL_ALLOC(tmp_cap);
 	if (!tmp) return LEO_PACK_E_OOM;
 
 	if (fread(tmp, 1, tmp_sz, p->f) != tmp_sz)
@@ -353,6 +369,7 @@ leo_pack_result leo_pack_extract_index(leo_pack* p, int index, void* dst, size_t
 		LEO_PACK_LOCAL_FREE(tmp);
 		return LEO_PACK_E_IO;
 	}
+	memset(tmp + tmp_sz, 0, tmp_cap - tmp_sz);
 
 	/* De-obfuscate if needed */
 	if ((e->meta.flags & LEO_PE_OBFUSCATED) != 0)
@@ -377,6 +394,16 @@ leo_pack_result leo_pack_extract_index(leo_pack* p, int index, void* dst, size_t
 			return LEO_PACK_E_NOSPACE;
 		}
 		size_t out_sz = produced;
+		/* If obfuscated (or just to be defensive), reject obviously bad zlib headers
+   before calling the inflater. This avoids crashing in third-party code. */
+		if (!zlib_header_seems_valid(tmp, tmp_sz))
+		{
+			LEO_PACK_LOCAL_FREE(tmp);
+			if ((e->meta.flags & LEO_PE_OBFUSCATED) != 0)
+				return LEO_PACK_E_BAD_PASSWORD;
+			else
+				return LEO_PACK_E_DECOMPRESS;
+		}
 		r = leo_decompress_deflate(tmp, tmp_sz, dst, &out_sz);
 		if (r != LEO_PACK_OK)
 		{

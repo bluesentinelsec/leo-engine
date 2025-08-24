@@ -39,8 +39,8 @@ leo_compress_deflate(const void* in, size_t in_sz, void* out, size_t* out_sz,
 	if (*out_sz < worst) return LEO_PACK_E_NOSPACE;
 
 	struct sdefl ctx;
+	memset(&ctx, 0, sizeof(ctx));
 	int wrote = zsdeflate(&ctx, out, in, (int)in_sz, lvl);
-
 	if (wrote <= 0) return LEO_PACK_E_COMPRESS;
 
 	*out_sz = (size_t)wrote;
