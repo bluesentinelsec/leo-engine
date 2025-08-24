@@ -12,8 +12,14 @@ using Catch::Approx;
 
 struct GfxEnvMouse
 {
-    GfxEnvMouse() { REQUIRE(leo_InitWindow(320, 180, "mouse-tests")); }
-    ~GfxEnvMouse() { leo_CloseWindow(); }
+    GfxEnvMouse()
+    {
+        REQUIRE(leo_InitWindow(320, 180, "mouse-tests"));
+    }
+    ~GfxEnvMouse()
+    {
+        leo_CloseWindow();
+    }
 };
 
 static void push_motion_event(float x, float y, float xrel = 0.0f, float yrel = 0.0f)
@@ -149,7 +155,8 @@ TEST_CASE_METHOD(GfxEnvMouse, "Mouse: wheel scalar & vector", "[mouse]")
 TEST_CASE_METHOD(GfxEnvMouse, "Mouse: button states (skip if no mouse)", "[mouse][buttons]")
 {
     // If the platform reports no mouse, don’t fail—just skip these assertions.
-    if (!SDL_HasMouse()) {
+    if (!SDL_HasMouse())
+    {
         WARN("SDL reports no mouse attached; skipping button edge tests.");
         SUCCEED();
         return;
@@ -163,7 +170,7 @@ TEST_CASE_METHOD(GfxEnvMouse, "Mouse: button states (skip if no mouse)", "[mouse
     {
         // Immediately after event (same frame, before Update):
         CHECK(leo_IsMouseButtonDown(LEO_MOUSE_BUTTON_LEFT));
-        CHECK(leo_IsMouseButtonPressed(LEO_MOUSE_BUTTON_LEFT));   // curr=1, prev=0
+        CHECK(leo_IsMouseButtonPressed(LEO_MOUSE_BUTTON_LEFT)); // curr=1, prev=0
         CHECK_FALSE(leo_IsMouseButtonReleased(LEO_MOUSE_BUTTON_LEFT));
     }
 
@@ -179,7 +186,7 @@ TEST_CASE_METHOD(GfxEnvMouse, "Mouse: button states (skip if no mouse)", "[mouse
     push_button_event(false, LEO_MOUSE_BUTTON_LEFT);
     {
         CHECK_FALSE(leo_IsMouseButtonDown(LEO_MOUSE_BUTTON_LEFT));
-        CHECK(leo_IsMouseButtonReleased(LEO_MOUSE_BUTTON_LEFT));  // curr=0, prev=1
+        CHECK(leo_IsMouseButtonReleased(LEO_MOUSE_BUTTON_LEFT)); // curr=0, prev=1
         CHECK_FALSE(leo_IsMouseButtonPressed(LEO_MOUSE_BUTTON_LEFT));
     }
 
