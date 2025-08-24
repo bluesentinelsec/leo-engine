@@ -195,6 +195,33 @@ static leo_pack_result load_toc(FILE* f, const leo_pack_header_v1* hdr,
 	return LEO_PACK_OK;
 }
 
+static int file_size64(FILE* f, uint64_t* out_sz)
+{
+#if defined(_WIN32) && !defined(__MINGW32__)
+	__int64 cur = _ftelli64(f);
+	if (cur < 0) return -1;
+	if (_fseeki64(f, 0, SEEK_END) != 0) return -1;
+	__int64 end = _ftelli64(f);
+	if (end < 0) { _fseeki64(f, cur, SEEK_SET); return -1; }
+	if (_fseeki64(f, cur, SEEK_SET) != 0) return -1;
+	*out_sz = (uint64_t)end;
+	return 0;
+#else
+	off_t cur = ftello(f);
+	if (cur < 0) return -1;
+	if (fseeko(f, 0, SEEK_END) != 0) return -1;
+	off_t end = ftello(f);
+	if (end < 0)
+	{
+		fseeko(f, cur, SEEK_SET);
+		return -1;
+	}
+	if (fseeko(f, cur, SEEK_SET) != 0) return -1;
+	*out_sz = (uint64_t)end;
+	return 0;
+#endif
+}
+
 /* ---- Public API ---------------------------------------------------------- */
 
 leo_pack_result leo_pack_open_file(leo_pack** out, const char* path, const char* password)
@@ -300,6 +327,18 @@ leo_pack_result leo_pack_extract_index(leo_pack* p, int index, void* dst, size_t
 	if (index < 0 || index >= p->count) return LEO_PACK_E_NOTFOUND;
 
 	const pack_entry_rec* e = &p->entries[index];
+
+	uint64_t fsz = 0;
+	if (file_size64(p->f, &fsz) != 0) return LEO_PACK_E_IO;
+
+	uint64_t off = e->meta.offset;
+	uint64_t sz = e->meta.size_stored;
+
+	if (off > fsz || sz > (fsz - off))
+	{
+		// If obfuscated, map corruption to BAD_PASSWORD to keep threat model simple for callers.
+		return (e->meta.flags & LEO_PE_OBFUSCATED) ? LEO_PACK_E_BAD_PASSWORD : LEO_PACK_E_FORMAT;
+	}
 
 	/* Read stored blob */
 	if (file_seek64(p->f, e->meta.offset) != 0) return LEO_PACK_E_IO;

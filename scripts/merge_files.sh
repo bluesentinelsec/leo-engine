@@ -19,7 +19,7 @@ FILES=(
     "src/pack_obfuscate.c"
     "src/pack_util.c"
     "src/pack_compress.c"
-    "pack_tamper_test.cpp"
+    "tests/pack_tamper_test.cpp"
     "tests/pack_rw_test.cpp"
     "tests/pack_zero_and_nospace_test.cpp"
 )
