@@ -9,6 +9,10 @@ set(LEO_SOURCES
         src/collisions.c
         src/mouse.c
         src/gamepad.c
+        src/pack_compress.c
+        src/pack_errors.c
+        src/pack_obfuscate.c
+        src/pack_util.c
         external/miniaudio/miniaudio.c
         external/getopt/getopt.c
 )
