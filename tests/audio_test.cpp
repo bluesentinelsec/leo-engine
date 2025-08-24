@@ -5,6 +5,7 @@
 
 #include "leo/audio.h"
 #include "leo/error.h"
+#include "leo/io.h"      // <-- add: for leo_MountDirectory()
 
 #include <cstring>
 #include <thread>
@@ -15,7 +16,6 @@ static void tiny_sleep_ms(int ms = 20)
 {
 	std::this_thread::sleep_for(std::chrono::milliseconds(ms));
 }
-
 struct AudioEnv
 {
 	bool available = false;
@@ -41,6 +41,34 @@ struct AudioEnv
 		leo_ShutdownAudio();
 	}
 };
+
+TEST_CASE_METHOD(AudioEnv, "LoadSound via VFS (directory mount, logical path)", "[audio][vfs]")
+{
+	if (!available)
+	{
+		WARN("Audio device unavailable in CI; skipping VFS load test.");
+		return;
+	}
+
+	// Mount the repo resources dir so logical paths resolve via VFS.
+	REQUIRE(leo_MountDirectory("resources", /*priority*/ 100));
+
+	// IMPORTANT: use the logical path (relative to the mount), not a filesystem path.
+	// This forces the VFS codepath (memory decoder + data source) instead of direct file I/O.
+	auto sfx = leo_LoadSound("sound/coin.wav");
+	REQUIRE(leo_IsSoundReady(sfx));
+	REQUIRE((sfx.channels == 1 || sfx.channels == 2));
+	REQUIRE(sfx.sampleRate >= 8000);
+
+	// quick smoke play just to ensure the handle is fully usable
+	REQUIRE(leo_PlaySound(&sfx, 0.2f, false));
+	tiny_sleep_ms();
+	CHECK(leo_IsSoundPlaying(&sfx));
+	leo_StopSound(&sfx);
+
+	leo_UnloadSound(&sfx);
+}
+
 
 TEST_CASE_METHOD(AudioEnv, "Audio init/shutdown is idempotent", "[audio][lifecycle]")
 {

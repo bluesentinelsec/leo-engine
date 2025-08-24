@@ -3,6 +3,7 @@
 // =============================================
 #include "leo/audio.h"
 #include "leo/error.h"
+#include "leo/io.h"
 
 #include <stdlib.h>
 #include <string.h>
@@ -45,6 +46,14 @@ void leo_ShutdownAudio(void)
 // ---------------------------------------------
 // Small helpers
 // ---------------------------------------------
+typedef struct _LeoSoundImpl {
+	ma_sound   snd;        /* actual sound object */
+	ma_decoder dec;        /* only used when created from memory */
+	int        hasDecoder; /* 1 if 'dec' is valid */
+	void*      encoded;    /* encoded file bytes when loaded via VFS */
+	size_t     encodedSize;
+} _LeoSoundImpl;
+
 static inline leo_Sound _zero_sound(void)
 {
 	leo_Sound s;
@@ -59,14 +68,25 @@ bool leo_IsSoundReady(leo_Sound sound)
 	return sound._handle != NULL;
 }
 
+static _LeoSoundImpl* _impl(leo_Sound* s)
+{
+	return (_LeoSoundImpl*)s->_handle;
+}
+
+static const _LeoSoundImpl* _impl_c(const leo_Sound* s)
+{
+	return (const _LeoSoundImpl*)s->_handle;
+}
+
 static ma_sound* _as_ma(leo_Sound* s)
 {
-	return (ma_sound*)s->_handle;
+	return s && s->_handle ? &(_impl(s)->snd) : NULL;
 }
+
 
 static const ma_sound* _as_ma_c(const leo_Sound* s)
 {
-	return (const ma_sound*)s->_handle;
+	return s && s->_handle ? &(_impl_c(s)->snd) : NULL;
 }
 
 static void _fill_advisory_fields(leo_Sound* out, const ma_sound* snd)
@@ -93,40 +113,84 @@ leo_Sound leo_LoadSound(const char* filePath)
 		return _zero_sound();
 	}
 
-	// Allocate the ma_sound on heap so our API stays value-returning.
-	ma_sound* snd = (ma_sound*)malloc(sizeof(ma_sound));
-	if (!snd)
+	/* Wrapper holds snd + optional decoder + owned encoded bytes. */
+	_LeoSoundImpl* impl = (_LeoSoundImpl*)calloc(1, sizeof(*impl));
+	if (!impl)
 	{
 		leo_SetError("leo_LoadSound: OOM");
 		return _zero_sound();
 	}
 
-	// For SFX we avoid streaming so we get Raylib-style low-latency reuse.
-	// (miniaudio can still stream large assets; later we'll add leo_LoadMusic).
-	ma_result r = ma_sound_init_from_file(&g_engine,
-		filePath,
-		0 /*flags: non-streamed*/,
-		NULL, NULL,
-		snd);
-	if (r != MA_SUCCESS)
+	/* --------- Try VFS first (logical path) ---------- */
+	size_t encSize = 0;
+	void*  encData = leo_LoadAsset(filePath, &encSize);
+	if (encData && encSize > 0)
 	{
-		free(snd);
-		leo_SetError("miniaudio: ma_sound_init_from_file failed (%d)", (int)r);
-		return _zero_sound();
+		ma_result r;
+		/* Build a decoder that reads from the encoded memory. */
+		r = ma_decoder_init_memory(encData, encSize, NULL, &impl->dec);
+		if (r == MA_SUCCESS)
+		{
+			/* Build a sound using the decoder as the data source. */
+			r = ma_sound_init_from_data_source(&g_engine,
+											   (ma_data_source*)&impl->dec,
+											   0 /* flags */,
+											   NULL /* group */,
+											   &impl->snd);
+			if (r == MA_SUCCESS)
+			{
+				impl->hasDecoder = 1;
+				impl->encoded = encData;
+				impl->encodedSize = encSize;
+				/* success path falls through */
+			}
+		}
+		if (impl->hasDecoder == 0)
+		{
+			/* VFS path failed: free the encoded buffer and fall back to file. */
+			free(encData);
+		}
+	}
+
+	/* --------- Fallback: direct filesystem path ---------- */
+	if (impl->hasDecoder == 0)
+	{
+		ma_result r = ma_sound_init_from_file(&g_engine,
+											  filePath,
+											  0 /* flags: non-streamed */,
+											  NULL, NULL,
+											  &impl->snd);
+		if (r != MA_SUCCESS)
+		{
+			free(impl);
+			leo_SetError("miniaudio: ma_sound_init_from_file failed (%d)", (int)r);
+			return _zero_sound();
+		}
 	}
 
 	leo_Sound s = _zero_sound();
-	s._handle = (void*)snd;
-	_fill_advisory_fields(&s, snd);
+	s._handle = (void*)impl;
+	_fill_advisory_fields(&s, &impl->snd);
 	return s;
 }
 
 void leo_UnloadSound(leo_Sound* sound)
 {
 	if (!sound || !sound->_handle) return;
-	ma_sound* snd = _as_ma(sound);
-	ma_sound_uninit(snd);
-	free(snd);
+	_LeoSoundImpl* impl = _impl(sound);
+	if (impl)
+	{
+		ma_sound_uninit(&impl->snd);
+		if (impl->hasDecoder)
+		{
+			ma_decoder_uninit(&impl->dec);
+		}
+		if (impl->encoded)
+		{
+			free(impl->encoded);
+		}
+		free(impl);
+	}
 	sound->_handle = NULL;
 	sound->channels = 0;
 	sound->sampleRate = 0;
