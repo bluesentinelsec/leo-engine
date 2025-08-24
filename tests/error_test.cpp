@@ -5,6 +5,10 @@
 #include <string.h>
 
 #include <thread>
+#include <atomic>
+#include <vector>
+#include <cstring>
+#include <cstdlib>  // for strlenß
 
 
 TEST_CASE("Error handling basics", "[error]")
