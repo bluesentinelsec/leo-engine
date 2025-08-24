@@ -34,7 +34,8 @@ typedef struct leo_Font
     void* _atlas;      // internal GPU texture (SDL_Texture*)
     void* _glyphs;     // internal glyph metadata (implementation-defined)
     int   baseSize;    // pixel height used when baking (e.g., 32)
-    int   lineHeight;  // recommended line advance at baseSize (pixels)
+    int   lineHeight;  // recommended line advance at baseSize (pixels).
+                       // Computed from ascent - descent + lineGap at base size.
     int   glyphCount;  // number of baked glyphs
     int   _atlasW;     // internal (debug/info)
     int   _atlasH;     // internal (debug/info)

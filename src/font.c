@@ -61,6 +61,9 @@ static leo_Font _load_from_ttf_bytes(const unsigned char *ttf, int ttfSize, int 
         return _zero();
     }
 
+    // Parse font once for metrics (line height, etc.)
+    stbtt_fontinfo finfo;
+    int fontOffset = stbtt_GetFontOffsetForIndex(ttf, 0);
     // Try up to 3 atlas sizes if the first is too small.
     int atlasW = 512, atlasH = 512;
     unsigned char *bitmap = NULL;
@@ -94,6 +97,16 @@ static leo_Font _load_from_ttf_bytes(const unsigned char *ttf, int ttfSize, int 
         leo_SetError("stbtt_BakeFontBitmap failed");
         goto fail;
     }
+
+    if (!stbtt_InitFont(&finfo, ttf, fontOffset))
+    {
+        leo_SetError("leo_LoadFont: stbtt_InitFont failed");
+        goto fail;
+    }
+    // Proper line height at the requested base pixel size.
+    int ascent = 0, descent = 0, lineGap = 0;
+    stbtt_GetFontVMetrics(&finfo, &ascent, &descent, &lineGap);
+    const float vscale = stbtt_ScaleForPixelHeight(&finfo, (float)pixelSize);
 
     // Expand grayscale -> RGBA (white text with alpha)
     unsigned char *rgba = (unsigned char *)malloc((size_t)atlasW * atlasH * 4);
@@ -151,7 +164,7 @@ static leo_Font _load_from_ttf_bytes(const unsigned char *ttf, int ttfSize, int 
     out._atlasH = atlasH;
     out.baseSize = pixelSize;
     out.glyphCount = LEO_FONT_DEFAULT_COUNT;
-    out.lineHeight = bakeRes; // stbtt returns pixel height used
+    out.lineHeight = (int)floorf(((ascent - descent) + lineGap) * vscale + 0.5f);
     return out;
 
 fail:
@@ -247,7 +260,9 @@ static void _draw_text_impl(leo_Font font, const char *text, float x, float y, f
     SDL_SetTextureColorMod(atlas, (Uint8)tint.r, (Uint8)tint.g, (Uint8)tint.b);
     SDL_SetTextureAlphaMod(atlas, (Uint8)tint.a);
 
-    float scale = fontSize / (float)font.baseSize;
+    // Newline handling uses base-size units for pen advance; we scale geometry later.
+    const float lineAdvanceBase = (float)font.lineHeight; // at base size
+    const float scale = fontSize / (float)font.baseSize;
     if (scale <= 0.0f)
         return;
 
@@ -261,6 +276,13 @@ static void _draw_text_impl(leo_Font font, const char *text, float x, float y, f
     for (p = (const unsigned char *)text; *p; ++p)
     {
         int ch = (int)*p;
+        if (ch == '\n')
+        {
+            // next line: reset X in base units, move Y by line height (base)
+            penX = x;
+            penY += lineAdvanceBase;
+            continue;
+        }
         if (ch < tbl->first || ch >= tbl->first + tbl->count)
         {
             // Skip unsupported glyphs (ASCII-only in step 2).
@@ -291,17 +313,16 @@ static void _draw_text_impl(leo_Font font, const char *text, float x, float y, f
             SDL_RenderTexture(r, atlas, &src, &dst);
         }
 
-        // Advance pen: stbtt_GetBakedQuad updated qx,qy as if scale==1; re-scale advance.
-        // Apply extra spacing only if there is a next character.
-        if (*(p + 1) != '\0')
+        // Advance pen in *base-size* units; spacing is at target size so convert back.
+        // qx/qy were advanced by stbtt as if scale==1 (base units).
+        penX = qx;
+        penY = qy;
+        // apply extra spacing only if there is a next character on the same line
+        if (*(p + 1) != '\0' && *(p + 1) != '\n')
         {
-            penX = x + (qx - x) * scale + spacing;
+            // spacing is in *target* pixels; convert to base units before adding
+            penX += (spacing / ((font.baseSize > 0) ? (fontSize / (float)font.baseSize) : 1.0f));
         }
-        else
-        {
-            penX = x + (qx - x) * scale;
-        }
-        penY = y + (qy - y) * scale;
     }
     SDL_SetTextureColorMod(atlas, 255, 255, 255);
     SDL_SetTextureAlphaMod(atlas, 255);
@@ -350,43 +371,69 @@ void leo_DrawTextPro(leo_Font font, const char *text, leo_Vector2 position, leo_
 // ---------- measurement ----------
 leo_Vector2 leo_MeasureTextEx(leo_Font font, const char *text, float fontSize, float spacing)
 {
-    leo_Vector2 sz = {0, 0};
-    if (!text || !*text || !leo_IsFontReady(font) || font.baseSize <= 0)
-        return sz;
+    leo_Vector2 sz = (leo_Vector2){0, 0};
+    if (!text || !*text || !leo_IsFontReady(font) || font.baseSize <= 0) return sz;
 
     _GlyphTable *tbl = (_GlyphTable *)font._glyphs;
     stbtt_bakedchar *cdata = tbl->baked;
 
-    float scale = fontSize / (float)font.baseSize;
-    float x = 0.0f, y = 0.0f;
-    float maxRight = 0.0f;
+    const float scale = fontSize / (float)font.baseSize;
+    const float lineH_base = (float)font.lineHeight; // base-size units
+
+    // pen in base units; we scale only when producing the final size
+    float x_base = 0.0f, y_base = 0.0f;
+    float lineMaxRight_base = 0.0f;   // max right-extent for current line
+    float overallMaxRight_base = 0.0f; // max across all lines
+    int   lineCount = 1;
 
     const unsigned char *p;
     for (p = (const unsigned char *)text; *p; ++p)
     {
         int ch = (int)*p;
+
+        if (ch == '\n')
+        {
+            // finalize current line
+            float lineWidth_base = (x_base > lineMaxRight_base) ? x_base : lineMaxRight_base;
+            if (lineWidth_base > overallMaxRight_base) overallMaxRight_base = lineWidth_base;
+            // next line
+            x_base = 0.0f;
+            y_base += lineH_base;
+            lineMaxRight_base = 0.0f;
+            lineCount += 1;
+            continue;
+        }
+
         if (ch < tbl->first || ch >= tbl->first + tbl->count)
             continue;
 
         stbtt_aligned_quad q;
-        float qx = x, qy = y;
+        float qx = x_base, qy = y_base;
         stbtt_GetBakedQuad(cdata, font._atlasW, font._atlasH, ch - tbl->first, &qx, &qy, &q, 1);
 
-        float w = (q.x1 - q.x0) * scale;
-        float right = (q.x0 * scale) + w;
-        if (right > maxRight)
-            maxRight = right;
+        // compute right extent for this glyph in base units
+        float right_base = q.x1; // q.x1 is already in base units (since we asked stbtt with scale==1)
+        if (right_base > lineMaxRight_base) lineMaxRight_base = right_base;
 
-        x = (qx)*scale; // advance at target size
-        if (*(p + 1) != '\0')
+        // advance pen (base units)
+        x_base = qx;
+        y_base = qy;
+        // apply extra spacing only between glyphs on the same line
+        if (*(p + 1) != '\0' && *(p + 1) != '\n')
         {
-            x += spacing; // spacing only between glyphs
+            // spacing is at target size; convert to base units
+            x_base += (spacing / ((font.baseSize > 0) ? (fontSize / (float)font.baseSize) : 1.0f));
         }
-        y = (qy)*scale;
     }
 
-    sz.x = (x > maxRight) ? x : maxRight;
-    sz.y = (float)font.lineHeight * scale;
+    // finalize last line
+    {
+        float lineWidth_base = (x_base > lineMaxRight_base) ? x_base : lineMaxRight_base;
+        if (lineWidth_base > overallMaxRight_base) overallMaxRight_base = lineWidth_base;
+    }
+
+    sz.x = overallMaxRight_base * scale;
+    sz.y = (float)lineCount * lineH_base * scale;
     return sz;
 }
 
