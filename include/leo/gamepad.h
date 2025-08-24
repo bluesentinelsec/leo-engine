@@ -120,6 +120,17 @@ LEO_API bool leo_IsGamepadStickDown    (int gamepad, int stick, int dir);  /* le
 LEO_API bool leo_IsGamepadStickReleased(int gamepad, int stick, int dir);  /* edge: crossed back below release */
 LEO_API bool leo_IsGamepadStickUp      (int gamepad, int stick, int dir);  /* level: currently below release */
 
+/* -----------------------------------------------------------------------------
+   Test backend hooks (compiled only when LEO_TEST_BACKEND is defined)
+   These let tests attach a simulated pad and drive buttons/axes directly.
+----------------------------------------------------------------------------- */
+#ifdef LEO_TEST_BACKEND
+LEO_API int  leo__test_attach_pad(const char* name);           /* returns index (>=0) or -1 */
+LEO_API void leo__test_detach_pad(int index);
+LEO_API void leo__test_set_button(int index, int button, bool down);
+LEO_API void leo__test_set_axis(int index, int axis, float value); /* [-1..+1], triggers use [0..+1] */
+#endif
+
 #ifdef __cplusplus
 } /* extern "C" */
 #endif

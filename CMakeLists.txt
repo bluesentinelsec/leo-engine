@@ -54,13 +54,14 @@ option(LEO_VENDOR_SDL "Bundle SDL3 into install" ON)  # ON: vendored SDL; OFF: s
 if (EMSCRIPTEN)
     set(LEO_BUILD_SHARED OFF CACHE BOOL "" FORCE)
 endif ()
+
 # =========================
 # Dependencies (SDL3)
 # =========================
 include(FetchContent)
 
 if (LEO_VENDOR_SDL)
-    set(SDL_INSTALL ON CACHE BOOL "" FORCE)   # let SDL install itself into our prefix
+    set(SDL_INSTALL ON CACHE BOOL "" FORCE)
 else ()
     set(SDL_INSTALL OFF CACHE BOOL "" FORCE)
 endif ()
@@ -75,14 +76,12 @@ else ()
     set(SDL_STATIC ON CACHE BOOL "" FORCE)
 endif ()
 
-
 find_package(SDL3 CONFIG QUIET)
 
 if (NOT SDL3_FOUND AND LEO_VENDOR_SDL)
-    include(FetchContent)
     set(SDL_INSTALL ON CACHE BOOL "" FORCE)
     set(SDL_TEST OFF CACHE BOOL "" FORCE)
-    # Toggle shared/static only for native; Emscripten is static anyway
+
     if (NOT EMSCRIPTEN)
         if (LEO_BUILD_SHARED)
             set(SDL_SHARED ON CACHE BOOL "" FORCE)
@@ -112,8 +111,10 @@ endif ()
 include(sources.cmake)
 
 # =========================
-# Library target
+# Libraries
 # =========================
+
+# Production library (no test hooks)
 if (LEO_BUILD_SHARED)
     add_library(${PROJECT_NAME} SHARED ${LEO_SOURCES})
     target_compile_definitions(${PROJECT_NAME} PRIVATE LEO_BUILDING_DLL)  # for __declspec(dllexport)
@@ -124,7 +125,6 @@ endif ()
 add_library(${ALIAS_NAME} ALIAS ${PROJECT_NAME})
 set_property(TARGET ${PROJECT_NAME} PROPERTY POSITION_INDEPENDENT_CODE ON)
 
-# Public so consumers inherit SDL usage requirements
 target_link_libraries(${PROJECT_NAME} PUBLIC SDL3::SDL3)
 
 target_include_directories(${PROJECT_NAME}
@@ -147,11 +147,22 @@ set_target_properties(${PROJECT_NAME} PROPERTIES
         INSTALL_NAME_DIR "@rpath"
 )
 
+# ---- Test library: same sources, compiled WITH LEO_TEST_BACKEND ----
+# Always build it STATIC so its symbols are embedded into the test exe.
+add_library(${PROJECT_NAME}_test STATIC ${LEO_SOURCES})
+set_property(TARGET ${PROJECT_NAME}_test PROPERTY POSITION_INDEPENDENT_CODE ON)
+target_link_libraries(${PROJECT_NAME}_test PUBLIC SDL3::SDL3)
+target_include_directories(${PROJECT_NAME}_test
+        PUBLIC
+        $<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}/include>
+        $<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}/external>
+)
+target_compile_definitions(${PROJECT_NAME}_test PRIVATE LEO_TEST_BACKEND TESTING)
+
 
 # =========================
 # Tests
 # =========================
-
 if (LEO_BUILD_TESTS)
     include(CTest)
     enable_testing()
@@ -164,21 +175,20 @@ if (LEO_BUILD_TESTS)
     FetchContent_MakeAvailable(Catch2)
 
     add_executable(${TEST_RUNNER} ${LEO_TEST_SOURCES})
+    target_include_directories(${TEST_RUNNER} PRIVATE ${CMAKE_CURRENT_SOURCE_DIR}/include)
 
+    # Expose test APIs in headers to the test sources
+    target_compile_definitions(${TEST_RUNNER} PRIVATE LEO_TEST_BACKEND)
+
+    # IMPORTANT: link the *test* runtime (with LEO_TEST_BACKEND), not the prod alias
     target_link_libraries(${TEST_RUNNER}
             PRIVATE
-            ${ALIAS_NAME}
+            ${PROJECT_NAME}_test
             Catch2::Catch2WithMain
             SDL3::SDL3
     )
 
-    target_include_directories(${TEST_RUNNER} PRIVATE
-            $<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}/include>
-    )
-
     include(Catch)
-
-    # Windows discovery runs immediately after link; ensure DLL dirs are on PATH.
     catch_discover_tests(${TEST_RUNNER}
             WORKING_DIRECTORY $<TARGET_FILE_DIR:${TEST_RUNNER}>
             DL_PATHS
@@ -187,7 +197,6 @@ if (LEO_BUILD_TESTS)
     )
 
     if (EMSCRIPTEN)
-        # Build for Node environment and allow exit() to terminate process.
         target_link_options(${TEST_RUNNER} PRIVATE
                 "-sENVIRONMENT=node"
                 "-sEXIT_RUNTIME=1"
@@ -198,7 +207,6 @@ if (LEO_BUILD_TESTS)
     # ---- Post-build runtime handling (shared builds only) ----
     if (LEO_BUILD_SHARED)
         if (WIN32)
-            # Copy all dependent DLLs (leo, SDL3, etc.) next to the test exe
             add_custom_command(TARGET ${TEST_RUNNER} POST_BUILD
                     COMMAND ${CMAKE_COMMAND} -E copy_if_different
                     $<TARGET_RUNTIME_DLLS:${TEST_RUNNER}>
@@ -206,31 +214,33 @@ if (LEO_BUILD_TESTS)
                     COMMAND_EXPAND_LISTS
                     COMMENT "Copying runtime DLLs next to ${TEST_RUNNER}")
         elseif (APPLE)
-            # Copy dylibs and prefer the exe dir via RPATH
             add_custom_command(TARGET ${TEST_RUNNER} POST_BUILD
                     COMMAND ${CMAKE_COMMAND} -E copy_if_different
                     $<TARGET_FILE:${PROJECT_NAME}>
                     $<TARGET_FILE:SDL3::SDL3>
                     $<TARGET_FILE_DIR:${TEST_RUNNER}>
                     COMMENT "Copying dylibs (Leo, SDL3) next to ${TEST_RUNNER}")
-            set_target_properties(${TEST_RUNNER} PROPERTIES
-                    BUILD_RPATH "@loader_path"
-            )
+            set_target_properties(${TEST_RUNNER} PROPERTIES BUILD_RPATH "@loader_path")
         elseif (UNIX)
-            # Copy .so and prefer the exe dir via RPATH
             add_custom_command(TARGET ${TEST_RUNNER} POST_BUILD
                     COMMAND ${CMAKE_COMMAND} -E copy_if_different
                     $<TARGET_FILE:${PROJECT_NAME}>
                     $<TARGET_FILE:SDL3::SDL3>
                     $<TARGET_FILE_DIR:${TEST_RUNNER}>
                     COMMENT "Copying shared objects (Leo, SDL3) next to ${TEST_RUNNER}")
-            set_target_properties(${TEST_RUNNER} PROPERTIES
-                    BUILD_RPATH "$ORIGIN"
-            )
+            set_target_properties(${TEST_RUNNER} PROPERTIES BUILD_RPATH "$ORIGIN")
         endif ()
     endif ()
+
+    # Copy test resources next to the test runner
+    add_custom_command(TARGET ${TEST_RUNNER} POST_BUILD
+            COMMAND ${CMAKE_COMMAND} -E copy_directory
+            ${CMAKE_CURRENT_SOURCE_DIR}/resources
+            $<TARGET_FILE_DIR:${TEST_RUNNER}>/resources
+            COMMENT "Copying test resources directory next to ${TEST_RUNNER}")
 endif ()
 
+# Common compile defs
 target_compile_definitions(${PROJECT_NAME} PRIVATE
         $<$<CONFIG:Debug>:DEBUG>
         $<$<NOT:$<CONFIG:Debug>>:NDEBUG>
@@ -244,9 +254,3 @@ if (LEO_BUILD_TESTS)
             TESTING
     )
 endif ()
-
-add_custom_command(TARGET ${TEST_RUNNER} POST_BUILD
-        COMMAND ${CMAKE_COMMAND} -E copy_directory
-        ${CMAKE_CURRENT_SOURCE_DIR}/resources
-        $<TARGET_FILE_DIR:${TEST_RUNNER}>/resources
-        COMMENT "Copying test resources directory next to ${TEST_RUNNER}")
