@@ -10,6 +10,7 @@
 #include <string.h>
 #include <time.h>
 #include <stddef.h>
+#include <sys/types.h>
 
 /* ---- Local helpers ------------------------------------------------------- */
 
