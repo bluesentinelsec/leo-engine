@@ -168,6 +168,7 @@ TEST_CASE("VFS mounts, stat, read, load and priority using real resources/")
 	}
 
 	// cleanup temporary pack
+	leo_ClearMounts();
 	fs::remove_all(tmp);
 }
 
@@ -237,7 +238,7 @@ TEST_CASE("VFS streaming open/read/seek/tell across pack & dir")
 
 	leo_CloseAsset(s);
 
-
+	leo_ClearMounts();
 	fs::remove_all(tmp);
 }
 
@@ -288,6 +289,7 @@ TEST_CASE("VFS: multiple packs priority override")
 
 	free(hi);
 	free(lo);
+	leo_ClearMounts();
 	fs::remove_all(tmp);
 }
 
@@ -311,6 +313,7 @@ TEST_CASE("VFS: passworded pack requires correct password")
 	CHECK(leo_MountResourcePack(pack.string().c_str(), "secret", 100)); // correct password
 	CHECK(leo_StatAsset("font/font.ttf", nullptr));
 
+	leo_ClearMounts();
 	fs::remove_all(tmp);
 }
 
@@ -407,9 +410,10 @@ TEST_CASE("VFS: zero-length asset works (pack)")
 	REQUIRE(s);
 	CHECK(st.size == 0);
 	unsigned char b;
+
 	CHECK(leo_AssetRead(s, &b, 1) == 0);
 	leo_CloseAsset(s);
-
+	leo_ClearMounts();
 	fs::remove_all(tmp);
 }
 
