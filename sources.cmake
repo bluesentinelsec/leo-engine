@@ -13,6 +13,8 @@ set(LEO_SOURCES
         src/pack_errors.c
         src/pack_obfuscate.c
         src/pack_util.c
+        src/pack_reader.c
+        src/pack_writer.c
         external/miniaudio/miniaudio.c
         external/getopt/getopt.c
 )

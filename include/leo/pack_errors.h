@@ -1,29 +1,37 @@
 #pragma once
-#include <stddef.h>
 
 #ifdef __cplusplus
-extern "C"
-{
+extern "C" {
 #endif
 
-    typedef enum leo_pack_result
-    {
-        LEO_PACK_OK = 0,
-        LEO_PACK_E_IO,
-        LEO_PACK_E_FORMAT,
-        LEO_PACK_E_VERSION,
-        LEO_PACK_E_MEM,
-        LEO_PACK_E_CRC,
-        LEO_PACK_E_NOTFOUND,
-        LEO_PACK_E_COMPRESS,
-        LEO_PACK_E_DECOMPRESS,
-        LEO_PACK_E_OBFUSCATE,
-        LEO_PACK_E_INVALID_ARG,
-        LEO_PACK_E_NOT_IMPLEMENTED
-    } leo_pack_result;
+/* Result codes for pack reader/writer and helpers. */
+typedef enum
+{
+	LEO_PACK_OK = 0,
 
-    const char *leo_pack_strerror(leo_pack_result r);
+	/* Format / integrity */
+	LEO_PACK_E_FORMAT, /* bad magic/version/structure */
+	LEO_PACK_E_CRC, /* CRC mismatch */
+
+	/* I/O & memory */
+	LEO_PACK_E_IO, /* file I/O error */
+	LEO_PACK_E_OOM, /* out of memory */
+	LEO_PACK_E_NOSPACE, /* destination buffer too small */
+
+	/* API / flow */
+	LEO_PACK_E_ARG, /* invalid argument */
+	LEO_PACK_E_STATE, /* wrong call order / invalid internal state */
+	LEO_PACK_E_NOTFOUND, /* entry not found */
+
+	/* Compression / obfuscation */
+	LEO_PACK_E_BAD_PASSWORD, /* missing/wrong password for obfuscated data */
+	LEO_PACK_E_COMPRESS, /* compression failed */
+	LEO_PACK_E_DECOMPRESS /* decompression failed */
+} leo_pack_result;
+
+/* Convenience helpers */
+const char* leo_pack_result_str(leo_pack_result r);
 
 #ifdef __cplusplus
-}
+} /* extern "C" */
 #endif
