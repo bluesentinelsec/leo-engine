@@ -8,6 +8,7 @@ set(LEO_SOURCES
         src/font.c
         src/collisions.c
         src/mouse.c
+        src/gamepad.c
         external/miniaudio/miniaudio.c
         external/getopt/getopt.c
 )
@@ -25,4 +26,5 @@ set(LEO_TEST_SOURCES
         tests/font_step3_spacing_rotation_test.cpp
         tests/collisions_test.cpp
         tests/mouse_test.cpp
+        tests/gamepad_test.cpp
 )
