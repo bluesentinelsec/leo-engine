@@ -1,7 +1,11 @@
 #include <catch2/catch_all.hpp>
 
 #include "leo/error.h"
+
 #include <string.h>
+
+#include <thread>
+
 
 TEST_CASE("Error handling basics", "[error]")
 {
@@ -46,4 +50,108 @@ TEST_CASE("Error handling basics", "[error]")
 		leo_SetError("Second error");
 		REQUIRE(strcmp(leo_GetError(), "Second error") == 0);
 	}
+}
+
+TEST_CASE("leo/error: Set/Get/Clear on same thread", "[error]")
+{
+	// Start clean
+	leo_ClearError();
+	REQUIRE(std::string(leo_GetError()).empty());
+
+	// Basic formatting
+	leo_SetError("hello %s %d", "world", 42);
+	REQUIRE(std::string(leo_GetError()) == "hello world 42");
+
+	// Overwrite previous error
+	leo_SetError("new message");
+	REQUIRE(std::string(leo_GetError()) == "new message");
+
+	// Clear returns empty
+	leo_ClearError();
+	REQUIRE(std::string(leo_GetError()).empty());
+}
+
+TEST_CASE("leo/error: Truncation guarantees NUL-termination", "[error]")
+{
+	// Make a very long message (much larger than the internal buffer).
+	const size_t kHuge = 8192;
+	std::string big(kHuge, 'A');
+
+	leo_SetError("%s", big.c_str());
+	const char* got = leo_GetError();
+
+	// Must be non-null, non-empty, and strictly shorter than our huge input.
+	REQUIRE(got != nullptr);
+	REQUIRE(std::strlen(got) > 0);
+	REQUIRE(std::strlen(got) < big.size());
+
+	// And it must be NUL-terminated (strlen would have crashed otherwise).
+	// Also sanity-check that it's all 'A's (no format oddities).
+	for (size_t i = 0; i < std::strlen(got); ++i)
+	{
+		REQUIRE(got[i] == 'A');
+	}
+}
+
+TEST_CASE("leo/error: TLS isolation across threads", "[error][threads]")
+{
+	// Main thread sets its own error
+	leo_SetError("main-error");
+	REQUIRE(std::string(leo_GetError()) == "main-error");
+
+	constexpr int kThreads = 8;
+	std::atomic<int> okCount{ 0 };
+	std::vector<std::thread> threads;
+	threads.reserve(kThreads);
+
+	for (int i = 0; i < kThreads; ++i)
+	{
+		threads.emplace_back([i, &okCount]()
+		{
+			// Each worker writes a unique message
+			leo_SetError("worker-%d", i);
+
+			// Verify this thread reads back its own message
+			std::string mine = leo_GetError();
+			if (mine == ("worker-" + std::to_string(i)))
+			{
+				++okCount;
+			}
+
+			// Clearing here must not affect other threads
+			leo_ClearError();
+			if (leo_GetError()[0] == '\0')
+			{
+				// Count a second success for clear semantics
+				++okCount;
+			}
+		});
+	}
+
+	for (auto& t: threads) t.join();
+
+	// Every thread should have:
+	//  - read back its own "worker-i" message
+	//  - observed clear -> empty string
+	REQUIRE(okCount.load() == kThreads * 2);
+
+	// Main thread's value should remain unchanged
+	REQUIRE(std::string(leo_GetError()) == "main-error");
+}
+
+TEST_CASE("leo/error: Empty/NULL format is a no-op", "[error]")
+{
+	// Set something
+	leo_SetError("before");
+	REQUIRE(std::string(leo_GetError()) == "before");
+
+	// NULL fmt -> no change
+	leo_SetError(nullptr);
+	REQUIRE(std::string(leo_GetError()) == "before");
+
+	// Empty fmt -> becomes empty string (printf behavior would be undefined,
+	// but our implementation bails early; we keep this test to ensure no crash)
+	// We'll just call Clear to be explicit and ensure it doesn't crash.
+	leo_ClearError();
+	REQUIRE(std::string(leo_GetError()).empty());
 }

@@ -1,11 +1,13 @@
 /* ==========================================================
- * File: src/io.c
+ * File: src/io.c  (thread-safe VFS with SDL3 RWLock)
  * ========================================================== */
 
 #include "leo/io.h"
 #include "leo/pack_format.h"
 #include "leo/pack_reader.h"
 #include "leo/error.h"
+
+#include <SDL3/SDL.h>
 
 #include <stdlib.h>
 #include <string.h>
@@ -24,6 +26,21 @@ typedef struct
 static _MountRec* s_mounts = NULL;
 static int s_count = 0;
 static int s_cap = 0;
+
+/* Global RW lock protecting s_mounts/s_count/s_cap.
+   Readers: Stat/Read/Open
+   Writers: Mount/Unmount/Clear */
+static SDL_RWLock* s_mountLock = NULL;
+
+/* Lazy-creates the mount lock. Returns NULL on failure. */
+static SDL_RWLock* _mount_lock(void)
+{
+	if (!s_mountLock)
+	{
+		s_mountLock = SDL_CreateRWLock();
+	}
+	return s_mountLock;
+}
 
 static void _free_mount(_MountRec* m)
 {
@@ -131,16 +148,32 @@ static int _file_size(FILE* f, size_t* out)
 ----------------------------- */
 void leo_ClearMounts(void)
 {
+	SDL_RWLock* lk = _mount_lock();
+	if (!lk)
+	{
+		/* Best-effort fallback: perform single-threaded clear if no lock. */
+		for (int i = 0; i < s_count; ++i) _free_mount(&s_mounts[i]);
+		free(s_mounts);
+		s_mounts = NULL;
+		s_count = 0;
+		s_cap = 0;
+		return;
+	}
+
+	SDL_LockRWLockForWriting(lk);
 	for (int i = 0; i < s_count; ++i) _free_mount(&s_mounts[i]);
 	free(s_mounts);
 	s_mounts = NULL;
 	s_count = 0;
 	s_cap = 0;
+	SDL_UnlockRWLock(lk);
 }
 
 bool leo_MountResourcePack(const char* packPath, const char* password, int priority)
 {
 	if (!packPath || !*packPath) return false;
+
+	/* Open pack WITHOUT holding the write lock (can touch disk, may be slow). */
 	leo_pack* p = NULL;
 	if (leo_pack_open_file(&p, packPath, password) != LEO_PACK_OK)
 	{
@@ -148,6 +181,7 @@ bool leo_MountResourcePack(const char* packPath, const char* password, int prior
 		return false;
 	}
 
+	/* Quick policy check: if the pack has obfuscated entries, require a password. */
 	if (!password || !password[0])
 	{
 		int n = leo_pack_count(p);
@@ -165,9 +199,20 @@ bool leo_MountResourcePack(const char* packPath, const char* password, int prior
 		}
 	}
 
+	SDL_RWLock* lk = _mount_lock();
+	if (!lk)
+	{
+		leo_pack_close(p);
+		return false;
+	}
+
+	/* Mutate mount list under exclusive lock. */
+	SDL_LockRWLockForWriting(lk);
+
 	_reserve(s_count + 1);
 	if (s_count >= s_cap)
 	{
+		SDL_UnlockRWLock(lk);
 		leo_pack_close(p);
 		return false;
 	}
@@ -176,20 +221,35 @@ bool leo_MountResourcePack(const char* packPath, const char* password, int prior
 	s_mounts[s_count].impl = (void*)p;
 	++s_count;
 	_sort_by_priority_desc();
+
+	SDL_UnlockRWLock(lk);
 	return true;
 }
 
 bool leo_MountDirectory(const char* baseDir, int priority)
 {
 	if (!baseDir || !*baseDir) return false;
+
+	/* Prepare dup WITHOUT holding the write lock. */
 	size_t n = strlen(baseDir);
 	char* dup = (char*)malloc(n + 1);
 	if (!dup) return false;
 	memcpy(dup, baseDir, n + 1);
 
+	SDL_RWLock* lk = _mount_lock();
+	if (!lk)
+	{
+		free(dup);
+		return false;
+	}
+
+	/* Mutate mount list under exclusive lock. */
+	SDL_LockRWLockForWriting(lk);
+
 	_reserve(s_count + 1);
 	if (s_count >= s_cap)
 	{
+		SDL_UnlockRWLock(lk);
 		free(dup);
 		return false;
 	}
@@ -198,6 +258,8 @@ bool leo_MountDirectory(const char* baseDir, int priority)
 	s_mounts[s_count].impl = dup;
 	++s_count;
 	_sort_by_priority_desc();
+
+	SDL_UnlockRWLock(lk);
 	return true;
 }
 
@@ -209,6 +271,11 @@ bool leo_StatAsset(const char* logicalName, leo_AssetInfo* out)
 		out->size = 0;
 		out->from_pack = 0;
 	}
+
+	SDL_RWLock* lk = _mount_lock();
+	if (!lk) return false;
+
+	SDL_LockRWLockForReading(lk);
 
 	for (int i = 0; i < s_count; ++i)
 	{
@@ -228,6 +295,7 @@ bool leo_StatAsset(const char* logicalName, leo_AssetInfo* out)
 						out->from_pack = 1;
 					}
 				}
+				SDL_UnlockRWLock(lk);
 				return true;
 			}
 		}
@@ -247,15 +315,23 @@ bool leo_StatAsset(const char* logicalName, leo_AssetInfo* out)
 				}
 			}
 			fclose(f);
+			SDL_UnlockRWLock(lk);
 			return true;
 		}
 	}
+
+	SDL_UnlockRWLock(lk);
 	return false;
 }
 
 size_t leo_ReadAsset(const char* logicalName, void* buffer, size_t bufferCap, size_t* out_total)
 {
 	if (_is_bad_logical(logicalName)) return 0;
+
+	SDL_RWLock* lk = _mount_lock();
+	if (!lk) return 0;
+
+	SDL_LockRWLockForReading(lk);
 
 	for (int i = 0; i < s_count; ++i)
 	{
@@ -274,10 +350,12 @@ size_t leo_ReadAsset(const char* logicalName, void* buffer, size_t bufferCap, si
 					if (leo_pack_stat_index((leo_pack*)m->impl, idx, &st) == LEO_PACK_OK)
 						*out_total = (size_t)st.size_uncompressed;
 				}
+				SDL_UnlockRWLock(lk);
 				return 0; /* probe only */
 			}
 			size_t outsz = 0;
 			leo_pack_result rr = leo_pack_extract_index((leo_pack*)m->impl, idx, buffer, bufferCap, &outsz);
+			SDL_UnlockRWLock(lk);
 			if (rr == LEO_PACK_OK) return outsz;
 			return 0;
 		}
@@ -294,19 +372,24 @@ size_t leo_ReadAsset(const char* logicalName, void* buffer, size_t bufferCap, si
 			{
 				if (out_total) *out_total = sz;
 				fclose(f);
+				SDL_UnlockRWLock(lk);
 				return 0; /* probe only */
 			}
 			if (bufferCap < sz)
 			{
 				fclose(f);
+				SDL_UnlockRWLock(lk);
 				return 0;
 			}
 			size_t n = fread(buffer, 1, sz, f);
 			fclose(f);
+			SDL_UnlockRWLock(lk);
 			return n == sz ? n : 0;
 		}
 	next_mount:;
 	}
+
+	SDL_UnlockRWLock(lk);
 	return 0;
 }
 
@@ -368,6 +451,11 @@ leo_AssetStream* leo_OpenAsset(const char* logicalName, leo_AssetInfo* info)
 	}
 	if (_is_bad_logical(logicalName)) return NULL;
 
+	SDL_RWLock* lk = _mount_lock();
+	if (!lk) return NULL;
+
+	SDL_LockRWLockForReading(lk);
+
 	/* iterate mounts by priority */
 	for (int i = 0; i < s_count; ++i)
 	{
@@ -382,11 +470,14 @@ leo_AssetStream* leo_OpenAsset(const char* logicalName, leo_AssetInfo* info)
 			if (leo_pack_stat_index((leo_pack*)m->impl, idx, &st) != LEO_PACK_OK)
 				continue;
 
-			size_t need = (size_t)st.size_uncompressed;
-			if (need == 0) need = 0; /* allow zero-sized */
+			size_t need = (size_t)st.size_uncompressed; /* allow zero-sized */
 
 			leo_AssetStream* s = (leo_AssetStream*)calloc(1, sizeof(*s));
-			if (!s) return NULL;
+			if (!s)
+			{
+				SDL_UnlockRWLock(lk);
+				return NULL;
+			}
 			s->from_pack = 1;
 			s->size = need;
 			if (need > 0)
@@ -395,6 +486,7 @@ leo_AssetStream* leo_OpenAsset(const char* logicalName, leo_AssetInfo* info)
 				if (!s->mem)
 				{
 					free(s);
+					SDL_UnlockRWLock(lk);
 					return NULL;
 				}
 				size_t outsz = 0;
@@ -403,6 +495,7 @@ leo_AssetStream* leo_OpenAsset(const char* logicalName, leo_AssetInfo* info)
 				{
 					free(s->mem);
 					free(s);
+					SDL_UnlockRWLock(lk);
 					return NULL;
 				}
 			}
@@ -412,6 +505,7 @@ leo_AssetStream* leo_OpenAsset(const char* logicalName, leo_AssetInfo* info)
 				info->size = s->size;
 				info->from_pack = 1;
 			}
+			SDL_UnlockRWLock(lk);
 			return s;
 		}
 		else if (m->type == LEO_MOUNT_DIR)
@@ -425,6 +519,7 @@ leo_AssetStream* leo_OpenAsset(const char* logicalName, leo_AssetInfo* info)
 			if (!s)
 			{
 				fclose(f);
+				SDL_UnlockRWLock(lk);
 				return NULL;
 			}
 			s->from_pack = 0;
@@ -435,9 +530,12 @@ leo_AssetStream* leo_OpenAsset(const char* logicalName, leo_AssetInfo* info)
 				info->size = s->size;
 				info->from_pack = 0;
 			}
+			SDL_UnlockRWLock(lk);
 			return s;
 		}
 	}
+
+	SDL_UnlockRWLock(lk);
 	return NULL;
 }
 

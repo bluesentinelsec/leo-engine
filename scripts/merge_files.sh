@@ -8,7 +8,6 @@ OUTPUT_FILE="leo_pack_mega.h"
 
 # List of input header files
 FILES=(
-    tests/io_vfs_test.cpp
     src/io.c
     include/leo/io.h
     src/pack_reader.c
@@ -17,6 +16,17 @@ FILES=(
     include/leo/pack_writer.h
     include/leo/pack_format.h
     src/pack_util.c
+    include/leo/pack_util.h
+    include/leo/pack_compress.h
+    src/pack_compress.c
+    include/leo/pack_obfuscate.h
+    src/pack_obfuscate.c
+    include/leo/error.h
+    src/error.c
+    CMakeLists.txt
+    sources.cmake
+    src/engine.c
+    include/leo/engine.h
 )
 
 # Initialize or clear the output file
