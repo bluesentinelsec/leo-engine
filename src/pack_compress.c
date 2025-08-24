@@ -29,20 +29,17 @@ leo_compress_deflate(const void* in, size_t in_sz, void* out, size_t* out_sz,
 
 	/* sdefl/sinfl use int lengths; bail if size doesn't fit. */
 	if (in_sz > (size_t)INT_MAX) return LEO_PACK_E_ARG;
-	if (*out_sz > (size_t)INT_MAX)
-	{
-		/* sdefl takes an int; we’ll still check bound below but cap INT_MAX */
-		*out_sz = (size_t)INT_MAX;
-	}
+	if (*out_sz > (size_t)INT_MAX) *out_sz = (size_t)INT_MAX;
 
 	const int lvl = clamp_sdefl_level(opt ? opt->level : SDEFL_LVL_DEF);
 
-	/* Worst-case capacity check. raw DEFLATE worst case via sdefl_bound(). */
-	const int need = sdefl_bound((int)in_sz);
-	if ((size_t)need > *out_sz) return LEO_PACK_E_NOSPACE;
+	/* Conservative worst-case for zlib-wrapped output.
+   Matches the writer’s allocation strategy and preserves NOSPACE semantics. */
+	size_t worst = in_sz + (in_sz / 10) + 64; /* generous upper bound */
+	if (*out_sz < worst) return LEO_PACK_E_NOSPACE;
 
-	struct sdefl ctx; /* local context */
-	int wrote = sdeflate(&ctx, out, in, (int)in_sz, lvl); /* raw DEFLATE */
+	struct sdefl ctx;
+	int wrote = zsdeflate(&ctx, out, in, (int)in_sz, lvl);
 
 	if (wrote <= 0) return LEO_PACK_E_COMPRESS;
 
@@ -59,13 +56,9 @@ leo_decompress_deflate(const void* in, size_t in_sz, void* out, size_t* out_sz)
 	if (!in || !out || !out_sz) return LEO_PACK_E_ARG;
 
 	if (in_sz > (size_t)INT_MAX) return LEO_PACK_E_ARG;
-	if (*out_sz > (size_t)INT_MAX)
-	{
-		/* sinflate expects int cap; cap to INT_MAX */
-		*out_sz = (size_t)INT_MAX;
-	}
+	if (*out_sz > (size_t)INT_MAX) *out_sz = (size_t)INT_MAX;
 
-	int produced = sinflate(out, (int)*out_sz, in, (int)in_sz); /* raw DEFLATE */
+	int produced = zsinflate(out, (int)*out_sz, in, (int)in_sz); /* zlib stream */
 
 	if (produced < 0) return LEO_PACK_E_DECOMPRESS; /* stream error */
 	if ((size_t)produced > *out_sz) return LEO_PACK_E_NOSPACE; /* should not happen */
