@@ -8,15 +8,21 @@ OUTPUT_FILE="leo_pack_mega.h"
 
 # List of input header files
 FILES=(
-    src/audio.c
-    include/leo/audio.h
-    tests/image_test.cpp
-    tests/audio_test.cpp
+    include/leo/font.h
+    src/font.c
+    tests/font_step2_load_draw_test.cpp
+    tests/font_step3_spacing_rotation_test.cpp
+    tests/font_step4_memory_errorpaths_test.cpp
+    tests/font_test.cpp
     include/leo/io.h
     src/io.c
     include/leo/error.h
     include/leo/pack_reader.h
     src/pack_reader.c
+    include/leo/engine.h
+    include/leo/image.h
+    src/engine.c
+    src/image.c
 )
 
 # Initialize or clear the output file
