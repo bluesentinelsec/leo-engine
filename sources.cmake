@@ -33,4 +33,5 @@ set(LEO_TEST_SOURCES
         tests/collisions_test.cpp
         tests/mouse_test.cpp
         tests/gamepad_test.cpp
+        tests/pack_rw_test.cpp
 )

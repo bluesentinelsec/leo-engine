@@ -341,6 +341,8 @@ leo_pack_result leo_pack_extract_index(leo_pack* p, int index, void* dst, size_t
 		if (r != LEO_PACK_OK)
 		{
 			LEO_PACK_LOCAL_FREE(tmp);
+			if ((e->meta.flags & LEO_PE_OBFUSCATED) != 0)
+				return LEO_PACK_E_BAD_PASSWORD;
 			return r;
 		}
 		produced = out_sz;
@@ -361,10 +363,21 @@ leo_pack_result leo_pack_extract_index(leo_pack* p, int index, void* dst, size_t
 	if (crc != e->meta.crc32_uncompressed)
 	{
 		LEO_PACK_LOCAL_FREE(tmp);
+		if ((e->meta.flags & LEO_PE_OBFUSCATED) != 0)
+			return LEO_PACK_E_BAD_PASSWORD;
 		return LEO_PACK_E_FORMAT; /* corrupted or wrong password */
 	}
 
 	if (out_size) *out_size = produced;
 	LEO_PACK_LOCAL_FREE(tmp);
 	return LEO_PACK_OK;
+}
+
+leo_pack_result leo_pack_extract(leo_pack* p, const char* name, void* dst, size_t dst_cap, size_t* out_size)
+{
+	if (!p || !name || !dst) return LEO_PACK_E_ARG;
+	int idx = -1;
+	leo_pack_result r = leo_pack_find(p, name, &idx);
+	if (r != LEO_PACK_OK) return r;
+	return leo_pack_extract_index(p, idx, dst, dst_cap, out_size);
 }
