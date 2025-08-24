@@ -160,10 +160,11 @@ leo_pack_result leo_pack_writer_begin(leo_pack_writer** out, const char* out_pat
 leo_pack_result leo_pack_writer_add(leo_pack_writer* w, const char* logical_name, const void* data, size_t size,
 	int compress, int obfuscate)
 {
-	if (!w || !w->f || !logical_name || !data)
-		return LEO_PACK_E_ARG;
+	if (!w || !w->f || !logical_name) return LEO_PACK_E_ARG;
+	if (size > 0 && !data) return LEO_PACK_E_ARG;
 	if (obfuscate && (w->xor_seed == 0))
 		return LEO_PACK_E_BAD_PASSWORD;
+
 	/* Normalize logical name: convert '\\' -> '/', strip leading './' */
 	char stack_norm[512];
 	const char* name = logical_name;
@@ -205,6 +206,47 @@ leo_pack_result leo_pack_writer_add(leo_pack_writer* w, const char* logical_name
 			return LEO_PACK_E_STATE;
 		}
 	}
+
+	/* ---- Zero-length entry: no payload write, just metadata ---- */
+	if (size == 0)
+	{
+		leo_pack_result r = ensure_capacity(w, 1);
+		if (r != LEO_PACK_OK)
+		{
+			if (heap_norm)
+				LEO_PACK_LOCAL_FREE(heap_norm);
+			return r;
+		}
+
+		writer_entry* e = &w->entries[w->count++];
+		size_t norm_len = strlen(name);
+		e->name = (char*)LEO_PACK_LOCAL_ALLOC(norm_len + 1);
+		if (!e->name)
+		{
+			if (heap_norm)
+				LEO_PACK_LOCAL_FREE(heap_norm);
+			return LEO_PACK_E_OOM;
+		}
+		memcpy(e->name, name, norm_len + 1);
+
+		memset(&e->meta, 0, sizeof(e->meta));
+		e->meta.flags = 0;
+		if (obfuscate)
+		{
+			e->meta.flags |= LEO_PE_OBFUSCATED;
+			w->any_obfuscation = 1;
+		}
+		e->meta.name_len = (uint16_t)norm_len;
+		e->meta.offset = w->data_cursor; /* no payload written */
+		e->meta.size_uncompressed = 0;
+		e->meta.size_stored = 0;
+		e->meta.crc32_uncompressed = 0; /* OK for empty */
+
+		if (heap_norm)
+			LEO_PACK_LOCAL_FREE(heap_norm);
+		return LEO_PACK_OK;
+	}
+
 
 	leo_pack_result r = ensure_capacity(w, 1);
 	if (r != LEO_PACK_OK)

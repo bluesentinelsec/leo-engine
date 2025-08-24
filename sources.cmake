@@ -15,6 +15,7 @@ set(LEO_SOURCES
         src/pack_util.c
         src/pack_reader.c
         src/pack_writer.c
+        src/io.c
         external/miniaudio/miniaudio.c
         external/getopt/getopt.c
 )
@@ -39,4 +40,5 @@ set(LEO_TEST_SOURCES
         tests/pack_zero_and_nospace_test.cpp
         tests/pack_obfuscation_edges_test.cpp
         tests/pack_tamper_test.cpp
+        tests/io_vfs_test.cpp
 )

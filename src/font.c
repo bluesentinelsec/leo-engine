@@ -325,6 +325,7 @@ void leo_DrawFPS(int x, int y)
 
 void leo_DrawText(const char* text, int posX, int posY, int fontSize, leo_Color color)
 {
+
 	if (!leo_IsFontReady(g_default_font))
 	{
 		// Deterministic: no hidden auto-load. Just no-op.
