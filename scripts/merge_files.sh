@@ -8,25 +8,18 @@ OUTPUT_FILE="leo_pack_mega.h"
 
 # List of input header files
 FILES=(
-    src/io.c
-    include/leo/io.h
-    src/pack_reader.c
-    include/leo/pack_reader.h
-    src/pack_writer.c
-    include/leo/pack_writer.h
-    include/leo/pack_format.h
-    src/pack_util.c
-    include/leo/pack_util.h
-    include/leo/pack_compress.h
-    src/pack_compress.c
-    include/leo/pack_obfuscate.h
-    src/pack_obfuscate.c
-    include/leo/error.h
-    src/error.c
-    CMakeLists.txt
-    sources.cmake
-    src/engine.c
-    include/leo/engine.h
+    src/image.c
+    include/leo/image.h
+    src/audio.c
+    include/leo/audio.h
+    src/font.c
+    include/leo/font.h
+    tests/image_test.cpp
+    tests/audio_test.cpp
+    tests/font_step2_load_draw_test.cpp
+    tests/font_step3_spacing_rotation_test.cpp
+    tests/font_step4_memory_errorpaths_test.cpp
+    tests/font_test.cpp
 )
 
 # Initialize or clear the output file

@@ -164,17 +164,23 @@ void leo_UnloadTexture(leo_Texture2D* texture)
 // Load from file (PNG/JPG/etc.)
 leo_Texture2D leo_LoadTexture(const char* fileName)
 {
-	if (!fileName || !*fileName)
-	{
+	if (!fileName || !*fileName) {
 		leo_SetError("leo_LoadTexture: invalid fileName");
 		return _zero_tex();
 	}
 
 	int w = 0, h = 0, n = 0;
-	stbi_uc* px = stbi_load(fileName, &w, &h, &n, 4); // force RGBA8
-	if (!px)
-	{
-		leo_SetError("stbi_load failed for '%s'", fileName);
+	stbi_uc* px = NULL;
+
+	// 1) Try VFS (logical path inside mounted packs/dirs).
+	px = _stbi_load_from_vfs_rgba(fileName, &w, &h, &n);
+
+	// 2) Fallback to filesystem path for back-compat.
+	if (!px) {
+		px = stbi_load(fileName, &w, &h, &n, 4); // force RGBA8
+	}
+	if (!px) {
+		leo_SetError("leo_LoadTexture: not found or unsupported image '%s'", fileName);
 		return _zero_tex();
 	}
 
