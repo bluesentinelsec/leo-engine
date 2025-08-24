@@ -1,3 +1,12 @@
+#if !defined(_WIN32)
+#  ifndef _FILE_OFFSET_BITS
+#    define _FILE_OFFSET_BITS 64
+#  endif
+#  ifndef _LARGEFILE_SOURCE
+#    define _LARGEFILE_SOURCE 1
+#  endif
+#endif
+
 #include "leo/pack_reader.h"
 #include "leo/pack_format.h"
 #include "leo/pack_util.h"

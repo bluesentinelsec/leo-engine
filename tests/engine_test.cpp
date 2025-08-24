@@ -6,6 +6,7 @@
 #include <cmath>
 #include <atomic>
 #include <vector>
+#include <thread>
 
 // Helper: reset engine/SDL state between tests
 static void resetSDLState()
