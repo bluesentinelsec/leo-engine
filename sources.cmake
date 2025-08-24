@@ -34,4 +34,9 @@ set(LEO_TEST_SOURCES
         tests/mouse_test.cpp
         tests/gamepad_test.cpp
         tests/pack_rw_test.cpp
+        tests/pack_writer_norm_test.cpp
+        tests/pack_reader_edges_test.cpp
+        tests/pack_zero_and_nospace_test.cpp
+        tests/pack_obfuscation_edges_test.cpp
+        tests/pack_tamper_test.cpp
 )

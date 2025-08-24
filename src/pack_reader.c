@@ -9,6 +9,7 @@
 #include <stdlib.h>
 #include <string.h>
 #include <stddef.h>
+#include <sys/types.h>
 
 /* ---- Local types/state --------------------------------------------------- */
 
