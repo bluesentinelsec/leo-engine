@@ -31,6 +31,7 @@ set(LEO_TEST_SOURCES
         tests/font_test.cpp
         tests/font_step2_load_draw_test.cpp
         tests/font_step3_spacing_rotation_test.cpp
+        tests/font_step5_vfs_tests.cpp
         tests/collisions_test.cpp
         tests/mouse_test.cpp
         tests/gamepad_test.cpp
