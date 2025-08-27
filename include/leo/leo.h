@@ -8,6 +8,7 @@ extern "C" {
 #include "leo/engine.h"
 #include "leo/error.h"
 #include "leo/export.h"
+#include "leo/signal.h"
 
 // Graphics & rendering
 #include "leo/graphics.h"
