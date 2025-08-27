@@ -20,6 +20,7 @@ set(LEO_SOURCES
         src/base64.c
         src/pack_zlib.c
         src/csv.c
+        src/gzip_pack.c
         external/miniaudio/miniaudio.c
         external/getopt/getopt.c
         external/cJSON/cJSON.c
@@ -50,4 +51,5 @@ set(LEO_TEST_SOURCES
         tests/json_test.cpp
         tests/base64_test.cpp
         tests/csv_test.cpp
+        tests/gzip_pack_test.cpp
 )

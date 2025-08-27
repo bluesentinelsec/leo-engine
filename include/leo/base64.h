@@ -21,20 +21,14 @@ typedef enum
  * (excluding the trailing '\0'). This always includes '=' padding to a
  * multiple of 4 output chars.
  */
-LEO_API static inline size_t leo_base64_encoded_len(size_t n)
-{
-	return (n == 0) ? 0 : (((n + 2) / 3) * 4);
-}
+LEO_API size_t leo_base64_encoded_len(size_t n);
 
 /* Return the maximum number of bytes that could result from decoding a
  * base64 string of length `n` (ignoring whitespace). This is a safe cap
  * for destination buffer sizing; the actual decoded size may be smaller.
  */
-LEO_API static inline size_t leo_base64_decoded_cap(size_t n)
-{
-	// Each 4 chars -> up to 3 bytes
-	return (n / 4 + 1) * 3;
-}
+LEO_API size_t leo_base64_decoded_cap(size_t n);
+
 
 /* Encode raw bytes -> base64 characters.
  * - dst receives ASCII base64 data (no newline insertion) and is NOT NUL-terminated.
