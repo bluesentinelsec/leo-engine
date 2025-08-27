@@ -8,9 +8,8 @@ OUTPUT_FILE="leo_pack_mega.h"
 
 # List of input header files
 FILES=(
-    include/leo/pack_zlib.h
-    src/pack_zlib.c
-    tests/pack_zlib.cpp
+    include/leo/signal.h
+    src/signal.c
 )
 
 # Initialize or clear the output file
