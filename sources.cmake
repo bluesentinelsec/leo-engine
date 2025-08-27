@@ -16,6 +16,7 @@ set(LEO_SOURCES
         src/pack_reader.c
         src/pack_writer.c
         src/io.c
+        src/json.c
         external/miniaudio/miniaudio.c
         external/getopt/getopt.c
         external/cJSON/cJSON.c
@@ -43,4 +44,5 @@ set(LEO_TEST_SOURCES
         tests/pack_obfuscation_edges_test.cpp
         tests/pack_tamper_test.cpp
         tests/io_vfs_test.cpp
+        tests/json_test.cpp
 )
