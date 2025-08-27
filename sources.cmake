@@ -18,6 +18,7 @@ set(LEO_SOURCES
         src/io.c
         external/miniaudio/miniaudio.c
         external/getopt/getopt.c
+        external/cJSON/cJSON.c
 )
 
 set(LEO_TEST_SOURCES
