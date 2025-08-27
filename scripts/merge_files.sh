@@ -8,13 +8,6 @@ OUTPUT_FILE="leo_pack_mega.h"
 
 # List of input header files
 FILES=(
-    include/leo/pack_compress.h	
-    include/leo/pack_reader.h
-    include/leo/pack_errors.h	
-    include/leo/pack_util.h
-    include/leo/pack_format.h	
-    include/leo/pack_writer.h
-    include/leo/pack_obfuscate.h
 )
 
 # Initialize or clear the output file
