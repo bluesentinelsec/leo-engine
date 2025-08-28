@@ -434,6 +434,18 @@ bool leo_tiled_tileset_src(const leo_TiledTileset *ts, uint32_t base_gid, leo_Re
     return true;
 }
 
+/* GID helper implementation (external linkage) */
+leo_TiledGidInfo leo_tiled_gid_info(uint32_t gid_raw)
+{
+    leo_TiledGidInfo i;
+    i.gid_raw = gid_raw;
+    i.flip_h = (gid_raw & LEO_TILED_FLIP_H) ? 1u : 0u;
+    i.flip_v = (gid_raw & LEO_TILED_FLIP_V) ? 1u : 0u;
+    i.flip_d = (gid_raw & LEO_TILED_FLIP_D) ? 1u : 0u;
+    i.id = gid_raw & LEO_TILED_GID_MASK;
+    return i;
+}
+
 leo_TiledMap *leo_tiled_load(const char *logical_path, const leo_TiledLoadOptions *opt)
 {
     const char *jerr = NULL;

@@ -34,16 +34,7 @@ extern "C"
         unsigned flip_h : 1, flip_v : 1, flip_d : 1;
     } leo_TiledGidInfo;
 
-    LEO_API static inline leo_TiledGidInfo leo_tiled_gid_info(uint32_t gid_raw)
-    {
-        leo_TiledGidInfo i;
-        i.gid_raw = gid_raw;
-        i.flip_h = (gid_raw & LEO_TILED_FLIP_H) ? 1u : 0u;
-        i.flip_v = (gid_raw & LEO_TILED_FLIP_V) ? 1u : 0u;
-        i.flip_d = (gid_raw & LEO_TILED_FLIP_D) ? 1u : 0u;
-        i.id = gid_raw & LEO_TILED_GID_MASK;
-        return i;
-    }
+    LEO_API leo_TiledGidInfo leo_tiled_gid_info(uint32_t gid_raw);
 
     /* ----------------------------- */
     /* Tiled properties (flat list)  */
