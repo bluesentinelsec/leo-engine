@@ -22,6 +22,7 @@ set(LEO_SOURCES
         src/csv.c
         src/gzip_pack.c
         src/signal.c
+        src/tiled.c
         external/miniaudio/miniaudio.c
         external/getopt/getopt.c
         external/cJSON/cJSON.c
@@ -54,4 +55,5 @@ set(LEO_TEST_SOURCES
         tests/csv_test.cpp
         tests/gzip_pack_test.cpp
         tests/signal_test.cpp
+        tests/tiled_test.cpp
 )

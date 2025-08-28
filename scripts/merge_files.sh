@@ -8,16 +8,16 @@ OUTPUT_FILE="leo_pack_mega.h"
 
 # List of input header files
 FILES=(
-    include/leo/graphics.h
-    src/graphics.c
-    include/leo/image.h
-    src/image.c
-    include/leo/engine.h
-    src/engine.c
-    include/leo/color.h
-    include/leo/export.h
-    tests/image_test.cpp
-    tests/graphics_test.cpp
+    include/leo/error.h
+    include/leo/io.h
+    include/leo/json.h
+    include/leo/base64.h
+    include/leo/pack_zlib.h
+    include/leo/csv.h
+    include/leo/gzip_pack.h
+    include/leo/tiled.h
+    src/tiled.c
+    tests/tiled_test.cpp
 )
 
 # Initialize or clear the output file

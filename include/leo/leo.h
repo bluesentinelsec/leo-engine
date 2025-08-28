@@ -1,7 +1,8 @@
 #pragma once
 
 #ifdef __cplusplus
-extern "C" {
+extern "C"
+{
 #endif
 
 // Core engine
@@ -11,15 +12,15 @@ extern "C" {
 #include "leo/signal.h"
 
 // Graphics & rendering
-#include "leo/graphics.h"
 #include "leo/color.h"
-#include "leo/image.h"
 #include "leo/font.h"
+#include "leo/graphics.h"
+#include "leo/image.h"
 
 // Input
+#include "leo/gamepad.h"
 #include "leo/keyboard.h"
 #include "leo/mouse.h"
-#include "leo/gamepad.h"
 
 // Audio
 #include "leo/audio.h"
@@ -32,18 +33,19 @@ extern "C" {
 
 // Data utilities
 #include "leo/base64.h"
-#include "leo/json.h"
 #include "leo/csv.h"
+#include "leo/json.h"
+#include "leo/tiled.h"
 
 // Pack system
 #include "leo/pack_compress.h"
-#include "leo/pack_zlib.h"
 #include "leo/pack_errors.h"
 #include "leo/pack_format.h"
 #include "leo/pack_obfuscate.h"
 #include "leo/pack_reader.h"
-#include "leo/pack_writer.h"
 #include "leo/pack_util.h"
+#include "leo/pack_writer.h"
+#include "leo/pack_zlib.h"
 
 #ifdef __cplusplus
 } // extern "C"
