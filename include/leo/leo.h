@@ -10,6 +10,7 @@ extern "C"
 #include "leo/error.h"
 #include "leo/export.h"
 #include "leo/signal.h"
+#include "leo/game.h"
 
 // Graphics & rendering
 #include "leo/color.h"
@@ -36,6 +37,7 @@ extern "C"
 #include "leo/csv.h"
 #include "leo/json.h"
 #include "leo/tiled.h"
+#include "leo/actor.h"
 
 // Pack system
 #include "leo/pack_compress.h"

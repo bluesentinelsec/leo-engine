@@ -1,0 +1,161 @@
+// src/game.c
+#include "leo/game.h"
+
+#include <stdio.h>
+#include <string.h>
+
+/* Small helper: safe title */
+static const char* leo__nz(const char* s, const char* fallback)
+{
+    return (s && *s) ? s : fallback;
+}
+
+int leo_GameRun(const leo_GameConfig *cfg, const leo_GameCallbacks *cb)
+{
+    if (!cfg || !cb || !cb->on_setup)
+    {
+        fprintf(stderr, "leo_GameRun: invalid arguments (cfg/cb/null or missing on_setup)\n");
+        return 1;
+    }
+
+    /* ----- Window & renderer init ----- */
+    const int win_w = (cfg->window_width > 0) ? cfg->window_width : 1280;
+    const int win_h = (cfg->window_height > 0) ? cfg->window_height : 720;
+    const char *title = leo__nz(cfg->window_title, "Leo Game");
+
+    if (!leo_InitWindow(win_w, win_h, title))
+    {
+        fprintf(stderr, "leo_GameRun: leo_InitWindow(%d,%d,\"%s\") failed\n", win_w, win_h, title);
+        return 2;
+    }
+
+    if (cfg->target_fps > 0)
+    {
+        leo_SetTargetFPS(cfg->target_fps);
+    }
+
+    if (cfg->logical_width > 0 && cfg->logical_height > 0)
+    {
+        if (!leo_SetLogicalResolution(cfg->logical_width, cfg->logical_height, cfg->presentation, cfg->scale_mode))
+        {
+            /* Non-fatal: keep running without logical scaling */
+            fprintf(stderr, "leo_GameRun: leo_SetLogicalResolution failed; continuing without logical scaling\n");
+        }
+    }
+
+    /* ----- Actor system ----- */
+    leo_ActorSystem *actors = leo_actor_system_create();
+    if (!actors)
+    {
+        fprintf(stderr, "leo_GameRun: leo_actor_system_create failed\n");
+        leo_CloseWindow();
+        return 3;
+    }
+    if (cfg->start_paused)
+    {
+        leo_actor_system_set_paused(actors, true);
+    }
+
+    leo_Actor *root = leo_actor_system_root(actors);
+
+    /* ----- Game context ----- */
+    leo_GameContext ctx;
+    memset(&ctx, 0, sizeof(ctx));
+    ctx.actors = actors;
+    ctx.root = root;
+    ctx.user_data = cfg->user_data;
+    ctx.dt = 0.0f;
+    ctx.time_sec = 0.0;
+    ctx.frame = 0;
+    ctx.request_quit = false;
+    ctx._impl = (void *)actors; /* reserved; may be useful later */
+
+    /* ----- User setup ----- */
+    if (!cb->on_setup(&ctx))
+    {
+        /* Setup rejected; clean up and exit gracefully */
+        leo_actor_system_destroy(actors);
+        leo_CloseWindow();
+        return 4;
+    }
+
+    /* ----- Main loop ----- */
+    for (;;)
+    {
+        /* Exit checks first (user or OS) */
+        if (ctx.request_quit || leo_WindowShouldClose())
+        {
+            break;
+        }
+
+        /* Timing snapshot for this frame */
+        ctx.dt = leo_GetFrameTime();
+        ctx.time_sec = leo_GetTime();
+        ctx.frame++;
+
+        /* Optional user pre-update (input, cameras, toggles, etc.) */
+        if (cb->on_update)
+        {
+            cb->on_update(&ctx);
+        }
+
+        /* Update actor tree (handles deferred destroys at end of update) */
+        leo_actor_system_update(actors, ctx.dt);
+
+        /* Render pass */
+        leo_BeginDrawing();
+        {
+            const int r = cfg->clear_color.r;
+            const int g = cfg->clear_color.g;
+            const int b = cfg->clear_color.b;
+            const int a = cfg->clear_color.a;
+            leo_ClearBackground(r, g, b, a);
+
+            /* Draw actors (scene) */
+            leo_actor_system_render(actors);
+
+            /* Optional overlay / UI after scene */
+            if (cb->on_render_ui)
+            {
+                cb->on_render_ui(&ctx);
+            }
+        }
+        leo_EndDrawing();
+    }
+
+    /* ----- Shutdown callback ----- */
+    if (cb->on_shutdown)
+    {
+        cb->on_shutdown(&ctx);
+    }
+
+    /* ----- Teardown ----- */
+    leo_actor_system_destroy(actors);
+    leo_CloseWindow();
+    return 0;
+}
+
+/* ----------------------------------------------------------
+   Convenience helpers
+   ---------------------------------------------------------- */
+
+void leo_GameSetPaused(leo_GameContext *ctx, bool paused)
+{
+    if (!ctx || !ctx->actors)
+        return;
+    leo_actor_system_set_paused(ctx->actors, paused);
+}
+
+bool leo_GameIsPaused(const leo_GameContext *ctx)
+{
+    if (!ctx || !ctx->actors)
+        return false;
+    return leo_actor_system_is_paused(ctx->actors);
+}
+
+void leo_GameQuit(leo_GameContext *ctx)
+{
+    if (!ctx)
+        return;
+    ctx->request_quit = true;
+}
