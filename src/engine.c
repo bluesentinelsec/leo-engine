@@ -293,6 +293,16 @@ bool leo_SetFullscreen(bool enabled)
 {
     if (!globalWindow)
         return false;
+
+    Uint64 flags = SDL_GetWindowFlags(globalWindow);
+    bool isFullscreen = (flags & SDL_WINDOW_FULLSCREEN) != 0;
+
+    if (enabled == isFullscreen)
+    {
+        // Already in the desired state → do nothing
+        return true;
+    }
+
     if (enabled)
     {
         if (!SDL_SetWindowFullscreen(globalWindow, SDL_WINDOW_FULLSCREEN))
