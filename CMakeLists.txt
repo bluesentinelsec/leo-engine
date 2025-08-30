@@ -7,7 +7,7 @@ set(PROJECT_NAME "leo")
 set(ALIAS_NAME "Leo::Runtime")
 set(TEST_RUNNER "test_leo_runtime")
 
-project(leo
+project(${PROJECT_NAME}
         VERSION 0.1.0
         DESCRIPTION "Leo Engine Runtime"
         HOMEPAGE_URL "https://github.com/bluesentinelsec/leo-engine"
