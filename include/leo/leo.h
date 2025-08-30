@@ -9,8 +9,8 @@ extern "C"
 #include "leo/engine.h"
 #include "leo/error.h"
 #include "leo/export.h"
-#include "leo/signal.h"
 #include "leo/game.h"
+#include "leo/signal.h"
 
 // Graphics & rendering
 #include "leo/color.h"
@@ -21,6 +21,7 @@ extern "C"
 // Input
 #include "leo/gamepad.h"
 #include "leo/keyboard.h"
+#include "leo/keys.h"
 #include "leo/mouse.h"
 
 // Audio
@@ -33,11 +34,11 @@ extern "C"
 #include "leo/io.h"
 
 // Data utilities
+#include "leo/actor.h"
 #include "leo/base64.h"
 #include "leo/csv.h"
 #include "leo/json.h"
 #include "leo/tiled.h"
-#include "leo/actor.h"
 
 // Pack system
 #include "leo/pack_compress.h"
