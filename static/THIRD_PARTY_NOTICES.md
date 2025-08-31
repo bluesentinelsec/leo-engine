@@ -1,0 +1,9 @@
+| Package                | Package URL                                                                | License                                               | License URL                                                                  |
+| ---------------------- | -------------------------------------------------------------------------- | ----------------------------------------------------- | ---------------------------------------------------------------------------- |
+| cJSON                  | [https://github.com/DaveGamble/cJSON](https://github.com/DaveGamble/cJSON) | MIT License                                           | [https://opensource.org/license/mit](https://opensource.org/license/mit)     |
+| Lua 5.4.5              | [https://www.lua.org](https://www.lua.org)                                 | MIT License (Lua)                                     | [https://www.lua.org/license.html](https://www.lua.org/license.html)         |
+| miniaudio              | [https://miniaud.io](https://miniaud.io)                                   | MIT-0 (MIT No Attribution)                            | [https://opensource.org/license/mit-0](https://opensource.org/license/mit-0) |
+| mmx (sdefl.h, sinfl.h) | [https://github.com/vurtun/lib](https://github.com/vurtun/lib)             | MIT License *(dual: MIT or Public Domain; chose MIT)* | [https://opensource.org/license/mit](https://opensource.org/license/mit)     |
+| stb (single-file libs) | [https://github.com/nothings/stb](https://github.com/nothings/stb)         | MIT License *(dual: MIT or Public Domain; chose MIT)* | [https://opensource.org/license/mit](https://opensource.org/license/mit)     |
+| SDL3 (3.2.16)          | [https://github.com/libsdl-org/SDL](https://github.com/libsdl-org/SDL)     | zlib                                                  | [https://opensource.org/license/zlib](https://opensource.org/license/zlib)   |
+
