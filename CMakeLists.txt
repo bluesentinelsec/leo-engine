@@ -114,10 +114,18 @@ include(sources.cmake)
 # Libraries
 # =========================
 
+set(LEO_ABI_VERSION_MAJOR ${PROJECT_VERSION_MAJOR} CACHE STRING "ABI major for SONAME")
+
 # Production library (no test hooks)
 if (LEO_BUILD_SHARED)
     add_library(${PROJECT_NAME} SHARED ${LEO_SOURCES})
     target_compile_definitions(${PROJECT_NAME} PRIVATE LEO_BUILDING_DLL)  # for __declspec(dllexport)
+
+  set_target_properties(${PROJECT_NAME} PROPERTIES
+    OUTPUT_NAME leo                       # produces libleo.so*
+    VERSION     ${PROJECT_VERSION}        # e.g. 0.1.0 -> libleo.so.0.1.0
+    SOVERSION   ${LEO_ABI_VERSION_MAJOR}  # e.g. 0     -> libleo.so.0 SONAME
+  )
 else ()
     add_library(${PROJECT_NAME} STATIC ${LEO_SOURCES})
 endif ()
@@ -157,6 +165,26 @@ target_include_directories(${PROJECT_NAME}_test
 )
 target_compile_definitions(${PROJECT_NAME}_test PRIVATE LEO_TEST_BACKEND TESTING)
 
+
+# =========================
+# Install (place RIGHT HERE)
+# =========================
+include(GNUInstallDirs)
+
+install(TARGETS ${PROJECT_NAME}
+  EXPORT ${PROJECT_NAME}Targets
+  RUNTIME DESTINATION ${CMAKE_INSTALL_BINDIR}  # Windows .dll, or tools
+  LIBRARY DESTINATION ${CMAKE_INSTALL_LIBDIR}  # .so/.dylib
+  ARCHIVE DESTINATION ${CMAKE_INSTALL_LIBDIR}  # static .a (if you ever build it)
+  INCLUDES DESTINATION ${CMAKE_INSTALL_INCLUDEDIR})
+
+install(DIRECTORY ${CMAKE_CURRENT_SOURCE_DIR}/include/
+        DESTINATION ${CMAKE_INSTALL_INCLUDEDIR})
+
+# (optional, nice-to-have so consumers can `find_package(leo)` later)
+install(EXPORT ${PROJECT_NAME}Targets
+        NAMESPACE Leo::
+        DESTINATION ${CMAKE_INSTALL_LIBDIR}/cmake/${PROJECT_NAME})
 
 # =========================
 # Tests
