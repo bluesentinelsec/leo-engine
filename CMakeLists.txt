@@ -35,13 +35,13 @@ endif ()
 # =========================
 # RPATH (relocatable builds)
 # =========================
-set(CMAKE_BUILD_RPATH_USE_ORIGIN ON)        # @loader_path (macOS) / $ORIGIN (ELF)
+set(CMAKE_BUILD_RPATH_USE_ORIGIN OFF)        # @loader_path (macOS) / $ORIGIN (ELF)
 set(CMAKE_INSTALL_RPATH_USE_LINK_PATH OFF)
 
 if (APPLE)
-    set(CMAKE_INSTALL_RPATH "@loader_path" "@loader_path/../lib")
+    set(CMAKE_INSTALL_RPATH "@loader_path")
 else ()
-    set(CMAKE_INSTALL_RPATH "\$ORIGIN" "\$ORIGIN/../lib")
+    set(CMAKE_INSTALL_RPATH "\$ORIGIN")
 endif ()
 
 # =========================
@@ -140,6 +140,7 @@ set(_ORIGIN "$<IF:$<PLATFORM_ID:Darwin>,@loader_path,$ORIGIN>")
 set_target_properties(${PROJECT_NAME} PROPERTIES
         BUILD_RPATH "${_ORIGIN}"
         INSTALL_RPATH "${_ORIGIN}"
+        BUILD_WITH_INSTALL_RPATH TRUE
         MACOSX_RPATH ON
         INSTALL_NAME_DIR "@rpath"
 )
