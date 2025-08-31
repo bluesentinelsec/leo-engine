@@ -36,12 +36,12 @@ endif ()
 # RPATH (relocatable builds)
 # =========================
 set(CMAKE_BUILD_RPATH_USE_ORIGIN ON)        # @loader_path (macOS) / $ORIGIN (ELF)
-set(CMAKE_INSTALL_RPATH_USE_LINK_PATH TRUE)
+set(CMAKE_INSTALL_RPATH_USE_LINK_PATH OFF)
 
 if (APPLE)
     set(CMAKE_INSTALL_RPATH "@loader_path" "@loader_path/../lib")
 else ()
-    set(CMAKE_INSTALL_RPATH "$ORIGIN" "$ORIGIN/../lib")
+    set(CMAKE_INSTALL_RPATH "\$ORIGIN" "\$ORIGIN/../lib")
 endif ()
 
 # =========================
@@ -135,14 +135,11 @@ target_include_directories(${PROJECT_NAME}
 )
 
 # Build-tree RPATH so local runs find deps without env tweaks
-set(_ORIGIN "$<IF:$<PLATFORM_ID:Darwin>,@loader_path,$ORIGIN>")
-set(_RPATHS
-        "${_ORIGIN}"
-        "${_ORIGIN}/../lib"
-        "$<TARGET_FILE_DIR:SDL3::SDL3>"
-)
+set(_ORIGIN "$<IF:$<PLATFORM_ID:Darwin>,@loader_path,\\$ORIGIN>")
+
 set_target_properties(${PROJECT_NAME} PROPERTIES
-        BUILD_RPATH "${_RPATHS}"
+        BUILD_RPATH "${_ORIGIN};${_ORIGIN}/../lib"
+        INSTALL_RPATH "${_ORIGIN};${_ORIGIN}/../lib"
         MACOSX_RPATH ON
         INSTALL_NAME_DIR "@rpath"
 )
