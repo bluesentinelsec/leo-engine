@@ -135,11 +135,11 @@ target_include_directories(${PROJECT_NAME}
 )
 
 # Build-tree RPATH so local runs find deps without env tweaks
-set(_ORIGIN "$<IF:$<PLATFORM_ID:Darwin>,@loader_path,\\$ORIGIN>")
+set(_ORIGIN "$<IF:$<PLATFORM_ID:Darwin>,@loader_path,$ORIGIN>")
 
 set_target_properties(${PROJECT_NAME} PROPERTIES
-        BUILD_RPATH "${_ORIGIN};${_ORIGIN}/../lib"
-        INSTALL_RPATH "${_ORIGIN};${_ORIGIN}/../lib"
+        BUILD_RPATH "${_ORIGIN}"
+        INSTALL_RPATH "${_ORIGIN}"
         MACOSX_RPATH ON
         INSTALL_NAME_DIR "@rpath"
 )
