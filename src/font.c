@@ -2,6 +2,7 @@
 // leo/font.c — Step 2: real loading + draw + measure
 // =============================================
 #include "leo/font.h"
+#include "leo/default_font.h"
 #include "leo/engine.h"
 #include "leo/error.h"
 #include "leo/io.h"
@@ -39,6 +40,12 @@ static inline leo_Font _zero(void)
     leo_Font f;
     memset(&f, 0, sizeof(f));
     return f;
+}
+
+static leo_Font _load_default_font(int pixelSize)
+{
+    // Always succeeds if SDL renderer is available
+    return leo_LoadFontFromMemory(".ttf", default_font_ttf, (int)default_font_ttf_len, pixelSize);
 }
 
 bool leo_IsFontReady(leo_Font font)
@@ -352,9 +359,10 @@ static void _draw_text_impl(leo_Font font, const char *text, float x, float y, f
 
 void leo_DrawFPS(int x, int y)
 {
-    // Only draw if there’s a default font; otherwise be a no-op (deterministic).
     if (!leo_IsFontReady(g_default_font))
-        return;
+    {
+        g_default_font = _load_default_font(16);
+    }
 
     int fps = leo_GetFPS();
     char buf[32];
@@ -371,27 +379,44 @@ void leo_DrawText(const char *text, int posX, int posY, int fontSize, leo_Color 
 {
     if (!leo_IsFontReady(g_default_font))
     {
-        // Deterministic: no hidden auto-load. Just no-op.
-        return;
+        g_default_font = _load_default_font(fontSize > 0 ? fontSize : 16);
     }
     _draw_text_impl(g_default_font, text, (float)posX, (float)posY, (float)fontSize, 0.0f, color, 0.0f, 0.0f, 0.0f);
 }
 
-void leo_DrawTextEx(leo_Font font, const char *text, leo_Vector2 position, float fontSize, float spacing,
-                    leo_Color tint)
+void leo_DrawTextEx(leo_Font font, const char *text, leo_Vector2 pos, float fontSize, float spacing, leo_Color tint)
 {
-    _draw_text_impl(font, text, position.x, position.y, fontSize, spacing, tint, 0.0f, 0.0f, 0.0f);
+    if (!leo_IsFontReady(font))
+    {
+        if (!leo_IsFontReady(g_default_font))
+            g_default_font = _load_default_font(fontSize > 0 ? fontSize : 16);
+        font = g_default_font;
+    }
+    _draw_text_impl(font, text, pos.x, pos.y, fontSize, spacing, tint, 0.0f, 0.0f, 0.0f);
 }
 
 void leo_DrawTextPro(leo_Font font, const char *text, leo_Vector2 position, leo_Vector2 origin, float rotation,
                      float fontSize, float spacing, leo_Color tint)
 {
+    if (!leo_IsFontReady(font))
+    {
+        if (!leo_IsFontReady(g_default_font))
+            g_default_font = _load_default_font(fontSize > 0 ? fontSize : 16);
+        font = g_default_font;
+    }
     _draw_text_impl(font, text, position.x, position.y, fontSize, spacing, tint, rotation, origin.x, origin.y);
 }
 
 // ---------- measurement ----------
 leo_Vector2 leo_MeasureTextEx(leo_Font font, const char *text, float fontSize, float spacing)
 {
+    if (!leo_IsFontReady(font))
+    {
+        if (!leo_IsFontReady(g_default_font))
+            g_default_font = _load_default_font(fontSize > 0 ? fontSize : 16);
+        font = g_default_font;
+    }
+
     leo_Vector2 sz = (leo_Vector2){0, 0};
     if (!text || !*text || !leo_IsFontReady(font) || font.baseSize <= 0)
         return sz;
@@ -465,7 +490,8 @@ leo_Vector2 leo_MeasureTextEx(leo_Font font, const char *text, float fontSize, f
 int leo_MeasureText(const char *text, int fontSize)
 {
     if (!leo_IsFontReady(g_default_font))
-        return 0;
+        g_default_font = _load_default_font(fontSize > 0 ? fontSize : 16);
+
     leo_Vector2 m = leo_MeasureTextEx(g_default_font, text, (float)fontSize, 0.0f);
     return (int)(m.x + 0.5f);
 }
@@ -473,12 +499,19 @@ int leo_MeasureText(const char *text, int fontSize)
 int leo_GetFontLineHeight(leo_Font font, float fontSize)
 {
     if (!leo_IsFontReady(font))
-        return 0;
+    {
+        if (!leo_IsFontReady(g_default_font))
+            g_default_font = _load_default_font(fontSize > 0 ? fontSize : 16);
+        font = g_default_font;
+    }
+
     if (font.baseSize <= 0)
         return 0;
+
     float scale = fontSize / (float)font.baseSize;
     if (scale <= 0.0f)
         return 0;
+
     return (int)(font.lineHeight * scale + 0.5f);
 }
 

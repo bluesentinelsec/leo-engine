@@ -26,7 +26,10 @@ TEST_CASE_METHOD(GfxEnv, "Font API: zero font is not ready", "[font][step1]")
     leo_Font f = {};
     CHECK_FALSE(leo_IsFontReady(f));
     CHECK(leo_GetFontBaseSize(f) == 0);
-    CHECK(leo_GetFontLineHeight(f, 16.0f) == 0);
+
+    // With fallback enabled, line height should not be 0 anymore.
+    int lh = leo_GetFontLineHeight(f, 16.0f);
+    CHECK(lh > 0);
 }
 
 TEST_CASE_METHOD(GfxEnv, "Font API: default font set/get/clear", "[font][step1]")
