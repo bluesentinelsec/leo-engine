@@ -1,11 +1,56 @@
 // src/game.c
 #include "leo/game.h"
 
+#ifdef __EMSCRIPTEN__
+#include <emscripten/emscripten.h>
+#endif
+
 #include <stdio.h>
 #include <string.h>
 
+typedef struct
+{
+    const leo_GameConfig *cfg;
+    const leo_GameCallbacks *cb;
+    leo_GameContext ctx;
+} leo__GameLoopData;
+
+static void leo__GameFrame(void *arg)
+{
+    leo__GameLoopData *data = (leo__GameLoopData *)arg;
+    leo_GameContext *ctx = &data->ctx;
+    const leo_GameConfig *cfg = data->cfg;
+    const leo_GameCallbacks *cb = data->cb;
+
+    if (ctx->request_quit || leo_WindowShouldClose())
+    {
+#ifdef __EMSCRIPTEN__
+        emscripten_cancel_main_loop();
+#endif
+        return;
+    }
+
+    ctx->dt = leo_GetFrameTime();
+    ctx->time_sec = leo_GetTime();
+    ctx->frame++;
+
+    if (cb->on_update)
+        cb->on_update(ctx);
+
+    leo_actor_system_update(ctx->actors, ctx->dt);
+
+    leo_BeginDrawing();
+    {
+        leo_ClearBackground(cfg->clear_color.r, cfg->clear_color.g, cfg->clear_color.b, cfg->clear_color.a);
+        leo_actor_system_render(ctx->actors);
+        if (cb->on_render_ui)
+            cb->on_render_ui(ctx);
+    }
+    leo_EndDrawing();
+}
+
 /* Small helper: safe title */
-static const char* leo__nz(const char* s, const char* fallback)
+static const char *leo__nz(const char *s, const char *fallback)
 {
     return (s && *s) ? s : fallback;
 }
@@ -80,6 +125,27 @@ int leo_GameRun(const leo_GameConfig *cfg, const leo_GameCallbacks *cb)
     }
 
     /* ----- Main loop ----- */
+#ifdef __EMSCRIPTEN__
+    /* Package up loop state for emscripten */
+    leo__GameLoopData *data = malloc(sizeof(leo__GameLoopData));
+    if (!data)
+    {
+        fprintf(stderr, "leo_GameRun: malloc failed\n");
+        leo_actor_system_destroy(actors);
+        leo_CloseWindow();
+        return 5;
+    }
+    data->cfg = cfg;
+    data->cb = cb;
+    data->ctx = ctx; /* copy initial context */
+
+    emscripten_set_main_loop_arg(leo__GameFrame, data, (cfg->target_fps > 0) ? cfg->target_fps : 0,
+                                 1 /* simulate infinite loop */
+    );
+
+    /* NOTE: under emscripten, cleanup must happen inside emscripten_cancel_main_loop
+       callback, so we don’t reach here unless canceled. */
+#else
     for (;;)
     {
         /* Exit checks first (user or OS) */
@@ -93,13 +159,13 @@ int leo_GameRun(const leo_GameConfig *cfg, const leo_GameCallbacks *cb)
         ctx.time_sec = leo_GetTime();
         ctx.frame++;
 
-        /* Optional user pre-update (input, cameras, toggles, etc.) */
+        /* Optional user pre-update */
         if (cb->on_update)
         {
             cb->on_update(&ctx);
         }
 
-        /* Update actor tree (handles deferred destroys at end of update) */
+        /* Update actor tree */
         leo_actor_system_update(actors, ctx.dt);
 
         /* Render pass */
@@ -111,10 +177,8 @@ int leo_GameRun(const leo_GameConfig *cfg, const leo_GameCallbacks *cb)
             const int a = cfg->clear_color.a;
             leo_ClearBackground(r, g, b, a);
 
-            /* Draw actors (scene) */
             leo_actor_system_render(actors);
 
-            /* Optional overlay / UI after scene */
             if (cb->on_render_ui)
             {
                 cb->on_render_ui(&ctx);
@@ -132,6 +196,8 @@ int leo_GameRun(const leo_GameConfig *cfg, const leo_GameCallbacks *cb)
     /* ----- Teardown ----- */
     leo_actor_system_destroy(actors);
     leo_CloseWindow();
+#endif
+
     return 0;
 }
 
