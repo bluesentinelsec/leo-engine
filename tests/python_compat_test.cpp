@@ -11,7 +11,7 @@ namespace fs = std::filesystem;
 
 TEST_CASE("Python leo-packer compatibility", "[pack][python]")
 {
-    const char* archive_path = "resources.leopack";
+    const char* archive_path = "../resources.leopack";  // Relative to build dir
     const char* password = "password";
     
     SECTION("Can open Python-created compressed obfuscated archive")
