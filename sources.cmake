@@ -51,6 +51,7 @@ set(LEO_TEST_SOURCES
         tests/pack_zero_and_nospace_test.cpp
         tests/pack_obfuscation_edges_test.cpp
         tests/pack_tamper_test.cpp
+        tests/python_compat_test.cpp
         tests/io_vfs_test.cpp
         tests/json_test.cpp
         tests/base64_test.cpp
