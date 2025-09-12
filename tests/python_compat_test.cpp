@@ -6,12 +6,34 @@
 #include <cstring>
 #include <filesystem>
 #include <vector>
+#include <fstream>
 
 namespace fs = std::filesystem;
 
 TEST_CASE("Python leo-packer compatibility", "[pack][python]")
 {
-    const char* archive_path = "../resources.leopack";  // Relative to build dir
+    // Try multiple possible paths for cross-platform compatibility
+    const char* possible_paths[] = {
+        "resources.leopack",           // Current directory
+        "../resources.leopack",       // Unix-style relative
+        "..\\resources.leopack",      // Windows-style relative
+        "resources\\resources.leopack" // Windows build structure
+    };
+    
+    const char* archive_path = nullptr;
+    for (const char* path : possible_paths) {
+        std::ifstream test_file(path);
+        if (test_file.good()) {
+            archive_path = path;
+            break;
+        }
+    }
+    
+    if (!archive_path) {
+        SKIP("resources.leopack not found in any expected location");
+        return;
+    }
+    
     const char* password = "password";
     
     SECTION("Can open Python-created compressed obfuscated archive")
