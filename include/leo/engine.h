@@ -60,6 +60,16 @@ LEO_API bool leo_SetFullscreen(bool enabled);
 
 LEO_API bool leo_WindowShouldClose(void);
 
+// --- Responsive Web Support ---
+#ifdef __EMSCRIPTEN__
+/* Get the target aspect ratio for responsive web layout */
+LEO_API float leo_GetTargetAspectRatio(void);
+
+/* Set callback for when browser window resizes (web only) */
+typedef void (*leo_ResizeCallback)(int width, int height, void *user_data);
+LEO_API void leo_SetResizeCallback(leo_ResizeCallback callback, void *user_data);
+#endif
+
 LEO_API void leo_ClearBackground(int r, int g, int b, int a);
 
 LEO_API void leo_BeginDrawing(void);

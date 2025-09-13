@@ -58,6 +58,13 @@ typedef struct EngineState
     /* render-target stack */
     SDL_Texture *rtStack[LEO_RT_STACK_MAX];
     int rtTop;
+
+#ifdef __EMSCRIPTEN__
+    /* responsive web support */
+    float targetAspectRatio;
+    leo_ResizeCallback resizeCallback;
+    void *resizeUserData;
+#endif
 } EngineState;
 
 static EngineState s_state = {
@@ -235,6 +242,11 @@ bool leo_InitWindow(int width, int height, const char *title)
     s_state.defaultScaleMode = SDL_SCALEMODE_LINEAR;
 
     leo_InitMouse();
+
+#ifdef __EMSCRIPTEN__
+    /* Initialize responsive web support */
+    leo__InitResponsiveWeb();
+#endif
 
     return true;
 }
@@ -528,6 +540,12 @@ bool leo_SetLogicalResolution(int width, int height, leo_LogicalPresentation pre
     s_state.hasLogical = 1;
     s_state.logicalW = width;
     s_state.logicalH = height;
+
+#ifdef __EMSCRIPTEN__
+    /* Update target aspect ratio for responsive web */
+    leo__UpdateTargetAspectRatio(width, height);
+#endif
+
     return true;
 }
 
@@ -795,4 +813,70 @@ void leo_DrawTexturePro(leo_Texture2D tex, leo_Rectangle src, leo_Rectangle dest
 
     SDL_RenderGeometry(globalRenderer, t, v, 4, indices, 6);
 }
+
+#ifdef __EMSCRIPTEN__
+#include <emscripten/html5.h>
+
+// JavaScript interface to expose aspect ratio to web page
+EM_JS(void, leo_js_set_target_aspect, (float aspect), {
+    if (typeof window !== 'undefined') {
+        window.leoTargetAspect = aspect;
+        // Trigger resize event to update layout
+        if (window.leoResizeHandler) {
+            window.leoResizeHandler();
+        }
+    }
+});
+
+float leo_GetTargetAspectRatio(void)
+{
+    return s_state.targetAspectRatio;
+}
+
+void leo_SetResizeCallback(leo_ResizeCallback callback, void *user_data)
+{
+    s_state.resizeCallback = callback;
+    s_state.resizeUserData = user_data;
+}
+
+// Internal function to update target aspect ratio when logical resolution is set
+static void leo__UpdateTargetAspectRatio(int logical_width, int logical_height)
+{
+    if (logical_width > 0 && logical_height > 0) {
+        s_state.targetAspectRatio = (float)logical_width / (float)logical_height;
+    } else {
+        // Fallback to window aspect ratio
+        int w, h;
+        SDL_GetWindowSize(globalWindow, &w, &h);
+        s_state.targetAspectRatio = (float)w / (float)h;
+    }
+    
+    // Expose to JavaScript
+    leo_js_set_target_aspect(s_state.targetAspectRatio);
+}
+
+// Emscripten resize callback
+static EM_BOOL leo__OnCanvasResize(int eventType, const EmscriptenUiEvent *e, void *userData)
+{
+    if (s_state.resizeCallback) {
+        s_state.resizeCallback(e->windowInnerWidth, e->windowInnerHeight, s_state.resizeUserData);
+    }
+    return EM_TRUE;
+}
+
+// Initialize responsive web support
+static void leo__InitResponsiveWeb(void)
+{
+    // Set up resize listener
+    emscripten_set_resize_callback(EMSCRIPTEN_EVENT_TARGET_WINDOW, NULL, EM_TRUE, leo__OnCanvasResize);
+    
+    // Initialize aspect ratio
+    int w, h;
+    SDL_GetWindowSize(globalWindow, &w, &h);
+    s_state.targetAspectRatio = (float)w / (float)h;
+    
+    // Expose initial aspect ratio to JavaScript
+    leo_js_set_target_aspect(s_state.targetAspectRatio);
+}
+#endif
 // 
