@@ -1,10 +1,9 @@
 #include <catch2/catch_test_macros.hpp>
-#include <filesystem>
-#include <cstdlib>
 
 #ifdef __APPLE__
+#include <filesystem>
+#include <cstdlib>
 #include <CoreFoundation/CoreFoundation.h>
-#endif
 
 #include "leo/io.h"
 
@@ -55,7 +54,6 @@ TEST_CASE("macOS path helper", "[macos][path]") {
         leo_ClearMounts();
     }
     
-#ifdef __APPLE__
     SECTION("detects bundle resources directory when available") {
         // This test will only pass when running from an actual bundle
         // For now, just verify the function exists and returns a valid path
@@ -67,5 +65,6 @@ TEST_CASE("macOS path helper", "[macos][path]") {
         
         free(path);
     }
-#endif
 }
+
+#endif // __APPLE__

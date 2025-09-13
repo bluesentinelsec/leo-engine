@@ -1,4 +1,6 @@
 #include <catch2/catch_test_macros.hpp>
+
+#ifdef __APPLE__
 #include <filesystem>
 #include <fstream>
 
@@ -61,3 +63,5 @@ TEST_CASE("macOS path helper integration", "[macos][integration]") {
         free(basePath);
     }
 }
+
+#endif // __APPLE__
