@@ -16,6 +16,7 @@ set(LEO_SOURCES
         src/pack_reader.c
         src/pack_writer.c
         src/io.c
+        src/macos_path_helper.c
         src/json.c
         src/base64.c
         src/pack_zlib.c
@@ -57,6 +58,8 @@ set(LEO_TEST_SOURCES
         tests/base64_test.cpp
         tests/csv_test.cpp
         tests/gzip_pack_test.cpp
+        tests/macos_path_helper_test.cpp
+        tests/macos_path_integration_test.cpp
         tests/signal_test.cpp
         tests/tiled_test.cpp
         tests/actor_test.cpp

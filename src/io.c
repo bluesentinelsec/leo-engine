@@ -6,6 +6,7 @@
 #include "leo/error.h"
 #include "leo/pack_format.h"
 #include "leo/pack_reader.h"
+#include "leo/macos_path_helper.h"
 
 #include <SDL3/SDL.h>
 
@@ -192,57 +193,94 @@ bool leo_MountResourcePack(const char *packPath, const char *password, int prior
     if (!packPath || !*packPath)
         return false;
 
-    /* Open pack WITHOUT holding the write lock (can touch disk, may be slow). */
-    leo_pack *p = NULL;
-    if (leo_pack_open_file(&p, packPath, password) != LEO_PACK_OK)
-    {
-        /* Allow pack reader to set error if it does; otherwise keep silent. */
-        return false;
+    char fullPackPath[4096];
+    bool isRelativePath = (packPath[0] != '/');
+    
+    if (isRelativePath) {
+        // Get platform-appropriate base path for relative paths
+        char* basePath = leo_GetResourceBasePath();
+        if (!basePath) {
+            return false;
+        }
+
+        int ret = snprintf(fullPackPath, sizeof(fullPackPath), "%s/%s", basePath, packPath);
+        free(basePath);
+        
+        if (ret >= sizeof(fullPackPath)) {
+            return false;
+        }
+    } else {
+        // Use absolute paths as-is
+        if (strlen(packPath) >= sizeof(fullPackPath)) {
+            return false;
+        }
+        strcpy(fullPackPath, packPath);
     }
 
-    /* Quick policy check: if the pack has obfuscated entries, require a password. */
-    if (!password || !password[0])
+    /* Try to open pack WITHOUT holding the write lock (can touch disk, may be slow). */
+    leo_pack *p = NULL;
+    if (leo_pack_open_file(&p, fullPackPath, password) == LEO_PACK_OK)
     {
-        int n = leo_pack_count(p);
-        for (int i = 0; i < n; ++i)
+        /* Quick policy check: if the pack has obfuscated entries, require a password. */
+        if (!password || !password[0])
         {
-            leo_pack_stat st;
-            if (leo_pack_stat_index(p, i, &st) == LEO_PACK_OK)
+            int n = leo_pack_count(p);
+            for (int i = 0; i < n; ++i)
             {
-                if (st.flags & LEO_PE_OBFUSCATED)
+                leo_pack_stat st;
+                if (leo_pack_stat_index(p, i, &st) == LEO_PACK_OK)
                 {
-                    leo_pack_close(p);
-                    return false;
+                    if (st.flags & LEO_PE_OBFUSCATED)
+                    {
+                        leo_pack_close(p);
+                        return false;
+                    }
                 }
             }
         }
-    }
 
-    SDL_RWLock *lk = _mount_lock();
-    if (!lk)
-    {
-        leo_pack_close(p);
-        return false;
-    }
+        SDL_RWLock *lk = _mount_lock();
+        if (!lk)
+        {
+            leo_pack_close(p);
+            return false;
+        }
 
-    /* Mutate mount list under exclusive lock. */
-    SDL_LockRWLockForWriting(lk);
+        /* Mutate mount list under exclusive lock. */
+        SDL_LockRWLockForWriting(lk);
 
-    _reserve(s_count + 1);
-    if (s_count >= s_cap)
-    {
+        _reserve(s_count + 1);
+        if (s_count >= s_cap)
+        {
+            SDL_UnlockRWLock(lk);
+            leo_pack_close(p);
+            return false;
+        }
+        s_mounts[s_count].type = LEO_MOUNT_PACK;
+        s_mounts[s_count].priority = priority;
+        s_mounts[s_count].impl = (void *)p;
+        ++s_count;
+        _sort_by_priority_desc();
+
         SDL_UnlockRWLock(lk);
-        leo_pack_close(p);
-        return false;
+        return true;
     }
-    s_mounts[s_count].type = LEO_MOUNT_PACK;
-    s_mounts[s_count].priority = priority;
-    s_mounts[s_count].impl = (void *)p;
-    ++s_count;
-    _sort_by_priority_desc();
 
-    SDL_UnlockRWLock(lk);
-    return true;
+    // Only fallback to directory for relative paths
+    if (isRelativePath) {
+        char* basePath = leo_GetResourceBasePath();
+        if (basePath) {
+            char fallbackDirPath[4096];
+            int ret = snprintf(fallbackDirPath, sizeof(fallbackDirPath), "%s/resources", basePath);
+            free(basePath);
+            
+            if (ret < sizeof(fallbackDirPath)) {
+                return leo_MountDirectory(fallbackDirPath, priority);
+            }
+        }
+    }
+    
+    return false;
 }
 
 bool leo_MountDirectory(const char *baseDir, int priority)
@@ -250,12 +288,36 @@ bool leo_MountDirectory(const char *baseDir, int priority)
     if (!baseDir || !*baseDir)
         return false;
 
+    char fullDirPath[4096];
+    bool isRelativePath = (baseDir[0] != '/');
+    
+    if (isRelativePath) {
+        // Get platform-appropriate base path for relative paths
+        char* basePath = leo_GetResourceBasePath();
+        if (!basePath) {
+            return false;
+        }
+
+        int ret = snprintf(fullDirPath, sizeof(fullDirPath), "%s/%s", basePath, baseDir);
+        free(basePath);
+        
+        if (ret >= sizeof(fullDirPath)) {
+            return false;
+        }
+    } else {
+        // Use absolute paths as-is
+        if (strlen(baseDir) >= sizeof(fullDirPath)) {
+            return false;
+        }
+        strcpy(fullDirPath, baseDir);
+    }
+
     /* Prepare dup WITHOUT holding the write lock. */
-    size_t n = strlen(baseDir);
+    size_t n = strlen(fullDirPath);
     char *dup = (char *)malloc(n + 1);
     if (!dup)
         return false;
-    memcpy(dup, baseDir, n + 1);
+    memcpy(dup, fullDirPath, n + 1);
 
     SDL_RWLock *lk = _mount_lock();
     if (!lk)
