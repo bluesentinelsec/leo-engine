@@ -1,11 +1,15 @@
 #include "leo/macos_path_helper.h"
 #include <stdlib.h>
 #include <string.h>
-#include <unistd.h>
-#include <limits.h>
 
 #ifdef __APPLE__
+#include <unistd.h>
+#include <limits.h>
 #include <CoreFoundation/CoreFoundation.h>
+#endif
+
+#ifdef _WIN32
+#include <direct.h>
 #endif
 
 char* leo_GetResourceBasePath(void) {
@@ -22,9 +26,15 @@ char* leo_GetResourceBasePath(void) {
             CFRelease(resourcesURL);
         }
     }
-#endif
     
     // Fallback to current directory
     char* cwd = getcwd(NULL, 0);
     return cwd;
+#elif defined(_WIN32)
+    // Windows: return current directory
+    return _getcwd(NULL, 0);
+#else
+    // Other platforms: return current directory
+    return getcwd(NULL, 0);
+#endif
 }
