@@ -196,8 +196,9 @@ bool leo_MountResourcePack(const char *packPath, const char *password, int prior
     char fullPackPath[4096];
     bool isRelativePath = (packPath[0] != '/');
     
+#ifdef __APPLE__
     if (isRelativePath) {
-        // Get platform-appropriate base path for relative paths
+        // Get platform-appropriate base path for relative paths on macOS
         char* basePath = leo_GetResourceBasePath();
         if (!basePath) {
             return false;
@@ -216,6 +217,13 @@ bool leo_MountResourcePack(const char *packPath, const char *password, int prior
         }
         strcpy(fullPackPath, packPath);
     }
+#else
+    // Non-macOS: use packPath as-is
+    if (strlen(packPath) >= sizeof(fullPackPath)) {
+        return false;
+    }
+    strcpy(fullPackPath, packPath);
+#endif
 
     /* Try to open pack WITHOUT holding the write lock (can touch disk, may be slow). */
     leo_pack *p = NULL;
@@ -266,7 +274,8 @@ bool leo_MountResourcePack(const char *packPath, const char *password, int prior
         return true;
     }
 
-    // Only fallback to directory for relative paths
+#ifdef __APPLE__
+    // Only fallback to directory for relative paths on macOS
     if (isRelativePath) {
         char* basePath = leo_GetResourceBasePath();
         if (basePath) {
@@ -279,6 +288,7 @@ bool leo_MountResourcePack(const char *packPath, const char *password, int prior
             }
         }
     }
+#endif
     
     return false;
 }
@@ -291,8 +301,9 @@ bool leo_MountDirectory(const char *baseDir, int priority)
     char fullDirPath[4096];
     bool isRelativePath = (baseDir[0] != '/');
     
+#ifdef __APPLE__
     if (isRelativePath) {
-        // Get platform-appropriate base path for relative paths
+        // Get platform-appropriate base path for relative paths on macOS
         char* basePath = leo_GetResourceBasePath();
         if (!basePath) {
             return false;
@@ -311,6 +322,13 @@ bool leo_MountDirectory(const char *baseDir, int priority)
         }
         strcpy(fullDirPath, baseDir);
     }
+#else
+    // Non-macOS: use baseDir as-is
+    if (strlen(baseDir) >= sizeof(fullDirPath)) {
+        return false;
+    }
+    strcpy(fullDirPath, baseDir);
+#endif
 
     /* Prepare dup WITHOUT holding the write lock. */
     size_t n = strlen(fullDirPath);
