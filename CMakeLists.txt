@@ -177,6 +177,10 @@ endif ()
 add_library(${PROJECT_NAME}_test STATIC ${LEO_SOURCES})
 set_property(TARGET ${PROJECT_NAME}_test PROPERTY POSITION_INDEPENDENT_CODE ON)
 target_link_libraries(${PROJECT_NAME}_test PUBLIC SDL3::SDL3)
+
+if(APPLE)
+    target_link_libraries(${PROJECT_NAME}_test PUBLIC "-framework CoreFoundation")
+endif()
 target_include_directories(${PROJECT_NAME}_test
         PUBLIC
         $<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}/include>

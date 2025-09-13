@@ -16,6 +16,7 @@ set(LEO_SOURCES
         src/pack_reader.c
         src/pack_writer.c
         src/io.c
+        src/resource_path_helper.c
         src/json.c
         src/base64.c
         src/pack_zlib.c
