@@ -67,6 +67,12 @@ typedef struct EngineState
 #endif
 } EngineState;
 
+#ifdef __EMSCRIPTEN__
+// Forward declarations for static functions
+static void leo__UpdateTargetAspectRatio(int logical_width, int logical_height);
+static void leo__InitResponsiveWeb(void);
+#endif
+
 static EngineState s_state = {
     .inFrame = 0,
     .quit = 0,
