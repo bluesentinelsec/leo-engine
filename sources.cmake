@@ -1,4 +1,5 @@
 set(LEO_SOURCES
+        src/animation.c
         src/engine.c
         src/error.c
         src/graphics.c
@@ -32,6 +33,7 @@ set(LEO_SOURCES
 )
 
 set(LEO_TEST_SOURCES
+        tests/animation_test.cpp
         tests/engine_test.cpp
         tests/error_test.cpp
         tests/graphics_test.cpp

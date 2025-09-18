@@ -13,6 +13,7 @@ extern "C"
 #include "leo/signal.h"
 
 // Graphics & rendering
+#include "leo/animation.h"
 #include "leo/color.h"
 #include "leo/font.h"
 #include "leo/graphics.h"
