@@ -79,22 +79,22 @@ void leo_UpdateKeyboard(void)
     if (!s_testMode)
     {
         int len = 0;
-        const Uint8 *sdl = SDL_GetKeyboardState(&len);
+        const bool *sdl = SDL_GetKeyboardState(&len);
         if (sdl && len > 0)
         {
             const int n = (len < s_numKeys) ? len : s_numKeys;
             for (int i = 0; i < n; ++i)
-                s_currentKeys[i] = (sdl[i] != 0);
+                s_currentKeys[i] = sdl[i];
         }
     }
 #else
     int len = 0;
-    const Uint8 *sdl = SDL_GetKeyboardState(&len);
+    const bool *sdl = SDL_GetKeyboardState(&len);
     if (sdl && len > 0)
     {
         const int n = (len < s_numKeys) ? len : s_numKeys;
         for (int i = 0; i < n; ++i)
-            s_currentKeys[i] = (sdl[i] != 0);
+            s_currentKeys[i] = sdl[i];
     }
 #endif
 }
