@@ -3,9 +3,9 @@
 #include "leo/engine.h"
 #include "leo/color.h"
 #include "leo/error.h"
+#include "leo/gamepad.h"
 #include "leo/keyboard.h"
 #include "leo/mouse.h"
-#include "leo/gamepad.h"
 
 #include <SDL3/SDL.h>
 #include <math.h>
@@ -800,4 +800,4 @@ void leo_DrawTexturePro(leo_Texture2D tex, leo_Rectangle src, leo_Rectangle dest
 
     SDL_RenderGeometry(globalRenderer, t, v, 4, indices, 6);
 }
-// 
+//

@@ -5,6 +5,7 @@
 #include <emscripten/emscripten.h>
 #endif
 
+#include <SDL3/SDL.h>
 #include <stdio.h>
 #include <string.h>
 
@@ -62,6 +63,14 @@ int leo_GameRun(const leo_GameConfig *cfg, const leo_GameCallbacks *cb)
         fprintf(stderr, "leo_GameRun: invalid arguments (cfg/cb/null or missing on_setup)\n");
         return 1;
     }
+
+    /* ----- App metadata ----- */
+    const char *app_name = (cfg->app_name && *cfg->app_name) ? cfg->app_name : "Game";
+    const char *app_version = (cfg->app_version && *cfg->app_version) ? cfg->app_version : "1.0.0";
+    const char *app_identifier =
+        (cfg->app_identifier && *cfg->app_identifier) ? cfg->app_identifier : "com.leo-engine.game";
+
+    SDL_SetAppMetadata(app_name, app_version, app_identifier);
 
     /* ----- Window & renderer init ----- */
     const int win_w = (cfg->window_width > 0) ? cfg->window_width : 1280;

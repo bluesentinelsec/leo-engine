@@ -4,9 +4,9 @@
 
 #include "leo/io.h"
 #include "leo/error.h"
+#include "leo/macos_path_helper.h"
 #include "leo/pack_format.h"
 #include "leo/pack_reader.h"
-#include "leo/macos_path_helper.h"
 
 #include <SDL3/SDL.h>
 
@@ -195,31 +195,38 @@ bool leo_MountResourcePack(const char *packPath, const char *password, int prior
 
     char fullPackPath[4096];
     bool isRelativePath = (packPath[0] != '/');
-    
+
 #ifdef __APPLE__
-    if (isRelativePath) {
+    if (isRelativePath)
+    {
         // Get platform-appropriate base path for relative paths on macOS
-        char* basePath = leo_GetResourceBasePath();
-        if (!basePath) {
+        char *basePath = leo_GetResourceBasePath();
+        if (!basePath)
+        {
             return false;
         }
 
         int ret = snprintf(fullPackPath, sizeof(fullPackPath), "%s/%s", basePath, packPath);
         free(basePath);
-        
-        if (ret >= sizeof(fullPackPath)) {
+
+        if (ret >= sizeof(fullPackPath))
+        {
             return false;
         }
-    } else {
+    }
+    else
+    {
         // Use absolute paths as-is
-        if (strlen(packPath) >= sizeof(fullPackPath)) {
+        if (strlen(packPath) >= sizeof(fullPackPath))
+        {
             return false;
         }
         strcpy(fullPackPath, packPath);
     }
 #else
     // Non-macOS: use packPath as-is
-    if (strlen(packPath) >= sizeof(fullPackPath)) {
+    if (strlen(packPath) >= sizeof(fullPackPath))
+    {
         return false;
     }
     strcpy(fullPackPath, packPath);
@@ -276,20 +283,23 @@ bool leo_MountResourcePack(const char *packPath, const char *password, int prior
 
 #ifdef __APPLE__
     // Only fallback to directory for relative paths on macOS
-    if (isRelativePath) {
-        char* basePath = leo_GetResourceBasePath();
-        if (basePath) {
+    if (isRelativePath)
+    {
+        char *basePath = leo_GetResourceBasePath();
+        if (basePath)
+        {
             char fallbackDirPath[4096];
             int ret = snprintf(fallbackDirPath, sizeof(fallbackDirPath), "%s/resources", basePath);
             free(basePath);
-            
-            if (ret < sizeof(fallbackDirPath)) {
+
+            if (ret < sizeof(fallbackDirPath))
+            {
                 return leo_MountDirectory(fallbackDirPath, priority);
             }
         }
     }
 #endif
-    
+
     return false;
 }
 
@@ -300,31 +310,38 @@ bool leo_MountDirectory(const char *baseDir, int priority)
 
     char fullDirPath[4096];
     bool isRelativePath = (baseDir[0] != '/');
-    
+
 #ifdef __APPLE__
-    if (isRelativePath) {
+    if (isRelativePath)
+    {
         // Get platform-appropriate base path for relative paths on macOS
-        char* basePath = leo_GetResourceBasePath();
-        if (!basePath) {
+        char *basePath = leo_GetResourceBasePath();
+        if (!basePath)
+        {
             return false;
         }
 
         int ret = snprintf(fullDirPath, sizeof(fullDirPath), "%s/%s", basePath, baseDir);
         free(basePath);
-        
-        if (ret >= sizeof(fullDirPath)) {
+
+        if (ret >= sizeof(fullDirPath))
+        {
             return false;
         }
-    } else {
+    }
+    else
+    {
         // Use absolute paths as-is
-        if (strlen(baseDir) >= sizeof(fullDirPath)) {
+        if (strlen(baseDir) >= sizeof(fullDirPath))
+        {
             return false;
         }
         strcpy(fullDirPath, baseDir);
     }
 #else
     // Non-macOS: use baseDir as-is
-    if (strlen(baseDir) >= sizeof(fullDirPath)) {
+    if (strlen(baseDir) >= sizeof(fullDirPath))
+    {
         return false;
     }
     strcpy(fullDirPath, baseDir);

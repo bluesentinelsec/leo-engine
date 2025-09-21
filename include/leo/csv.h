@@ -36,7 +36,8 @@ extern "C"
      * - If 'opts' is NULL, sensible defaults are used.
      * - 'data' may contain CRLF or LF. Handles quoted fields with "" escapes.
      */
-    LEO_API leo_csv_result leo_csv_parse(const char *data, size_t len, const leo_csv_opts *opts, leo_csv_cell_cb on_cell, void *user);
+    LEO_API leo_csv_result leo_csv_parse(const char *data, size_t len, const leo_csv_opts *opts,
+                                         leo_csv_cell_cb on_cell, void *user);
 
     /* Convenience: parse a CSV of integers (decimal, optional +/-, ignores whitespace and newlines).
      * Accepts either:

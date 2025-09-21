@@ -1,13 +1,13 @@
-#include "leo/pack_zlib.h"
 #include "leo/pack_errors.h"
+#include "leo/pack_zlib.h"
 
 #include <catch2/catch_all.hpp>
-#include <vector>
-#include <cstring>
 #include <cstdint>
+#include <cstring>
+#include <vector>
 
 // Simple deterministic filler (no <random> to avoid platform variance)
-static void fill_pattern(std::vector<unsigned char>& buf, uint32_t seed)
+static void fill_pattern(std::vector<unsigned char> &buf, uint32_t seed)
 {
     uint32_t x = seed ? seed : 0x12345678u;
     for (size_t i = 0; i < buf.size(); ++i)
@@ -20,7 +20,7 @@ static void fill_pattern(std::vector<unsigned char>& buf, uint32_t seed)
 
 TEST_CASE("zlib: empty input round-trip")
 {
-    const unsigned char* src = reinterpret_cast<const unsigned char*>(""); // len = 0
+    const unsigned char *src = reinterpret_cast<const unsigned char *>(""); // len = 0
     const size_t src_len = 0;
 
     size_t cap = leo_zlib_bound(src_len);
@@ -40,7 +40,7 @@ TEST_CASE("zlib: empty input round-trip")
 
 TEST_CASE("zlib: small buffer round-trip")
 {
-    const char* text = "The quick brown fox jumps over the lazy dog.";
+    const char *text = "The quick brown fox jumps over the lazy dog.";
     const size_t src_len = std::strlen(text);
 
     size_t cap = leo_zlib_bound(src_len);
@@ -101,7 +101,7 @@ TEST_CASE("zlib: NOSPACE on compress when buffer smaller than bound")
 
 TEST_CASE("zlib: DECOMPRESS error on corrupted stream")
 {
-    const char* text = "corrupt me please";
+    const char *text = "corrupt me please";
     size_t src_len = std::strlen(text);
 
     // Compress valid stream
@@ -113,7 +113,8 @@ TEST_CASE("zlib: DECOMPRESS error on corrupted stream")
     comp.resize(out_sz);
 
     // Corrupt a middle byte (avoid first 2 zlib header bytes)
-    if (comp.size() > 6) {
+    if (comp.size() > 6)
+    {
         comp[5] ^= 0xFF;
     }
 

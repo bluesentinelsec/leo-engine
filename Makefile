@@ -9,6 +9,9 @@ release:
 	cmake -B build -S . -DCMAKE_BUILD_TYPE=Release -DLEO_BUILD_SHARED=ON -DLEO_BUILD_TESTS=On
 	cmake --build build --parallel
 
+fmt:
+	find src include tests -name "*.c" -o -name "*.h" -o -name "*.cpp" | xargs clang-format -i
+
 web:
 	docker build . -t dev:latest
 	docker run -it -p 8000:8000 dev:latest

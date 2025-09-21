@@ -48,6 +48,11 @@ extern "C"
         /* Start with global pause? */
         bool start_paused;
 
+        /* App metadata (optional - defaults provided if NULL) */
+        const char *app_name;       /* e.g., "My Game" (defaults to "Game") */
+        const char *app_version;    /* e.g., "1.0.0" (defaults to "1.0.0") */
+        const char *app_identifier; /* e.g., "com.company.mygame" (defaults to "com.leo-engine.game") */
+
         /* User payload carried in the runtime context */
         void *user_data;
     } leo_GameConfig;

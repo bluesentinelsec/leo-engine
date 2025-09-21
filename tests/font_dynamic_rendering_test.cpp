@@ -28,7 +28,7 @@ TEST_CASE_METHOD(DynamicFontEnv, "Dynamic font rendering with SDL_snprintf", "[f
     REQUIRE(leo_IsFontReady(font));
 
     char buffer[256];
-    
+
     // Test multiple dynamic string formats
     for (int i = 0; i < 5; i++)
     {
@@ -63,7 +63,7 @@ TEST_CASE_METHOD(DynamicFontEnv, "Dynamic font rendering with standard snprintf"
     REQUIRE(leo_IsFontReady(font));
 
     char buffer[256];
-    
+
     // Test with standard snprintf to verify it also works
     for (int i = 0; i < 3; i++)
     {
@@ -90,18 +90,18 @@ TEST_CASE_METHOD(DynamicFontEnv, "Dynamic font measurement consistency", "[font]
     REQUIRE(leo_IsFontReady(font));
 
     char buffer[256];
-    
+
     // Test that measurement works correctly with dynamic strings
     SDL_snprintf(buffer, sizeof(buffer), "Test %d", 123);
     auto size1 = leo_MeasureTextEx(font, buffer, 24.0f, 0.0f);
-    
+
     SDL_snprintf(buffer, sizeof(buffer), "Test %d", 456);
     auto size2 = leo_MeasureTextEx(font, buffer, 24.0f, 0.0f);
-    
+
     // Both strings should have same width (same number of characters)
     CHECK(size1.x == size2.x);
     CHECK(size1.y == size2.y);
-    
+
     // Different length strings should have different widths
     SDL_snprintf(buffer, sizeof(buffer), "Test %d Extra", 123);
     auto size3 = leo_MeasureTextEx(font, buffer, 24.0f, 0.0f);
@@ -116,7 +116,7 @@ TEST_CASE_METHOD(DynamicFontEnv, "Dynamic font rendering with special characters
     REQUIRE(leo_IsFontReady(font));
 
     char buffer[256];
-    
+
     leo_BeginDrawing();
     leo_ClearBackground(20, 22, 28, 255);
 
