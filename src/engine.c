@@ -5,6 +5,7 @@
 #include "leo/error.h"
 #include "leo/keyboard.h"
 #include "leo/mouse.h"
+#include "leo/gamepad.h"
 
 #include <SDL3/SDL.h>
 #include <math.h>
@@ -235,6 +236,7 @@ bool leo_InitWindow(int width, int height, const char *title)
     s_state.defaultScaleMode = SDL_SCALEMODE_LINEAR;
 
     leo_InitMouse();
+    leo_InitGamepads();
 
     return true;
 }
@@ -276,6 +278,7 @@ void leo_CloseWindow()
 
     leo_CleanupKeyboard();
     leo_ShutdownMouse();
+    leo_ShutdownGamepads();
     SDL_Quit();
 }
 
@@ -336,9 +339,11 @@ bool leo_WindowShouldClose(void)
             break;
         }
         leo_HandleMouseEvent(&e);
+        leo_HandleGamepadEvent(&e);
     }
     leo_UpdateKeyboard();
     leo_UpdateMouse();
+    leo_UpdateGamepads();
     if (leo_IsExitKeyPressed())
         s_state.quit = 1;
     return s_state.quit != 0;
