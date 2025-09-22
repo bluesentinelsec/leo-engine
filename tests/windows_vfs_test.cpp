@@ -284,6 +284,75 @@ TEST_CASE("Windows VFS: leo-packer.py compatibility")
     fs::remove_all(tmp);
 }
 
+TEST_CASE("Windows VFS: Read individual files after mounting")
+{
+    // Test that we can actually read files after successfully mounting a pack
+    fs::path resources = fs::path("resources");
+    REQUIRE(fs::exists(resources));
+
+    auto tmp = fs::temp_directory_path() / ("leo_win_read_" + std::to_string(::time(nullptr)));
+    fs::create_directories(tmp);
+    auto pack = tmp / "read_test.leopack";
+
+    // Create pack with the same files as your leo-packer example
+    std::vector<std::pair<std::string, fs::path>> entries = {
+        {"images/character_64x64.png", resources / "images" / "character_64x64.png"},
+        {"images/background_320x200.png", resources / "images" / "background_320x200.png"},
+        {"font/font.ttf", resources / "font" / "font.ttf"},
+        {"sound/coin.wav", resources / "sound" / "coin.wav"},
+        {"maps/map.json", resources / "maps" / "map.json"}
+    };
+
+    leo_pack_writer *w = nullptr;
+    leo_pack_build_opts o{};
+    o.password = "password";
+    o.level = 6;
+    o.align = 16;
+
+    REQUIRE(leo_pack_writer_begin(&w, pack.string().c_str(), &o) == LEO_PACK_OK);
+    for (auto &kv : entries) {
+        if (fs::exists(kv.second)) {
+            auto data = readBytes(kv.second);
+            REQUIRE(leo_pack_writer_add(w, kv.first.c_str(), data.data(), data.size(),
+                                        /*compress=*/1, /*obfuscate=*/1) == LEO_PACK_OK);
+        }
+    }
+    REQUIRE(leo_pack_writer_end(w) == LEO_PACK_OK);
+
+    // Mount the pack
+    leo_ClearMounts();
+    REQUIRE(leo_MountResourcePack(pack.string().c_str(), "password", 100));
+
+    // Test reading each file individually
+    for (auto &kv : entries) {
+        if (fs::exists(kv.second)) {
+            INFO("Testing file: " << kv.first);
+            
+            // Test StatAsset
+            leo_AssetInfo info{};
+            REQUIRE(leo_StatAsset(kv.first.c_str(), &info));
+            CHECK(info.from_pack == 1);
+            CHECK(info.size > 0);
+            
+            // Test LoadAsset
+            size_t loaded_size = 0;
+            void *loaded_data = leo_LoadAsset(kv.first.c_str(), &loaded_size);
+            REQUIRE(loaded_data != nullptr);
+            CHECK(loaded_size == info.size);
+            
+            // Verify data matches original
+            auto orig_data = readBytes(kv.second);
+            REQUIRE(loaded_size == orig_data.size());
+            CHECK(memcmp(loaded_data, orig_data.data(), loaded_size) == 0);
+            
+            free(loaded_data);
+        }
+    }
+
+    leo_ClearMounts();
+    fs::remove_all(tmp);
+}
+
 TEST_CASE("Windows VFS: UTF-8 path encoding issue")
 {
     // Test that demonstrates the UTF-8 path encoding issue on Windows
