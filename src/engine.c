@@ -702,7 +702,14 @@ void leo_DrawTextureRec(leo_Texture2D tex, leo_Rectangle src, leo_Vector2 positi
         s.h = -s.h;
     }
 
-    SDL_FRect d = {position.x, position.y, s.w, s.h};
+    // Apply camera transform if active
+    leo_Vector2 screenPos = position;
+    if (s_state.cameraActive)
+    {
+        screenPos = leo_GetWorldToScreen2D(position, leo_GetCurrentCamera2D());
+    }
+
+    SDL_FRect d = {screenPos.x, screenPos.y, s.w, s.h};
 
     SDL_Texture *t = (SDL_Texture *)tex._handle;
 

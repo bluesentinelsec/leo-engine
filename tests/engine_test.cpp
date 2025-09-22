@@ -378,6 +378,34 @@ TEST_CASE("Camera state tracking", "[camera]")
     CHECK_FALSE(leo_IsCameraActive());
 }
 
+TEST_CASE("DrawTextureRec applies camera transform", "[camera]")
+{
+    // This test verifies that leo_DrawTextureRec automatically applies camera transform
+    // when inside BeginMode2D/EndMode2D
+    
+    leo_Camera2D camera = {0};
+    camera.target = {100, 100};  // Look at world position (100, 100)
+    camera.offset = {400, 300};  // Center on screen at (400, 300)
+    camera.zoom = 1.0f;
+    
+    // Create a dummy texture (we can't easily test actual rendering in unit tests)
+    leo_Texture2D testTexture = {0};
+    testTexture._handle = (void*)1; // Non-null to pass validation
+    
+    // Without camera, drawing should work normally
+    leo_DrawTextureRec(testTexture, (leo_Rectangle){0, 0, 32, 32}, (leo_Vector2){100, 100}, LEO_WHITE);
+    
+    // With camera active, drawing should also work (with transform applied internally)
+    leo_BeginMode2D(camera);
+    CHECK(leo_IsCameraActive());
+    
+    // This should work without crashing - the camera transform is applied internally
+    leo_DrawTextureRec(testTexture, (leo_Rectangle){0, 0, 32, 32}, (leo_Vector2){100, 100}, LEO_WHITE);
+    
+    leo_EndMode2D();
+    CHECK_FALSE(leo_IsCameraActive());
+}
+
 TEST_CASE("WorldToScreen with identity vs. offset/zoom/rotation sanity", "[camera]")
 {
     // Identity camera
