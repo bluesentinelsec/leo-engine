@@ -393,14 +393,16 @@ TEST_CASE("DrawTextureRec applies camera transform", "[camera]")
     testTexture._handle = (void*)1; // Non-null to pass validation
     
     // Without camera, drawing should work normally
-    leo_DrawTextureRec(testTexture, (leo_Rectangle){0, 0, 32, 32}, (leo_Vector2){100, 100}, LEO_WHITE);
+    leo_Rectangle srcRect = {0, 0, 32, 32};
+    leo_Vector2 pos = {100, 100};
+    leo_DrawTextureRec(testTexture, srcRect, pos, LEO_WHITE);
     
     // With camera active, drawing should also work (with transform applied internally)
     leo_BeginMode2D(camera);
     CHECK(leo_IsCameraActive());
     
     // This should work without crashing - the camera transform is applied internally
-    leo_DrawTextureRec(testTexture, (leo_Rectangle){0, 0, 32, 32}, (leo_Vector2){100, 100}, LEO_WHITE);
+    leo_DrawTextureRec(testTexture, srcRect, pos, LEO_WHITE);
     
     leo_EndMode2D();
     CHECK_FALSE(leo_IsCameraActive());
