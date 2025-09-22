@@ -67,4 +67,5 @@ set(LEO_TEST_SOURCES
         tests/tiled_test.cpp
         tests/actor_test.cpp
         tests/game_test.cpp
+        tests/windows_vfs_test.cpp
 )

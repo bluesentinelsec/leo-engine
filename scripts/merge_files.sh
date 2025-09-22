@@ -8,11 +8,13 @@ OUTPUT_FILE="leo_pack_mega.h"
 
 # List of input header files
 FILES=(
-include/leo/engine.h
-include/leo/game.h
-src/engine.c
-src/game.c
-include/leo/graphics.h
+src/pack_compress.c
+src/pack_reader.c		
+src/pack_zlib.c
+src/pack_errors.c
+src/pack_util.c
+src/pack_obfuscate.c	
+src/pack_writer.c
 )
 
 # Initialize or clear the output file
