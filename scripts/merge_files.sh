@@ -8,11 +8,11 @@ OUTPUT_FILE="leo_pack_mega.h"
 
 # List of input header files
 FILES=(
-tests/font_step2_load_draw_test.cpp
-tests/font_step5_vfs_tests.cpp
-tests/font_step3_spacing_rotation_test.cpp
-tests/font_test.cpp
-tests/font_step4_memory_errorpaths_test.cpp
+include/leo/engine.h
+include/leo/game.h
+src/engine.c
+src/game.c
+include/leo/graphics.h
 )
 
 # Initialize or clear the output file

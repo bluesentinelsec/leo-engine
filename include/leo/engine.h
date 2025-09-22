@@ -81,6 +81,8 @@ extern "C"
 
     LEO_API void leo_EndMode2D(void);
 
+    LEO_API bool leo_IsCameraActive(void);
+
     LEO_API leo_Vector2 leo_GetWorldToScreen2D(leo_Vector2 position, leo_Camera2D camera);
 
     LEO_API leo_Vector2 leo_GetScreenToWorld2D(leo_Vector2 position, leo_Camera2D camera);

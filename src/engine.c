@@ -43,6 +43,7 @@ typedef struct EngineState
     /* camera */
     leo_Camera2D camStack[8];
     int camTop;
+    bool cameraActive;  /* true when inside BeginMode2D/EndMode2D */
 
     /* Current affine: screen <- world (row-major 2x3) */
     float m11, m12, tx;
@@ -78,6 +79,7 @@ static EngineState s_state = {
     .currentFPS = 0,
     .fpsWindowStart = 0,
     .camTop = -1,
+    .cameraActive = false,
     .m11 = 1.0f,
     .m12 = 0.0f,
     .tx = 0.0f,
@@ -223,6 +225,7 @@ bool leo_InitWindow(int width, int height, const char *title)
     s_state.targetFrameSecs = 0.0;
 
     s_state.camTop = -1;
+    s_state.cameraActive = false;
     _rebuildCameraMatrix(NULL);
 
     s_state.rtTop = -1;
@@ -268,6 +271,7 @@ void leo_CloseWindow()
     s_state.targetFrameSecs = 0.0;
 
     s_state.camTop = -1;
+    s_state.cameraActive = false;
     _rebuildCameraMatrix(NULL);
     s_state.rtTop = -1;
 
@@ -576,6 +580,7 @@ void leo_BeginMode2D(leo_Camera2D camera)
         camera.rotation -= 360.0f * (float)k;
     }
     s_state.camStack[s_state.camTop] = camera;
+    s_state.cameraActive = true;
     _rebuildCameraMatrix(&s_state.camStack[s_state.camTop]);
 }
 
@@ -583,7 +588,13 @@ void leo_EndMode2D(void)
 {
     if (s_state.camTop >= 0)
         s_state.camTop--;
+    s_state.cameraActive = (s_state.camTop >= 0);
     _rebuildCameraMatrix(s_state.camTop >= 0 ? &s_state.camStack[s_state.camTop] : NULL);
+}
+
+bool leo_IsCameraActive(void)
+{
+    return s_state.cameraActive;
 }
 
 leo_Camera2D leo_GetCurrentCamera2D(void)

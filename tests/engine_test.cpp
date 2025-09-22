@@ -352,6 +352,32 @@ TEST_CASE("Begin/EndMode2D stack", "[camera]")
     CHECK(leo_GetCurrentCamera2D().zoom == 1.f);
 }
 
+TEST_CASE("Camera state tracking", "[camera]")
+{
+    // Test that camera state is tracked when BeginMode2D/EndMode2D is called
+    leo_Camera2D camera = {0};
+    camera.target = {100, 200};
+    camera.offset = {400, 300};
+    camera.zoom = 1.0f;
+    
+    // Initially no camera should be active
+    CHECK_FALSE(leo_IsCameraActive());
+    
+    // After BeginMode2D, camera should be active
+    leo_BeginMode2D(camera);
+    CHECK(leo_IsCameraActive());
+    
+    leo_Camera2D current = leo_GetCurrentCamera2D();
+    CHECK(current.target.x == 100);
+    CHECK(current.target.y == 200);
+    CHECK(current.offset.x == 400);
+    CHECK(current.offset.y == 300);
+    
+    // After EndMode2D, camera should be inactive
+    leo_EndMode2D();
+    CHECK_FALSE(leo_IsCameraActive());
+}
+
 TEST_CASE("WorldToScreen with identity vs. offset/zoom/rotation sanity", "[camera]")
 {
     // Identity camera
