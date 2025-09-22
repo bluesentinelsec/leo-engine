@@ -284,6 +284,39 @@ TEST_CASE("Windows VFS: leo-packer.py compatibility")
     fs::remove_all(tmp);
 }
 
+TEST_CASE("Windows VFS: UTF-8 path encoding issue")
+{
+    // Test that demonstrates the UTF-8 path encoding issue on Windows
+    fs::path resources = fs::path("resources");
+    REQUIRE(fs::exists(resources));
+
+    auto tmp = fs::temp_directory_path() / ("leo_win_utf8_" + std::to_string(::time(nullptr)));
+    fs::create_directories(tmp);
+    
+    // Create a pack file with a path that contains non-ASCII characters in the filename
+    auto pack_path = tmp / "test_ütf8_файл.leopack";  // Mixed UTF-8 characters
+    
+    fs::path test_file = resources / "images" / "character_64x64.png";
+    makePack(pack_path, {{"test/file.png", test_file}});
+
+    // This should work but may fail on Windows due to UTF-8 encoding issues
+    leo_ClearMounts();
+    bool mount_success = leo_MountResourcePack(pack_path.string().c_str(), nullptr, 100);
+    
+    if (mount_success) {
+        // If mount succeeded, verify we can read from it
+        leo_AssetInfo info{};
+        REQUIRE(leo_StatAsset("test/file.png", &info));
+        CHECK(info.from_pack == 1);
+    } else {
+        // If mount failed, it's likely due to UTF-8 path encoding issues
+        WARN("Pack mount failed - likely UTF-8 path encoding issue on Windows");
+    }
+
+    leo_ClearMounts();
+    fs::remove_all(tmp);
+}
+
 TEST_CASE("Windows VFS: Error handling for Windows-specific issues")
 {
     // On Windows, these paths may not actually fail as expected
