@@ -25,10 +25,21 @@ static void transition_update(leo_Actor *self, float dt)
     TransitionData *data = (TransitionData *)leo_actor_userdata(self);
 
     data->elapsed += dt;
+    float progress = data->elapsed / data->duration;
+    
+    // Debug output every 0.1 seconds
+    static float last_debug_time = 0;
+    last_debug_time += dt;
+    if (last_debug_time >= 0.1f) {
+        printf("Transition progress: %.2f (elapsed: %.2f / duration: %.2f)\n", 
+               progress, data->elapsed, data->duration);
+        last_debug_time = 0;
+    }
 
     if (data->elapsed >= data->duration && !data->completed)
     {
         data->completed = true;
+        printf("Transition completed!\n");
         if (data->on_complete)
         {
             data->on_complete(data->user_data);
@@ -62,6 +73,7 @@ static void transition_render(leo_Actor *self)
         leo_Color fade_color = data->color;
         // Fade-in: start opaque (255) and fade to transparent (0)
         fade_color.a = (unsigned char)(255 * (1.0f - progress));
+        printf("FADE_IN: progress=%.2f, alpha=%d\n", progress, fade_color.a);
         leo_DrawRectangle(0, 0, screen_width, screen_height, fade_color);
         break;
     }
@@ -69,6 +81,7 @@ static void transition_render(leo_Actor *self)
         leo_Color fade_color = data->color;
         // Fade-out: start transparent (0) and fade to opaque (255)
         fade_color.a = (unsigned char)(255 * progress);
+        printf("FADE_OUT: progress=%.2f, alpha=%d\n", progress, fade_color.a);
         leo_DrawRectangle(0, 0, screen_width, screen_height, fade_color);
         break;
     }
