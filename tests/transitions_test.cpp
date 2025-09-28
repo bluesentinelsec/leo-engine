@@ -10,11 +10,12 @@ TEST_CASE("Transition system basic functionality", "[transitions]")
 
     SECTION("Can create fade transition")
     {
-        leo_TransitionDesc desc = {.type = LEO_TRANSITION_FADE,
-                                   .duration = 1.0f,
-                                   .color = LEO_BLACK,
-                                   .on_complete = nullptr,
-                                   .user_data = nullptr};
+        leo_TransitionDesc desc = {};
+        desc.type = LEO_TRANSITION_FADE;
+        desc.duration = 1.0f;
+        desc.color = LEO_BLACK;
+        desc.on_complete = nullptr;
+        desc.user_data = nullptr;
 
         leo_Actor *transition = leo_transition_start(root, &desc);
         REQUIRE(transition != nullptr);
@@ -22,11 +23,12 @@ TEST_CASE("Transition system basic functionality", "[transitions]")
 
     SECTION("Can create circle in transition")
     {
-        leo_TransitionDesc desc = {.type = LEO_TRANSITION_CIRCLE_IN,
-                                   .duration = 0.5f,
-                                   .color = LEO_WHITE,
-                                   .on_complete = nullptr,
-                                   .user_data = nullptr};
+        leo_TransitionDesc desc = {};
+        desc.type = LEO_TRANSITION_CIRCLE_IN;
+        desc.duration = 0.5f;
+        desc.color = LEO_WHITE;
+        desc.on_complete = nullptr;
+        desc.user_data = nullptr;
 
         leo_Actor *transition = leo_transition_start(root, &desc);
         REQUIRE(transition != nullptr);
@@ -34,11 +36,12 @@ TEST_CASE("Transition system basic functionality", "[transitions]")
 
     SECTION("Can create circle out transition")
     {
-        leo_TransitionDesc desc = {.type = LEO_TRANSITION_CIRCLE_OUT,
-                                   .duration = 2.0f,
-                                   .color = LEO_RED,
-                                   .on_complete = nullptr,
-                                   .user_data = nullptr};
+        leo_TransitionDesc desc = {};
+        desc.type = LEO_TRANSITION_CIRCLE_OUT;
+        desc.duration = 2.0f;
+        desc.color = LEO_RED;
+        desc.on_complete = nullptr;
+        desc.user_data = nullptr;
 
         leo_Actor *transition = leo_transition_start(root, &desc);
         REQUIRE(transition != nullptr);
@@ -58,11 +61,12 @@ TEST_CASE("Transition completion callback", "[transitions]")
         *flag = true;
     };
 
-    leo_TransitionDesc desc = {.type = LEO_TRANSITION_FADE,
-                               .duration = 0.1f,
-                               .color = LEO_BLACK,
-                               .on_complete = callback,
-                               .user_data = &callback_called};
+    leo_TransitionDesc desc = {};
+    desc.type = LEO_TRANSITION_FADE;
+    desc.duration = 0.1f;
+    desc.color = LEO_BLACK;
+    desc.on_complete = callback;
+    desc.user_data = &callback_called;
 
     leo_Actor *transition = leo_transition_start(root, &desc);
     REQUIRE(transition != nullptr);
@@ -83,11 +87,12 @@ TEST_CASE("Transition progress over time", "[transitions]")
     leo_ActorSystem *sys = leo_actor_system_create();
     leo_Actor *root = leo_actor_system_root(sys);
 
-    leo_TransitionDesc desc = {.type = LEO_TRANSITION_FADE,
-                               .duration = 1.0f,
-                               .color = LEO_BLACK,
-                               .on_complete = nullptr,
-                               .user_data = nullptr};
+    leo_TransitionDesc desc = {};
+    desc.type = LEO_TRANSITION_FADE;
+    desc.duration = 1.0f;
+    desc.color = LEO_BLACK;
+    desc.on_complete = nullptr;
+    desc.user_data = nullptr;
 
     leo_Actor *transition = leo_transition_start(root, &desc);
     REQUIRE(transition != nullptr);
