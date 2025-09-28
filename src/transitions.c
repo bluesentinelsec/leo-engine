@@ -14,6 +14,7 @@ typedef struct
     void (*on_complete)(void *user_data);
     void *user_data;
     bool completed;
+    bool manual_render;
 } TransitionData;
 
 static bool transition_init(leo_Actor *self)
@@ -52,6 +53,18 @@ static void transition_update(leo_Actor *self, float dt)
 static void transition_render(leo_Actor *self)
 {
     TransitionData *data = (TransitionData *)leo_actor_userdata(self);
+    
+    // Skip rendering if manual render is enabled
+    if (data->manual_render) {
+        return;
+    }
+    
+    leo_transition_render_manual(self);
+}
+
+void leo_transition_render_manual(leo_Actor *transition)
+{
+    TransitionData *data = (TransitionData *)leo_actor_userdata(transition);
     float progress = data->elapsed / data->duration;
     if (progress > 1.0f)
         progress = 1.0f;
@@ -135,6 +148,7 @@ leo_Actor *leo_transition_start(leo_Actor *parent, const leo_TransitionDesc *des
     data->on_complete = desc->on_complete;
     data->user_data = desc->user_data;
     data->completed = false;
+    data->manual_render = desc->manual_render;
 
     leo_ActorDesc actor_desc = {
         .name = "transition", .vtable = &transition_vtable, .user_data = data, .groups = 0, .start_paused = false};
