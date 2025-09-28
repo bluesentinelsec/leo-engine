@@ -83,8 +83,6 @@ static void transition_render(leo_Actor *self)
         leo_BeginMode2D(camera);
     }
 }
-    }
-}
 
 static void transition_exit(leo_Actor *self)
 {
