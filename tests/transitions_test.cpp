@@ -11,7 +11,7 @@ TEST_CASE("Transition system basic functionality", "[transitions]")
     SECTION("Can create fade transition")
     {
         leo_TransitionDesc desc = {};
-        desc.type = LEO_TRANSITION_FADE;
+        desc.type = LEO_TRANSITION_FADE_IN;
         desc.duration = 1.0f;
         desc.color = LEO_BLACK;
         desc.on_complete = nullptr;
@@ -62,7 +62,7 @@ TEST_CASE("Transition completion callback", "[transitions]")
     };
 
     leo_TransitionDesc desc = {};
-    desc.type = LEO_TRANSITION_FADE;
+    desc.type = LEO_TRANSITION_FADE_OUT;
     desc.duration = 0.1f;
     desc.color = LEO_BLACK;
     desc.on_complete = callback;
@@ -88,7 +88,7 @@ TEST_CASE("Transition progress over time", "[transitions]")
     leo_Actor *root = leo_actor_system_root(sys);
 
     leo_TransitionDesc desc = {};
-    desc.type = LEO_TRANSITION_FADE;
+    desc.type = LEO_TRANSITION_FADE_IN;
     desc.duration = 1.0f;
     desc.color = LEO_BLACK;
     desc.on_complete = nullptr;

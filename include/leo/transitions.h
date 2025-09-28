@@ -11,7 +11,8 @@ extern "C"
 
     typedef enum
     {
-        LEO_TRANSITION_FADE,
+        LEO_TRANSITION_FADE_IN,  // Start opaque, fade to transparent
+        LEO_TRANSITION_FADE_OUT, // Start transparent, fade to opaque
         LEO_TRANSITION_CIRCLE_IN,
         LEO_TRANSITION_CIRCLE_OUT
     } leo_TransitionType;

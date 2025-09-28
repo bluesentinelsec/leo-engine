@@ -47,7 +47,8 @@ static void transition_render(leo_Actor *self)
     // Transitions need to render in screen space, not world space
     // Check if we're inside a camera transform and exit it temporarily
     bool was_camera_active = leo_IsCameraActive();
-    if (was_camera_active) {
+    if (was_camera_active)
+    {
         leo_EndMode2D();
     }
 
@@ -57,8 +58,16 @@ static void transition_render(leo_Actor *self)
 
     switch (data->type)
     {
-    case LEO_TRANSITION_FADE: {
+    case LEO_TRANSITION_FADE_IN: {
         leo_Color fade_color = data->color;
+        // Fade-in: start opaque (255) and fade to transparent (0)
+        fade_color.a = (unsigned char)(255 * (1.0f - progress));
+        leo_DrawRectangle(0, 0, screen_width, screen_height, fade_color);
+        break;
+    }
+    case LEO_TRANSITION_FADE_OUT: {
+        leo_Color fade_color = data->color;
+        // Fade-out: start transparent (0) and fade to opaque (255)
         fade_color.a = (unsigned char)(255 * progress);
         leo_DrawRectangle(0, 0, screen_width, screen_height, fade_color);
         break;
@@ -78,7 +87,8 @@ static void transition_render(leo_Actor *self)
     }
 
     // Restore camera transform if it was active
-    if (was_camera_active) {
+    if (was_camera_active)
+    {
         leo_Camera2D camera = leo_GetCurrentCamera2D();
         leo_BeginMode2D(camera);
     }
