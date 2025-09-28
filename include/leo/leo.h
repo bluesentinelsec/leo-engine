@@ -18,7 +18,6 @@ extern "C"
 #include "leo/font.h"
 #include "leo/graphics.h"
 #include "leo/image.h"
-#include "leo/transitions.h"
 
 // Input
 #include "leo/gamepad.h"

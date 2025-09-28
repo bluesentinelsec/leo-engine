@@ -27,7 +27,6 @@ set(LEO_SOURCES
         src/tiled.c
         src/actor.c
         src/game.c
-        src/transitions.c
         external/miniaudio/miniaudio.c
         external/getopt/getopt.c
         external/cJSON/cJSON.c
@@ -68,6 +67,5 @@ set(LEO_TEST_SOURCES
         tests/tiled_test.cpp
         tests/actor_test.cpp
         tests/game_test.cpp
-        tests/transitions_test.cpp
         tests/windows_vfs_test.cpp
 )
