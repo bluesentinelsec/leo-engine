@@ -43,7 +43,7 @@ typedef struct EngineState
     /* camera */
     leo_Camera2D camStack[8];
     int camTop;
-    bool cameraActive;  /* true when inside BeginMode2D/EndMode2D */
+    bool cameraActive; /* true when inside BeginMode2D/EndMode2D */
 
     /* Current affine: screen <- world (row-major 2x3) */
     float m11, m12, tx;

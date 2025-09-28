@@ -1,0 +1,32 @@
+#pragma once
+
+#include "leo/actor.h"
+#include "leo/color.h"
+#include "leo/export.h"
+
+#ifdef __cplusplus
+extern "C"
+{
+#endif
+
+    typedef enum
+    {
+        LEO_TRANSITION_FADE,
+        LEO_TRANSITION_CIRCLE_IN,
+        LEO_TRANSITION_CIRCLE_OUT
+    } leo_TransitionType;
+
+    typedef struct
+    {
+        leo_TransitionType type;
+        float duration;
+        leo_Color color;
+        void (*on_complete)(void *user_data);
+        void *user_data;
+    } leo_TransitionDesc;
+
+    LEO_API leo_Actor *leo_transition_start(leo_Actor *parent, const leo_TransitionDesc *desc);
+
+#ifdef __cplusplus
+}
+#endif

@@ -144,7 +144,7 @@ TEST_CASE("Windows VFS: File locking behavior")
     // Open multiple streams to the same asset
     leo_AssetStream *s1 = leo_OpenAsset("test/locked.png", nullptr);
     leo_AssetStream *s2 = leo_OpenAsset("test/locked.png", nullptr);
-    
+
     REQUIRE(s1 != nullptr);
     REQUIRE(s2 != nullptr);
 
@@ -205,7 +205,7 @@ TEST_CASE("Windows VFS: Unicode filename handling")
     auto pack = tmp / "unicode.leopack";
 
     // Test with Unicode characters in logical path
-    std::string unicode_path = "test/файл_тест.png";  // Cyrillic characters
+    std::string unicode_path = "test/файл_тест.png"; // Cyrillic characters
 
     fs::path test_file = resources / "images" / "character_64x64.png";
     makePack(pack, {{unicode_path, test_file}});
@@ -228,7 +228,7 @@ TEST_CASE("Windows VFS: leo-packer.py compatibility")
     // Test that Windows VFS can read packs created by leo-packer.py
     // This simulates the real-world scenario from the command:
     // leo-packer pack --compress --password password resources windows_resources.leopack
-    
+
     fs::path resources = fs::path("resources");
     REQUIRE(fs::exists(resources));
 
@@ -240,7 +240,7 @@ TEST_CASE("Windows VFS: leo-packer.py compatibility")
     leo_pack_writer *w = nullptr;
     leo_pack_build_opts o{};
     o.password = "password";
-    o.level = 6;  // Default compression level
+    o.level = 6; // Default compression level
     o.align = 16;
 
     REQUIRE(leo_pack_writer_begin(&w, pack.string().c_str(), &o) == LEO_PACK_OK);
@@ -253,8 +253,7 @@ TEST_CASE("Windows VFS: leo-packer.py compatibility")
         {"images/character_64x64.png", resources / "images" / "character_64x64.png"},
         {"font/font.ttf", resources / "font" / "font.ttf"},
         {"sound/ogre3.wav", resources / "sound" / "ogre3.wav"},
-        {"sound/coin.wav", resources / "sound" / "coin.wav"}
-    };
+        {"sound/coin.wav", resources / "sound" / "coin.wav"}};
 
     for (auto &kv : entries)
     {
@@ -275,7 +274,7 @@ TEST_CASE("Windows VFS: leo-packer.py compatibility")
     leo_AssetInfo info{};
     REQUIRE(leo_StatAsset("images/character_64x64.png", &info));
     CHECK(info.from_pack == 1);
-    
+
     REQUIRE(leo_StatAsset("sound/coin.wav", &info));
     CHECK(info.from_pack == 1);
 
@@ -300,8 +299,7 @@ TEST_CASE("Windows VFS: Read individual files after mounting")
         {"images/background_320x200.png", resources / "images" / "background_320x200.png"},
         {"font/font.ttf", resources / "font" / "font.ttf"},
         {"sound/coin.wav", resources / "sound" / "coin.wav"},
-        {"maps/map.json", resources / "maps" / "map.json"}
-    };
+        {"maps/map.json", resources / "maps" / "map.json"}};
 
     leo_pack_writer *w = nullptr;
     leo_pack_build_opts o{};
@@ -310,8 +308,10 @@ TEST_CASE("Windows VFS: Read individual files after mounting")
     o.align = 16;
 
     REQUIRE(leo_pack_writer_begin(&w, pack.string().c_str(), &o) == LEO_PACK_OK);
-    for (auto &kv : entries) {
-        if (fs::exists(kv.second)) {
+    for (auto &kv : entries)
+    {
+        if (fs::exists(kv.second))
+        {
             auto data = readBytes(kv.second);
             REQUIRE(leo_pack_writer_add(w, kv.first.c_str(), data.data(), data.size(),
                                         /*compress=*/1, /*obfuscate=*/1) == LEO_PACK_OK);
@@ -324,27 +324,29 @@ TEST_CASE("Windows VFS: Read individual files after mounting")
     REQUIRE(leo_MountResourcePack(pack.string().c_str(), "password", 100));
 
     // Test reading each file individually
-    for (auto &kv : entries) {
-        if (fs::exists(kv.second)) {
+    for (auto &kv : entries)
+    {
+        if (fs::exists(kv.second))
+        {
             INFO("Testing file: " << kv.first);
-            
+
             // Test StatAsset
             leo_AssetInfo info{};
             REQUIRE(leo_StatAsset(kv.first.c_str(), &info));
             CHECK(info.from_pack == 1);
             CHECK(info.size > 0);
-            
+
             // Test LoadAsset
             size_t loaded_size = 0;
             void *loaded_data = leo_LoadAsset(kv.first.c_str(), &loaded_size);
             REQUIRE(loaded_data != nullptr);
             CHECK(loaded_size == info.size);
-            
+
             // Verify data matches original
             auto orig_data = readBytes(kv.second);
             REQUIRE(loaded_size == orig_data.size());
             CHECK(memcmp(loaded_data, orig_data.data(), loaded_size) == 0);
-            
+
             free(loaded_data);
         }
     }
@@ -361,23 +363,26 @@ TEST_CASE("Windows VFS: UTF-8 path encoding issue")
 
     auto tmp = fs::temp_directory_path() / ("leo_win_utf8_" + std::to_string(::time(nullptr)));
     fs::create_directories(tmp);
-    
+
     // Create a pack file with a path that contains non-ASCII characters in the filename
-    auto pack_path = tmp / "test_ütf8_файл.leopack";  // Mixed UTF-8 characters
-    
+    auto pack_path = tmp / "test_ütf8_файл.leopack"; // Mixed UTF-8 characters
+
     fs::path test_file = resources / "images" / "character_64x64.png";
     makePack(pack_path, {{"test/file.png", test_file}});
 
     // This should work but may fail on Windows due to UTF-8 encoding issues
     leo_ClearMounts();
     bool mount_success = leo_MountResourcePack(pack_path.string().c_str(), nullptr, 100);
-    
-    if (mount_success) {
+
+    if (mount_success)
+    {
         // If mount succeeded, verify we can read from it
         leo_AssetInfo info{};
         REQUIRE(leo_StatAsset("test/file.png", &info));
         CHECK(info.from_pack == 1);
-    } else {
+    }
+    else
+    {
         // If mount failed, it's likely due to UTF-8 path encoding issues
         WARN("Pack mount failed - likely UTF-8 path encoding issue on Windows");
     }
@@ -391,13 +396,13 @@ TEST_CASE("Windows VFS: Error handling for Windows-specific issues")
     // On Windows, these paths may not actually fail as expected
     // Just verify the VFS doesn't crash when given various path formats
     leo_ClearMounts();
-    
+
     // Test various path formats - behavior may vary on Windows
     leo_MountDirectory("Z:\\nonexistent\\path", 50);
     leo_MountDirectory("C:\\path\\with\\<invalid>\\chars", 50);
     leo_MountDirectory("C:\\path\\with\\|\\pipe", 50);
     leo_MountDirectory("C:\\path\\with\\*\\wildcard", 50);
-    
+
     leo_ClearMounts();
 }
 

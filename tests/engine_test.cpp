@@ -359,20 +359,20 @@ TEST_CASE("Camera state tracking", "[camera]")
     camera.target = {100, 200};
     camera.offset = {400, 300};
     camera.zoom = 1.0f;
-    
+
     // Initially no camera should be active
     CHECK_FALSE(leo_IsCameraActive());
-    
+
     // After BeginMode2D, camera should be active
     leo_BeginMode2D(camera);
     CHECK(leo_IsCameraActive());
-    
+
     leo_Camera2D current = leo_GetCurrentCamera2D();
     CHECK(current.target.x == 100);
     CHECK(current.target.y == 200);
     CHECK(current.offset.x == 400);
     CHECK(current.offset.y == 300);
-    
+
     // After EndMode2D, camera should be inactive
     leo_EndMode2D();
     CHECK_FALSE(leo_IsCameraActive());
@@ -382,28 +382,28 @@ TEST_CASE("DrawTextureRec applies camera transform", "[camera]")
 {
     // This test verifies that leo_DrawTextureRec automatically applies camera transform
     // when inside BeginMode2D/EndMode2D
-    
+
     leo_Camera2D camera = {0};
-    camera.target = {100, 100};  // Look at world position (100, 100)
-    camera.offset = {400, 300};  // Center on screen at (400, 300)
+    camera.target = {100, 100}; // Look at world position (100, 100)
+    camera.offset = {400, 300}; // Center on screen at (400, 300)
     camera.zoom = 1.0f;
-    
+
     // Create a dummy texture (we can't easily test actual rendering in unit tests)
     leo_Texture2D testTexture = {0};
-    testTexture._handle = (void*)1; // Non-null to pass validation
-    
+    testTexture._handle = (void *)1; // Non-null to pass validation
+
     // Without camera, drawing should work normally
     leo_Rectangle srcRect = {0, 0, 32, 32};
     leo_Vector2 pos = {100, 100};
     leo_DrawTextureRec(testTexture, srcRect, pos, LEO_WHITE);
-    
+
     // With camera active, drawing should also work (with transform applied internally)
     leo_BeginMode2D(camera);
     CHECK(leo_IsCameraActive());
-    
+
     // This should work without crashing - the camera transform is applied internally
     leo_DrawTextureRec(testTexture, srcRect, pos, LEO_WHITE);
-    
+
     leo_EndMode2D();
     CHECK_FALSE(leo_IsCameraActive());
 }
