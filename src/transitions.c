@@ -44,9 +44,16 @@ static void transition_render(leo_Actor *self)
     if (progress > 1.0f)
         progress = 1.0f;
 
-    // Get screen dimensions (simplified - using fixed size for now)
-    int screen_width = 800; // You might want to get this from engine
-    int screen_height = 600;
+    // Transitions need to render in screen space, not world space
+    // Check if we're inside a camera transform and exit it temporarily
+    bool was_camera_active = leo_IsCameraActive();
+    if (was_camera_active) {
+        leo_EndMode2D();
+    }
+
+    // Get actual screen dimensions
+    int screen_width = leo_GetScreenWidth();
+    int screen_height = leo_GetScreenHeight();
 
     switch (data->type)
     {
@@ -68,6 +75,14 @@ static void transition_render(leo_Actor *self)
         leo_DrawCircle(screen_width / 2, screen_height / 2, radius, data->color);
         break;
     }
+    }
+
+    // Restore camera transform if it was active
+    if (was_camera_active) {
+        leo_Camera2D camera = leo_GetCurrentCamera2D();
+        leo_BeginMode2D(camera);
+    }
+}
     }
 }
 
