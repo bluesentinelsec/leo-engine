@@ -184,7 +184,7 @@ void leo_DrawRectangle(int posX, int posY, int width, int height, leo_Color colo
         const float maxy = SDL_max(SDL_max(p0.y, p1.y), SDL_max(p2.y, p3.y));
 
         SDL_FRect fr = {minx, miny, maxx - minx, maxy - miny};
-        _gfxEnableBlending(r);  // Enable alpha blending
+        _gfxEnableBlending(r); // Enable alpha blending
         _gfxSetColor(r, color);
         SDL_RenderFillRect(r, &fr);
         return;
