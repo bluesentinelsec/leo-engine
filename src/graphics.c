@@ -22,6 +22,11 @@ static inline void _gfxSetColor(SDL_Renderer *r, leo_Color c)
     SDL_SetRenderDrawColor(r, c.r, c.g, c.b, c.a);
 }
 
+static inline void _gfxEnableBlending(SDL_Renderer *r)
+{
+    SDL_SetRenderDrawBlendMode(r, SDL_BLENDMODE_BLEND);
+}
+
 static inline int _roundi(float v)
 {
     return (int)SDL_floorf(v + 0.5f);
@@ -179,6 +184,7 @@ void leo_DrawRectangle(int posX, int posY, int width, int height, leo_Color colo
         const float maxy = SDL_max(SDL_max(p0.y, p1.y), SDL_max(p2.y, p3.y));
 
         SDL_FRect fr = {minx, miny, maxx - minx, maxy - miny};
+        _gfxEnableBlending(r);  // Enable alpha blending
         _gfxSetColor(r, color);
         SDL_RenderFillRect(r, &fr);
         return;
