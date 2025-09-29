@@ -193,3 +193,139 @@ void leo_DrawRectangle(int posX, int posY, int width, int height, leo_Color colo
     // General case: draw a filled rotated quad (uses per-vertex color)
     _render_filled_quad(r, p0, p1, p2, p3, color);
 }
+void leo_DrawCircleFilled(int centerX, int centerY, float radius, leo_Color color)
+{
+    if (radius <= 0.0f)
+        return;
+
+    SDL_Renderer *r = _gfxRenderer();
+    if (!r)
+        return;
+
+    _gfxSetColor(r, color);
+
+    const leo_Camera2D cam = leo_GetCurrentCamera2D();
+    const float z = (cam.zoom <= 0.0f) ? 1.0f : cam.zoom;
+    const float rr = radius * z;
+
+    const SDL_FPoint sc = _toScreenF((float)centerX, (float)centerY, &cam);
+    const int cx = _roundi(sc.x);
+    const int cy = _roundi(sc.y);
+    int rpx = _roundi(rr);
+
+    if (rpx > 1 << 15)
+        rpx = 1 << 15;
+
+    // Scan line fill algorithm
+    for (int y = -rpx; y <= rpx; y++)
+    {
+        int x = (int)SDL_sqrtf((float)(rpx * rpx - y * y));
+        SDL_RenderLine(r, cx - x, cy + y, cx + x, cy + y);
+    }
+}
+
+void leo_DrawRectangleLines(int posX, int posY, int width, int height, leo_Color color)
+{
+    // Draw 4 lines for rectangle outline
+    leo_DrawLine(posX, posY, posX + width - 1, posY, color);                    // top
+    leo_DrawLine(posX + width - 1, posY, posX + width - 1, posY + height - 1, color); // right
+    leo_DrawLine(posX + width - 1, posY + height - 1, posX, posY + height - 1, color); // bottom
+    leo_DrawLine(posX, posY + height - 1, posX, posY, color);                   // left
+}
+
+void leo_DrawTriangle(int x1, int y1, int x2, int y2, int x3, int y3, leo_Color color)
+{
+    // Draw 3 lines connecting the vertices
+    leo_DrawLine(x1, y1, x2, y2, color);
+    leo_DrawLine(x2, y2, x3, y3, color);
+    leo_DrawLine(x3, y3, x1, y1, color);
+}
+
+void leo_DrawTriangleFilled(int x1, int y1, int x2, int y2, int x3, int y3, leo_Color color)
+{
+    SDL_Renderer *r = _gfxRenderer();
+    if (!r)
+        return;
+
+    const leo_Camera2D cam = leo_GetCurrentCamera2D();
+    const SDL_FPoint p1 = _toScreenF((float)x1, (float)y1, &cam);
+    const SDL_FPoint p2 = _toScreenF((float)x2, (float)y2, &cam);
+    const SDL_FPoint p3 = _toScreenF((float)x3, (float)y3, &cam);
+
+    SDL_Vertex v[3];
+    v[0].position = p1;
+    v[1].position = p2;
+    v[2].position = p3;
+
+    const float s = 1.0f / 255.0f;
+    const SDL_FColor fc = (SDL_FColor){color.r * s, color.g * s, color.b * s, color.a * s};
+    v[0].color = v[1].color = v[2].color = fc;
+
+    v[0].tex_coord.x = v[0].tex_coord.y = 0.0f;
+    v[1].tex_coord.x = v[1].tex_coord.y = 0.0f;
+    v[2].tex_coord.x = v[2].tex_coord.y = 0.0f;
+
+    SDL_RenderGeometry(r, NULL, v, 3, NULL, 0);
+}
+
+void leo_DrawPoly(int *points, int numPoints, leo_Color color)
+{
+    if (!points || numPoints < 3)
+        return;
+
+    // Draw lines connecting consecutive points
+    for (int i = 0; i < numPoints; i++)
+    {
+        int next = (i + 1) % numPoints;
+        leo_DrawLine(points[i * 2], points[i * 2 + 1], 
+                     points[next * 2], points[next * 2 + 1], color);
+    }
+}
+
+void leo_DrawPolyFilled(int *points, int numPoints, leo_Color color)
+{
+    if (!points || numPoints < 3)
+        return;
+
+    SDL_Renderer *r = _gfxRenderer();
+    if (!r)
+        return;
+
+    const leo_Camera2D cam = leo_GetCurrentCamera2D();
+    
+    // Convert points to screen space
+    SDL_Vertex *vertices = SDL_malloc(numPoints * sizeof(SDL_Vertex));
+    if (!vertices)
+        return;
+
+    const float s = 1.0f / 255.0f;
+    const SDL_FColor fc = (SDL_FColor){color.r * s, color.g * s, color.b * s, color.a * s};
+
+    for (int i = 0; i < numPoints; i++)
+    {
+        const SDL_FPoint p = _toScreenF((float)points[i * 2], (float)points[i * 2 + 1], &cam);
+        vertices[i].position = p;
+        vertices[i].color = fc;
+        vertices[i].tex_coord.x = vertices[i].tex_coord.y = 0.0f;
+    }
+
+    // Triangulate using fan method (assumes convex polygon)
+    int *indices = SDL_malloc((numPoints - 2) * 3 * sizeof(int));
+    if (!indices)
+    {
+        SDL_free(vertices);
+        return;
+    }
+
+    for (int i = 0; i < numPoints - 2; i++)
+    {
+        indices[i * 3] = 0;
+        indices[i * 3 + 1] = i + 1;
+        indices[i * 3 + 2] = i + 2;
+    }
+
+    SDL_RenderGeometry(r, NULL, vertices, numPoints, indices, (numPoints - 2) * 3);
+
+    SDL_free(vertices);
+    SDL_free(indices);
+}
