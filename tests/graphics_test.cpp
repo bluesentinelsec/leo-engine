@@ -575,3 +575,196 @@ TEST_CASE("leo_DrawRectangle draws filled rectangles with correct color and cove
     SDL_DestroyTexture(target);
     leo_EndDrawing();
 }
+TEST_CASE("leo_DrawCircleFilled draws filled circles with correct color and coverage", "[graphics][circle][filled]")
+{
+    EngineFixture fx(20, 20, "circle-filled-test");
+
+    auto *renderer = static_cast<SDL_Renderer *>(leo_GetRenderer());
+    REQUIRE(renderer != nullptr);
+
+    SDL_Texture *target = SDL_CreateTexture(renderer, SDL_PIXELFORMAT_ARGB8888, SDL_TEXTUREACCESS_TARGET, 20, 20);
+    REQUIRE(target != nullptr);
+    REQUIRE(SDL_SetRenderTarget(renderer, target));
+
+    leo_BeginDrawing();
+    leo_ClearBackground(0, 0, 0, 255);
+
+    const int centerX = 10, centerY = 10;
+    const float radius = 3.0f;
+    const leo_Color c = {255, 128, 64, 255};
+
+    leo_DrawCircleFilled(centerX, centerY, radius, c);
+
+    // Test center is filled
+    uint8_t r = 0, g = 0, b = 0, a = 0;
+    REQUIRE(read_pixel(renderer, centerX, centerY, r, g, b, a));
+    CHECK(r == 255);
+    CHECK(g == 128);
+    CHECK(b == 64);
+
+    // Test interior points are filled
+    REQUIRE(read_pixel(renderer, centerX + 1, centerY, r, g, b, a));
+    CHECK(r == 255);
+    CHECK(g == 128);
+    CHECK(b == 64);
+
+    REQUIRE(SDL_SetRenderTarget(renderer, nullptr));
+    SDL_DestroyTexture(target);
+    leo_EndDrawing();
+}
+
+TEST_CASE("leo_DrawRectangleLines draws rectangle outlines with correct color", "[graphics][rectangle][lines]")
+{
+    EngineFixture fx(20, 20, "rectangle-lines-test");
+
+    auto *renderer = static_cast<SDL_Renderer *>(leo_GetRenderer());
+    REQUIRE(renderer != nullptr);
+
+    SDL_Texture *target = SDL_CreateTexture(renderer, SDL_PIXELFORMAT_ARGB8888, SDL_TEXTUREACCESS_TARGET, 20, 20);
+    REQUIRE(target != nullptr);
+    REQUIRE(SDL_SetRenderTarget(renderer, target));
+
+    leo_BeginDrawing();
+    leo_ClearBackground(0, 0, 0, 255);
+
+    const int posX = 5, posY = 5;
+    const int width = 6, height = 4;
+    const leo_Color c = {200, 100, 50, 255};
+
+    leo_DrawRectangleLines(posX, posY, width, height, c);
+
+    // Test corners are drawn
+    uint8_t r = 0, g = 0, b = 0, a = 0;
+    REQUIRE(read_pixel(renderer, posX, posY, r, g, b, a));
+    CHECK(r == 200);
+    CHECK(g == 100);
+    CHECK(b == 50);
+
+    // Test interior is NOT filled
+    REQUIRE(read_pixel(renderer, posX + 1, posY + 1, r, g, b, a));
+    CHECK(r == 0);
+    CHECK(g == 0);
+    CHECK(b == 0);
+
+    REQUIRE(SDL_SetRenderTarget(renderer, nullptr));
+    SDL_DestroyTexture(target);
+    leo_EndDrawing();
+}
+
+TEST_CASE("leo_DrawTriangle draws triangle outlines with correct color", "[graphics][triangle]")
+{
+    EngineFixture fx(20, 20, "triangle-test");
+
+    auto *renderer = static_cast<SDL_Renderer *>(leo_GetRenderer());
+    REQUIRE(renderer != nullptr);
+
+    SDL_Texture *target = SDL_CreateTexture(renderer, SDL_PIXELFORMAT_ARGB8888, SDL_TEXTUREACCESS_TARGET, 20, 20);
+    REQUIRE(target != nullptr);
+    REQUIRE(SDL_SetRenderTarget(renderer, target));
+
+    leo_BeginDrawing();
+    leo_ClearBackground(0, 0, 0, 255);
+
+    const leo_Color c = {150, 200, 100, 255};
+    leo_DrawTriangle(10, 5, 5, 15, 15, 15, c);
+
+    // Test vertices are drawn
+    uint8_t r = 0, g = 0, b = 0, a = 0;
+    REQUIRE(read_pixel(renderer, 10, 5, r, g, b, a));
+    CHECK(r == 150);
+    CHECK(g == 200);
+    CHECK(b == 100);
+
+    REQUIRE(SDL_SetRenderTarget(renderer, nullptr));
+    SDL_DestroyTexture(target);
+    leo_EndDrawing();
+}
+
+TEST_CASE("leo_DrawTriangleFilled draws filled triangles with correct color", "[graphics][triangle][filled]")
+{
+    EngineFixture fx(20, 20, "triangle-filled-test");
+
+    auto *renderer = static_cast<SDL_Renderer *>(leo_GetRenderer());
+    REQUIRE(renderer != nullptr);
+
+    SDL_Texture *target = SDL_CreateTexture(renderer, SDL_PIXELFORMAT_ARGB8888, SDL_TEXTUREACCESS_TARGET, 20, 20);
+    REQUIRE(target != nullptr);
+    REQUIRE(SDL_SetRenderTarget(renderer, target));
+
+    leo_BeginDrawing();
+    leo_ClearBackground(0, 0, 0, 255);
+
+    const leo_Color c = {100, 255, 150, 255};
+    leo_DrawTriangleFilled(10, 5, 5, 15, 15, 15, c);
+
+    // Test interior is filled
+    uint8_t r = 0, g = 0, b = 0, a = 0;
+    REQUIRE(read_pixel(renderer, 10, 10, r, g, b, a));
+    CHECK(r == 100);
+    CHECK(g == 255);
+    CHECK(b == 150);
+
+    REQUIRE(SDL_SetRenderTarget(renderer, nullptr));
+    SDL_DestroyTexture(target);
+    leo_EndDrawing();
+}
+
+TEST_CASE("leo_DrawPoly draws polygon outlines with correct color", "[graphics][polygon]")
+{
+    EngineFixture fx(20, 20, "polygon-test");
+
+    auto *renderer = static_cast<SDL_Renderer *>(leo_GetRenderer());
+    REQUIRE(renderer != nullptr);
+
+    SDL_Texture *target = SDL_CreateTexture(renderer, SDL_PIXELFORMAT_ARGB8888, SDL_TEXTUREACCESS_TARGET, 20, 20);
+    REQUIRE(target != nullptr);
+    REQUIRE(SDL_SetRenderTarget(renderer, target));
+
+    leo_BeginDrawing();
+    leo_ClearBackground(0, 0, 0, 255);
+
+    int points[] = {10, 5, 15, 10, 10, 15, 5, 10};
+    const leo_Color c = {255, 200, 100, 255};
+    leo_DrawPoly(points, 4, c);
+
+    // Test first vertex is drawn
+    uint8_t r = 0, g = 0, b = 0, a = 0;
+    REQUIRE(read_pixel(renderer, 10, 5, r, g, b, a));
+    CHECK(r == 255);
+    CHECK(g == 200);
+    CHECK(b == 100);
+
+    REQUIRE(SDL_SetRenderTarget(renderer, nullptr));
+    SDL_DestroyTexture(target);
+    leo_EndDrawing();
+}
+
+TEST_CASE("leo_DrawPolyFilled draws filled polygons with correct color", "[graphics][polygon][filled]")
+{
+    EngineFixture fx(20, 20, "polygon-filled-test");
+
+    auto *renderer = static_cast<SDL_Renderer *>(leo_GetRenderer());
+    REQUIRE(renderer != nullptr);
+
+    SDL_Texture *target = SDL_CreateTexture(renderer, SDL_PIXELFORMAT_ARGB8888, SDL_TEXTUREACCESS_TARGET, 20, 20);
+    REQUIRE(target != nullptr);
+    REQUIRE(SDL_SetRenderTarget(renderer, target));
+
+    leo_BeginDrawing();
+    leo_ClearBackground(0, 0, 0, 255);
+
+    int points[] = {10, 5, 15, 10, 10, 15, 5, 10};
+    const leo_Color c = {50, 150, 255, 255};
+    leo_DrawPolyFilled(points, 4, c);
+
+    // Test interior is filled
+    uint8_t r = 0, g = 0, b = 0, a = 0;
+    REQUIRE(read_pixel(renderer, 10, 10, r, g, b, a));
+    CHECK(r == 50);
+    CHECK(g == 150);
+    CHECK(b == 255);
+
+    REQUIRE(SDL_SetRenderTarget(renderer, nullptr));
+    SDL_DestroyTexture(target);
+    leo_EndDrawing();
+}
