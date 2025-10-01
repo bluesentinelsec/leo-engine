@@ -58,6 +58,17 @@ extern "C"
 
     LEO_API bool leo_SetFullscreen(bool enabled);
 
+    /* Window mode management */
+    typedef enum leo_WindowMode
+    {
+        LEO_WINDOW_MODE_WINDOWED = 0,           /* normal windowed mode */
+        LEO_WINDOW_MODE_BORDERLESS_FULLSCREEN,  /* borderless fullscreen at desktop resolution */
+        LEO_WINDOW_MODE_FULLSCREEN_EXCLUSIVE    /* exclusive fullscreen with mode switching */
+    } leo_WindowMode;
+
+    LEO_API bool leo_SetWindowMode(leo_WindowMode mode);
+    LEO_API leo_WindowMode leo_GetWindowMode(void);
+
     LEO_API bool leo_WindowShouldClose(void);
 
     LEO_API void leo_ClearBackground(int r, int g, int b, int a);

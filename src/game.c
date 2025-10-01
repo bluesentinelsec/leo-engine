@@ -83,6 +83,12 @@ int leo_GameRun(const leo_GameConfig *cfg, const leo_GameCallbacks *cb)
         return 2;
     }
 
+    /* Set window mode */
+    if (!leo_SetWindowMode(cfg->window_mode))
+    {
+        fprintf(stderr, "leo_GameRun: leo_SetWindowMode failed; continuing in windowed mode\n");
+    }
+
     if (cfg->target_fps > 0)
     {
         leo_SetTargetFPS(cfg->target_fps);

@@ -60,6 +60,9 @@ typedef struct EngineState
     /* render-target stack */
     SDL_Texture *rtStack[LEO_RT_STACK_MAX];
     int rtTop;
+
+    /* window mode tracking */
+    leo_WindowMode currentWindowMode;
 } EngineState;
 
 static EngineState s_state = {
@@ -91,6 +94,7 @@ static EngineState s_state = {
     .logicalH = 0,
     .defaultScaleMode = SDL_SCALEMODE_LINEAR,
     .rtTop = -1,
+    .currentWindowMode = LEO_WINDOW_MODE_WINDOWED,
 };
 
 static inline float _deg2rad(float deg)
@@ -238,6 +242,9 @@ bool leo_InitWindow(int width, int height, const char *title)
     // default per-texture scale mode
     s_state.defaultScaleMode = SDL_SCALEMODE_LINEAR;
 
+    // window mode: start in windowed mode
+    s_state.currentWindowMode = LEO_WINDOW_MODE_WINDOWED;
+
     leo_InitMouse();
     leo_InitGamepads();
 
@@ -326,6 +333,89 @@ bool leo_SetFullscreen(bool enabled)
         }
     }
     return true;
+}
+
+bool leo_SetWindowMode(leo_WindowMode mode)
+{
+    if (!globalWindow)
+    {
+        leo_SetError("leo_SetWindowMode called before leo_InitWindow");
+        return false;
+    }
+
+    if (s_state.currentWindowMode == mode)
+    {
+        return true; // Already in desired mode
+    }
+
+    switch (mode)
+    {
+    case LEO_WINDOW_MODE_WINDOWED:
+        if (!SDL_SetWindowFullscreen(globalWindow, false))
+        {
+            leo_SetError("%s", SDL_GetError());
+            return false;
+        }
+        break;
+
+    case LEO_WINDOW_MODE_BORDERLESS_FULLSCREEN:
+        // Clear any exclusive fullscreen mode first
+        if (!SDL_SetWindowFullscreenMode(globalWindow, NULL))
+        {
+            leo_SetError("%s", SDL_GetError());
+            return false;
+        }
+        if (!SDL_SetWindowFullscreen(globalWindow, true))
+        {
+            leo_SetError("%s", SDL_GetError());
+            return false;
+        }
+        break;
+
+    case LEO_WINDOW_MODE_FULLSCREEN_EXCLUSIVE:
+        {
+            // Get current display
+            SDL_DisplayID displayID = SDL_GetDisplayForWindow(globalWindow);
+            if (displayID == 0)
+            {
+                leo_SetError("Failed to get display for window: %s", SDL_GetError());
+                return false;
+            }
+
+            // Get desktop display mode
+            const SDL_DisplayMode *desktopMode = SDL_GetDesktopDisplayMode(displayID);
+            if (!desktopMode)
+            {
+                leo_SetError("Failed to get desktop display mode: %s", SDL_GetError());
+                return false;
+            }
+
+            // Set exclusive fullscreen mode
+            if (!SDL_SetWindowFullscreenMode(globalWindow, desktopMode))
+            {
+                leo_SetError("%s", SDL_GetError());
+                return false;
+            }
+            if (!SDL_SetWindowFullscreen(globalWindow, true))
+            {
+                leo_SetError("%s", SDL_GetError());
+                return false;
+            }
+        }
+        break;
+
+    default:
+        leo_SetError("Invalid window mode: %d", mode);
+        return false;
+    }
+
+    s_state.currentWindowMode = mode;
+    return true;
+}
+
+leo_WindowMode leo_GetWindowMode(void)
+{
+    return s_state.currentWindowMode;
 }
 
 bool leo_WindowShouldClose(void)
