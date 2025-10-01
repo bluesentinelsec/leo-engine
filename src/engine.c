@@ -372,37 +372,36 @@ bool leo_SetWindowMode(leo_WindowMode mode)
         }
         break;
 
-    case LEO_WINDOW_MODE_FULLSCREEN_EXCLUSIVE:
+    case LEO_WINDOW_MODE_FULLSCREEN_EXCLUSIVE: {
+        // Get current display
+        SDL_DisplayID displayID = SDL_GetDisplayForWindow(globalWindow);
+        if (displayID == 0)
         {
-            // Get current display
-            SDL_DisplayID displayID = SDL_GetDisplayForWindow(globalWindow);
-            if (displayID == 0)
-            {
-                leo_SetError("Failed to get display for window: %s", SDL_GetError());
-                return false;
-            }
-
-            // Get desktop display mode
-            const SDL_DisplayMode *desktopMode = SDL_GetDesktopDisplayMode(displayID);
-            if (!desktopMode)
-            {
-                leo_SetError("Failed to get desktop display mode: %s", SDL_GetError());
-                return false;
-            }
-
-            // Set exclusive fullscreen mode
-            if (!SDL_SetWindowFullscreenMode(globalWindow, desktopMode))
-            {
-                leo_SetError("%s", SDL_GetError());
-                return false;
-            }
-            if (!SDL_SetWindowFullscreen(globalWindow, true))
-            {
-                leo_SetError("%s", SDL_GetError());
-                return false;
-            }
+            leo_SetError("Failed to get display for window: %s", SDL_GetError());
+            return false;
         }
-        break;
+
+        // Get desktop display mode
+        const SDL_DisplayMode *desktopMode = SDL_GetDesktopDisplayMode(displayID);
+        if (!desktopMode)
+        {
+            leo_SetError("Failed to get desktop display mode: %s", SDL_GetError());
+            return false;
+        }
+
+        // Set exclusive fullscreen mode
+        if (!SDL_SetWindowFullscreenMode(globalWindow, desktopMode))
+        {
+            leo_SetError("%s", SDL_GetError());
+            return false;
+        }
+        if (!SDL_SetWindowFullscreen(globalWindow, true))
+        {
+            leo_SetError("%s", SDL_GetError());
+            return false;
+        }
+    }
+    break;
 
     default:
         leo_SetError("Invalid window mode: %d", mode);

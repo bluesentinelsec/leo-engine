@@ -31,11 +31,11 @@ extern "C"
     typedef struct leo_GameConfig
     {
         /* Window / device */
-        int window_width;         /* e.g., 1280 */
-        int window_height;        /* e.g., 720 */
-        const char *window_title; /* e.g., "My Game" */
+        int window_width;           /* e.g., 1280 */
+        int window_height;          /* e.g., 720 */
+        const char *window_title;   /* e.g., "My Game" */
         leo_WindowMode window_mode; /* window display mode */
-        int target_fps;           /* e.g., 60 (<=0 means no cap) */
+        int target_fps;             /* e.g., 60 (<=0 means no cap) */
 
         /* Optional logical resolution */
         int logical_width;                    /* <=0 disables logical scaling */

@@ -9,8 +9,8 @@
 extern "C"
 {
 #include "leo/engine.h"
-#include "leo/game.h"
 #include "leo/error.h"
+#include "leo/game.h"
 }
 
 // Helper: reset engine state between tests

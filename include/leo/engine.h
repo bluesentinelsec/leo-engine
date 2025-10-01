@@ -61,9 +61,9 @@ extern "C"
     /* Window mode management */
     typedef enum leo_WindowMode
     {
-        LEO_WINDOW_MODE_WINDOWED = 0,           /* normal windowed mode */
-        LEO_WINDOW_MODE_BORDERLESS_FULLSCREEN,  /* borderless fullscreen at desktop resolution */
-        LEO_WINDOW_MODE_FULLSCREEN_EXCLUSIVE    /* exclusive fullscreen with mode switching */
+        LEO_WINDOW_MODE_WINDOWED = 0,          /* normal windowed mode */
+        LEO_WINDOW_MODE_BORDERLESS_FULLSCREEN, /* borderless fullscreen at desktop resolution */
+        LEO_WINDOW_MODE_FULLSCREEN_EXCLUSIVE   /* exclusive fullscreen with mode switching */
     } leo_WindowMode;
 
     LEO_API bool leo_SetWindowMode(leo_WindowMode mode);
