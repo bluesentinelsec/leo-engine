@@ -27,6 +27,7 @@ set(LEO_SOURCES
         src/tiled.c
         src/actor.c
         src/game.c
+        src/touch.c
         src/transitions.c
         external/miniaudio/miniaudio.c
         external/getopt/getopt.c
@@ -68,6 +69,7 @@ set(LEO_TEST_SOURCES
         tests/tiled_test.cpp
         tests/actor_test.cpp
         tests/game_test.cpp
+        tests/touch_test.cpp
         tests/window_mode_test.cpp
         tests/transitions_test.cpp
         tests/windows_vfs_test.cpp

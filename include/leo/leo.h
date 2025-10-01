@@ -25,6 +25,7 @@ extern "C"
 #include "leo/keyboard.h"
 #include "leo/keys.h"
 #include "leo/mouse.h"
+#include "leo/touch.h"
 
 // Audio
 #include "leo/audio.h"
