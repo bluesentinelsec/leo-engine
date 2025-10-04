@@ -297,7 +297,7 @@ if (LEO_BUILD_TESTS)
     target_include_directories(${TEST_RUNNER} PRIVATE ${CMAKE_CURRENT_SOURCE_DIR}/include)
 
     # Expose test APIs in headers to the test sources
-    target_compile_definitions(${TEST_RUNNER} PRIVATE LEO_TEST_BACKEND)
+    target_compile_definitions(${TEST_RUNNER} PRIVATE LEO_TEST_BACKEND TESTING)
 
     # IMPORTANT: link the *test* runtime (with LEO_TEST_BACKEND), not the prod alias
     target_link_libraries(${TEST_RUNNER}
