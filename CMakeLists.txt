@@ -121,15 +121,26 @@ set(LEO_ABI_VERSION_MAJOR ${PROJECT_VERSION_MAJOR} CACHE STRING "ABI major for S
 # Production library (no test hooks)
 if (LEO_BUILD_SHARED)
     add_library(${PROJECT_NAME} SHARED ${LEO_SOURCES})
-    target_compile_definitions(${PROJECT_NAME} PRIVATE LEO_BUILDING_DLL)  # for __declspec(dllexport)
-
+    target_compile_definitions(${PROJECT_NAME} PRIVATE LEO_BUILDING_DLL)
+    
+    # Generate export header
+    include(GenerateExportHeader)
+    generate_export_header(${PROJECT_NAME}
+        BASE_NAME LEO
+        EXPORT_FILE_NAME ${CMAKE_CURRENT_BINARY_DIR}/include/leo/leo_export_generated.h
+    )
+    
     set_target_properties(${PROJECT_NAME} PROPERTIES
-            OUTPUT_NAME leo                       # produces libleo.so*
-            VERSION ${PROJECT_VERSION}        # e.g. 0.1.0 -> libleo.so.0.1.0
-            SOVERSION ${LEO_ABI_VERSION_MAJOR}  # e.g. 0     -> libleo.so.0 SONAME
+            OUTPUT_NAME leo
+            VERSION ${PROJECT_VERSION}
+            SOVERSION ${LEO_ABI_VERSION_MAJOR}
+            C_VISIBILITY_PRESET hidden
+            CXX_VISIBILITY_PRESET hidden
+            VISIBILITY_INLINES_HIDDEN ON
     )
 else ()
     add_library(${PROJECT_NAME} STATIC ${LEO_SOURCES})
+    target_compile_definitions(${PROJECT_NAME} PUBLIC LEO_STATIC_DEFINE)
 endif ()
 
 add_library(${ALIAS_NAME} ALIAS ${PROJECT_NAME})
@@ -144,6 +155,7 @@ endif()
 target_include_directories(${PROJECT_NAME}
         PUBLIC
         $<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}/include>
+        $<BUILD_INTERFACE:${CMAKE_CURRENT_BINARY_DIR}/include>
         $<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}/external>
         $<INSTALL_INTERFACE:include>
 )
@@ -189,25 +201,80 @@ target_include_directories(${PROJECT_NAME}_test
 target_compile_definitions(${PROJECT_NAME}_test PRIVATE LEO_TEST_BACKEND TESTING)
 
 # =========================
-# Install (skip on Emscripten)
+# Install & Package Config
 # =========================
 if (NOT EMSCRIPTEN)
     include(GNUInstallDirs)
+    include(CMakePackageConfigHelpers)
 
+    # Install targets
     install(TARGETS ${PROJECT_NAME}
             EXPORT ${PROJECT_NAME}Targets
-            RUNTIME DESTINATION ${CMAKE_INSTALL_BINDIR}  # Windows .dll, or tools
-            LIBRARY DESTINATION ${CMAKE_INSTALL_LIBDIR}  # .so/.dylib
-            ARCHIVE DESTINATION ${CMAKE_INSTALL_LIBDIR}  # static .a
+            RUNTIME DESTINATION ${CMAKE_INSTALL_BINDIR}
+            LIBRARY DESTINATION ${CMAKE_INSTALL_LIBDIR}
+            ARCHIVE DESTINATION ${CMAKE_INSTALL_LIBDIR}
             INCLUDES DESTINATION ${CMAKE_INSTALL_INCLUDEDIR})
 
+    # Install headers
     install(DIRECTORY ${CMAKE_CURRENT_SOURCE_DIR}/include/
             DESTINATION ${CMAKE_INSTALL_INCLUDEDIR})
+    
+    # Install generated headers (if shared build)
+    if (LEO_BUILD_SHARED)
+        install(FILES ${CMAKE_CURRENT_BINARY_DIR}/include/leo/leo_export_generated.h
+                DESTINATION ${CMAKE_INSTALL_INCLUDEDIR}/leo)
+    endif()
 
-    # (optional, nice-to-have so consumers can `find_package(leo)` later)
+    # Install SDL3 if vendored
+    if (LEO_VENDOR_SDL AND TARGET SDL3-shared)
+        install(TARGETS SDL3-shared
+                EXPORT ${PROJECT_NAME}Targets
+                RUNTIME DESTINATION ${CMAKE_INSTALL_BINDIR}
+                LIBRARY DESTINATION ${CMAKE_INSTALL_LIBDIR}
+                ARCHIVE DESTINATION ${CMAKE_INSTALL_LIBDIR})
+    elseif (LEO_VENDOR_SDL AND TARGET SDL3-static)
+        install(TARGETS SDL3-static
+                EXPORT ${PROJECT_NAME}Targets
+                RUNTIME DESTINATION ${CMAKE_INSTALL_BINDIR}
+                LIBRARY DESTINATION ${CMAKE_INSTALL_LIBDIR}
+                ARCHIVE DESTINATION ${CMAKE_INSTALL_LIBDIR})
+    endif()
+
+    # Generate package config files
+    set(CONFIG_INSTALL_DIR ${CMAKE_INSTALL_LIBDIR}/cmake/${PROJECT_NAME})
+    
+    configure_package_config_file(
+        ${CMAKE_CURRENT_SOURCE_DIR}/cmake/${PROJECT_NAME}Config.cmake.in
+        ${CMAKE_CURRENT_BINARY_DIR}/${PROJECT_NAME}Config.cmake
+        INSTALL_DESTINATION ${CONFIG_INSTALL_DIR}
+        PATH_VARS CMAKE_INSTALL_INCLUDEDIR CMAKE_INSTALL_LIBDIR
+    )
+
+    write_basic_package_version_file(
+        ${CMAKE_CURRENT_BINARY_DIR}/${PROJECT_NAME}ConfigVersion.cmake
+        VERSION ${PROJECT_VERSION}
+        COMPATIBILITY SameMajorVersion
+    )
+
+    # Install package config files
+    install(FILES
+        ${CMAKE_CURRENT_BINARY_DIR}/${PROJECT_NAME}Config.cmake
+        ${CMAKE_CURRENT_BINARY_DIR}/${PROJECT_NAME}ConfigVersion.cmake
+        DESTINATION ${CONFIG_INSTALL_DIR})
+
+    # Install targets export
     install(EXPORT ${PROJECT_NAME}Targets
             NAMESPACE Leo::
-            DESTINATION ${CMAKE_INSTALL_LIBDIR}/cmake/${PROJECT_NAME})
+            DESTINATION ${CONFIG_INSTALL_DIR})
+
+    # Generate pkg-config file
+    configure_file(
+        ${CMAKE_CURRENT_SOURCE_DIR}/cmake/${PROJECT_NAME}.pc.in
+        ${CMAKE_CURRENT_BINARY_DIR}/${PROJECT_NAME}.pc
+        @ONLY
+    )
+    install(FILES ${CMAKE_CURRENT_BINARY_DIR}/${PROJECT_NAME}.pc
+            DESTINATION ${CMAKE_INSTALL_LIBDIR}/pkgconfig)
 endif ()
 
 # =========================
