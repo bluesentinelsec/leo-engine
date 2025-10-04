@@ -196,9 +196,11 @@ endif()
 target_include_directories(${PROJECT_NAME}_test
         PUBLIC
         $<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}/include>
+        $<BUILD_INTERFACE:${CMAKE_CURRENT_BINARY_DIR}/include>
         $<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}/external>
 )
-target_compile_definitions(${PROJECT_NAME}_test PRIVATE LEO_TEST_BACKEND TESTING)
+# For static test library, define LEO_STATIC_DEFINE so symbols are not imported
+target_compile_definitions(${PROJECT_NAME}_test PRIVATE LEO_TEST_BACKEND TESTING LEO_STATIC_DEFINE)
 
 # =========================
 # Install & Package Config
