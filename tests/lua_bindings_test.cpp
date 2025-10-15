@@ -40,7 +40,7 @@ TEST_CASE("Lua bindings: draw_pixel function works", "[lua_bindings]")
     )";
 
     // Write test script to temp file
-    std::ofstream f("build/resources/scripts/test_draw_pixel.lua");
+    std::ofstream f("resources/scripts/test_draw_pixel.lua");
     f << test_script;
     f.close();
 
@@ -81,7 +81,7 @@ TEST_CASE("Lua bindings: draw_rectangle function works", "[lua_bindings]")
     )";
 
     // Write test script to temp file
-    std::ofstream f("build/resources/scripts/test_draw_rectangle.lua");
+    std::ofstream f("resources/scripts/test_draw_rectangle.lua");
     f << test_script;
     f.close();
 
@@ -111,7 +111,7 @@ TEST_CASE("Lua bindings: clear_background function works", "[lua_bindings]")
         function leo_exit() end
     )";
 
-    std::ofstream f("build/resources/scripts/test_clear_background.lua");
+    std::ofstream f("resources/scripts/test_clear_background.lua");
     f << test_script;
     f.close();
 
@@ -146,7 +146,7 @@ TEST_CASE("Lua bindings: all graphics functions work", "[lua_bindings]")
         function leo_exit() end
     )";
 
-    std::ofstream f("build/resources/scripts/test_all_graphics.lua");
+    std::ofstream f("resources/scripts/test_all_graphics.lua");
     f << test_script;
     f.close();
 
