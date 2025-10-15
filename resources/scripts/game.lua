@@ -6,9 +6,9 @@ function leo_init()
     return true
 end
 
-function leo_update(dt, time, frame)
+function leo_update(dt)
     -- Update game logic here
-    -- dt = delta time, time = total time, frame = frame number
+    -- dt = delta time in seconds
 end
 
 function leo_render()

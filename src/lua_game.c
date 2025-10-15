@@ -113,7 +113,7 @@ static void _register_lua_functions(lua_State *L, leo_LuaGameContext *ctx)
     lua_setglobal(L, "leo_quit");
 }
 
-static void _call_lua_update(lua_State *L, float dt, double time, int64_t frame)
+static void _call_lua_update(lua_State *L, float dt)
 {
     lua_getglobal(L, "leo_update");
     if (!lua_isfunction(L, -1))
@@ -123,10 +123,8 @@ static void _call_lua_update(lua_State *L, float dt, double time, int64_t frame)
     }
     
     lua_pushnumber(L, dt);
-    lua_pushnumber(L, time);
-    lua_pushinteger(L, frame);
     
-    int result = lua_pcall(L, 3, 0, 0);
+    int result = lua_pcall(L, 1, 0, 0);
     if (result != LUA_OK)
     {
         fprintf(stderr, "Lua error in leo_update: %s\n", lua_tostring(L, -1));
@@ -165,7 +163,7 @@ static void leo__LuaGameFrame(void *arg)
     }
 #endif
 
-    _call_lua_update(L, ctx->dt, ctx->time_sec, ctx->frame);
+    _call_lua_update(L, ctx->dt);
 
     leo_BeginDrawing();
     {
@@ -294,7 +292,7 @@ int leo_LuaGameRun(const leo_LuaGameConfig *cfg, const leo_LuaGameCallbacks *cb)
         }
 #endif
 
-        _call_lua_update(L, ctx.dt, ctx.time_sec, ctx.frame);
+        _call_lua_update(L, ctx.dt);
 
         leo_BeginDrawing();
         {
