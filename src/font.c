@@ -17,6 +17,20 @@
 #define STB_RECT_PACK_IMPLEMENTATION
 #include <stb/stb_truetype.h>
 
+// Text cache
+#define CACHE_MAX_ENTRIES 128
+typedef struct CacheEntry
+{
+    uint32_t hash;
+    SDL_Texture *texture;
+    int width, height;
+    struct CacheEntry *next;
+    int lru_counter;
+} CacheEntry;
+
+static CacheEntry *g_cache[CACHE_MAX_ENTRIES] = {0};
+static int g_lru_counter = 0;
+
 // --------- ASCII range we bake for step 2 ----------
 #define LEO_FONT_FIRST_CODEPOINT 32
 #define LEO_FONT_DEFAULT_COUNT 95 // 32..126 inclusive
@@ -40,6 +54,114 @@ static inline leo_Font _zero(void)
     leo_Font f;
     memset(&f, 0, sizeof(f));
     return f;
+}
+
+static uint32_t _hash_text(const char *text, void *font, float fontSize, leo_Color color)
+{
+    uint32_t hash = 2166136261u;
+    while (*text)
+    {
+        hash ^= (uint32_t)*text++;
+        hash *= 16777619u;
+    }
+    hash ^= (uintptr_t)font;
+    hash ^= *(uint32_t *)&fontSize;
+    hash ^= (uint32_t)color.r | ((uint32_t)color.g << 8) | ((uint32_t)color.b << 16) | ((uint32_t)color.a << 24);
+    return hash;
+}
+
+static CacheEntry *_cache_get(uint32_t hash)
+{
+    int bucket = hash % CACHE_MAX_ENTRIES;
+    for (CacheEntry *e = g_cache[bucket]; e; e = e->next)
+    {
+        if (e->hash == hash)
+        {
+            e->lru_counter = ++g_lru_counter;
+            return e;
+        }
+    }
+    return NULL;
+}
+
+static void _cache_evict_lru(void)
+{
+    CacheEntry *oldest = NULL;
+    int oldest_bucket = -1;
+    CacheEntry *oldest_prev = NULL;
+
+    for (int i = 0; i < CACHE_MAX_ENTRIES; i++)
+    {
+        CacheEntry *prev = NULL;
+        for (CacheEntry *e = g_cache[i]; e; prev = e, e = e->next)
+        {
+            if (!oldest || e->lru_counter < oldest->lru_counter)
+            {
+                oldest = e;
+                oldest_bucket = i;
+                oldest_prev = prev;
+            }
+        }
+    }
+
+    if (oldest)
+    {
+        if (oldest_prev)
+            oldest_prev->next = oldest->next;
+        else
+            g_cache[oldest_bucket] = oldest->next;
+
+        SDL_DestroyTexture(oldest->texture);
+        free(oldest);
+    }
+}
+
+static void _cache_put(uint32_t hash, SDL_Texture *texture, int width, int height)
+{
+    static int cache_size = 0;
+
+    if (cache_size >= CACHE_MAX_ENTRIES)
+    {
+        _cache_evict_lru();
+        cache_size--;
+    }
+
+    int bucket = hash % CACHE_MAX_ENTRIES;
+    CacheEntry *entry = malloc(sizeof(CacheEntry));
+    if (!entry)
+        return;
+
+    entry->hash = hash;
+    entry->texture = texture;
+    entry->width = width;
+    entry->height = height;
+    entry->lru_counter = ++g_lru_counter;
+    entry->next = g_cache[bucket];
+    g_cache[bucket] = entry;
+    cache_size++;
+}
+
+static void _cache_clear_font(void *font)
+{
+    for (int i = 0; i < CACHE_MAX_ENTRIES; i++)
+    {
+        CacheEntry **curr = &g_cache[i];
+        while (*curr)
+        {
+            // Simple heuristic: if hash contains font pointer bits, remove it
+            if (((*curr)->hash ^ (uintptr_t)font) < 0x10000)
+            {
+                CacheEntry *to_remove = *curr;
+                *curr = to_remove->next;
+                SDL_DestroyTexture(to_remove->texture);
+                free(to_remove);
+            }
+            else
+            {
+                curr = &(*curr)->next;
+            }
+        }
+    }
 }
 
 static leo_Font _load_default_font(int pixelSize)
@@ -247,6 +369,9 @@ void leo_UnloadFont(leo_Font *font)
 {
     if (!font)
         return;
+
+    _cache_clear_font(font->_atlas);
+
     if (font->_atlas)
         SDL_DestroyTexture((SDL_Texture *)font->_atlas);
     if (font->_glyphs)
@@ -281,25 +406,66 @@ static void _draw_text_impl(leo_Font font, const char *text, float x, float y, f
     if (!r)
         return;
 
+    // Check cache first
+    uint32_t hash = _hash_text(text, font._atlas, fontSize, tint);
+    CacheEntry *cached = _cache_get(hash);
+
+    if (cached)
+    {
+        // Cache hit - draw cached texture
+        SDL_FRect dst = {x, y, (float)cached->width, (float)cached->height};
+        if (rotationDeg != 0.0f)
+        {
+            SDL_FPoint center = {originX - dst.x, originY - dst.y};
+            SDL_RenderTextureRotated(r, cached->texture, NULL, &dst, rotationDeg, &center, SDL_FLIP_NONE);
+        }
+        else
+        {
+            SDL_RenderTexture(r, cached->texture, NULL, &dst);
+        }
+        return;
+    }
+
+    // Cache miss - measure text first
+    leo_Vector2 textSize = leo_MeasureTextEx(font, text, fontSize, spacing);
+    if (textSize.x <= 0 || textSize.y <= 0)
+        return;
+
+    int texW = (int)(textSize.x + 0.5f);
+    int texH = (int)(textSize.y + 0.5f);
+
+    // Create render target
+    SDL_Texture *renderTarget = SDL_CreateTexture(r, SDL_PIXELFORMAT_ABGR8888, SDL_TEXTUREACCESS_TARGET, texW, texH);
+    if (!renderTarget)
+        return;
+
+    SDL_SetTextureBlendMode(renderTarget, SDL_BLENDMODE_BLEND);
+
+    // Render to texture
+    SDL_Texture *oldTarget = SDL_GetRenderTarget(r);
+    SDL_SetRenderTarget(r, renderTarget);
+    SDL_SetRenderDrawColor(r, 0, 0, 0, 0);
+    SDL_RenderClear(r);
+
+    // Original rendering code
     SDL_Texture *atlas = (SDL_Texture *)font._atlas;
     _GlyphTable *tbl = (_GlyphTable *)font._glyphs;
     stbtt_bakedchar *cdata = tbl->baked;
 
-    // Apply tint
     SDL_SetTextureColorMod(atlas, (Uint8)tint.r, (Uint8)tint.g, (Uint8)tint.b);
     SDL_SetTextureAlphaMod(atlas, (Uint8)tint.a);
 
-    // Newline handling uses base-size units for pen advance; we scale geometry later.
-    const float lineAdvanceBase = (float)font.lineHeight; // at base size
+    const float lineAdvanceBase = (float)font.lineHeight;
     const float scale = fontSize / (float)font.baseSize;
     if (scale <= 0.0f)
+    {
+        SDL_SetRenderTarget(r, oldTarget);
+        SDL_DestroyTexture(renderTarget);
         return;
+    }
 
-    float penX = x;
-    float penY = y;
-
-    const double angle = (double)rotationDeg;
-    const bool doRotate = (rotationDeg != 0.0f);
+    float penX = 0.0f;
+    float penY = 0.0f;
 
     const unsigned char *p;
     for (p = (const unsigned char *)text; *p; ++p)
@@ -307,14 +473,12 @@ static void _draw_text_impl(leo_Font font, const char *text, float x, float y, f
         int ch = (int)*p;
         if (ch == '\n')
         {
-            // next line: reset X in base units, move Y by line height (base)
-            penX = x;
+            penX = 0.0f;
             penY += lineAdvanceBase;
             continue;
         }
         if (ch < tbl->first || ch >= tbl->first + tbl->count)
         {
-            // Skip unsupported glyphs (ASCII-only in step 2).
             continue;
         }
 
@@ -322,39 +486,45 @@ static void _draw_text_impl(leo_Font font, const char *text, float x, float y, f
         float qx = penX, qy = penY;
         stbtt_GetBakedQuad(cdata, font._atlasW, font._atlasH, ch - tbl->first, &qx, &qy, &q, 1);
 
-        // Scale the quad
-        float dx0 = (q.x0 - x) * scale + x;
-        float dy0 = (q.y0 - y) * scale + y;
-        float dx1 = (q.x1 - x) * scale + x;
-        float dy1 = (q.y1 - y) * scale + y;
+        float dx0 = q.x0 * scale;
+        float dy0 = q.y0 * scale;
+        float dx1 = q.x1 * scale;
+        float dy1 = q.y1 * scale;
 
         SDL_FRect src = {q.s0 * font._atlasW, q.t0 * font._atlasH, (q.s1 - q.s0) * font._atlasW,
                          (q.t1 - q.t0) * font._atlasH};
         SDL_FRect dst = {dx0, dy0, dx1 - dx0, dy1 - dy0};
 
-        if (doRotate)
-        {
-            SDL_FPoint center = {originX - dst.x, originY - dst.y};
-            SDL_RenderTextureRotated(r, atlas, &src, &dst, angle, &center, SDL_FLIP_NONE);
-        }
-        else
-        {
-            SDL_RenderTexture(r, atlas, &src, &dst);
-        }
+        SDL_RenderTexture(r, atlas, &src, &dst);
 
-        // Advance pen in *base-size* units; spacing is at target size so convert back.
-        // qx/qy were advanced by stbtt as if scale==1 (base units).
         penX = qx;
         penY = qy;
-        // apply extra spacing only if there is a next character on the same line
         if (*(p + 1) != '\0' && *(p + 1) != '\n')
         {
-            // spacing is in *target* pixels; convert to base units before adding
             penX += (spacing / ((font.baseSize > 0) ? (fontSize / (float)font.baseSize) : 1.0f));
         }
     }
+
     SDL_SetTextureColorMod(atlas, 255, 255, 255);
     SDL_SetTextureAlphaMod(atlas, 255);
+
+    // Restore render target
+    SDL_SetRenderTarget(r, oldTarget);
+
+    // Cache the texture
+    _cache_put(hash, renderTarget, texW, texH);
+
+    // Draw the cached texture
+    SDL_FRect dst = {x, y, (float)texW, (float)texH};
+    if (rotationDeg != 0.0f)
+    {
+        SDL_FPoint center = {originX - dst.x, originY - dst.y};
+        SDL_RenderTextureRotated(r, renderTarget, NULL, &dst, rotationDeg, &center, SDL_FLIP_NONE);
+    }
+    else
+    {
+        SDL_RenderTexture(r, renderTarget, NULL, &dst);
+    }
 }
 
 void leo_DrawFPS(int x, int y)

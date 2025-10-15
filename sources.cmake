@@ -73,4 +73,5 @@ set(LEO_TEST_SOURCES
         tests/window_mode_test.cpp
         tests/transitions_test.cpp
         tests/windows_vfs_test.cpp
+        tests/font_cache_test.cpp
 )
