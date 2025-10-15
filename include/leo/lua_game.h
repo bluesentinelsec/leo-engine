@@ -18,6 +18,7 @@ typedef struct leo_LuaGameContext
     double time_sec;
     int64_t frame;
     bool request_quit;
+    void *_lua_state;  // Internal: lua_State pointer
 } leo_LuaGameContext;
 
 typedef struct leo_LuaGameConfig
@@ -30,6 +31,7 @@ typedef struct leo_LuaGameConfig
     int window_height;
     int target_fps;
     leo_Color clear_color;
+    const char *script_path;  // Path to Lua script (via VFS)
     void *user_data;
 } leo_LuaGameConfig;
 

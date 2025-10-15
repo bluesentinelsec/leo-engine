@@ -7,12 +7,16 @@
 
 #include <SDL3/SDL.h>
 #include <stdio.h>
+#include <stdlib.h>
 #include <string.h>
 
 // Lua includes
 #include <lua.h>
 #include <lauxlib.h>
 #include <lualib.h>
+#include "leo/io.h"
+#include "leo/keyboard.h"
+#include "leo/keys.h"
 
 typedef struct
 {
@@ -21,12 +25,121 @@ typedef struct
     leo_LuaGameContext ctx;
 } leo__LuaGameLoopData;
 
+static bool _load_lua_script(lua_State *L, const char *script_path, char **out_content, size_t *out_size)
+{
+    if (!script_path || !*script_path)
+    {
+        script_path = "scripts/game.lua";  // Default script
+    }
+    
+    size_t size = 0;
+    char *content = (char *)leo_LoadAsset(script_path, &size);
+    if (!content)
+    {
+        fprintf(stderr, "Failed to load Lua script: %s\n", script_path);
+        return false;
+    }
+    
+    int result = luaL_loadbuffer(L, content, size, script_path);
+    if (result != LUA_OK)
+    {
+        fprintf(stderr, "Lua compile error: %s\n", lua_tostring(L, -1));
+        free(content);
+        return false;
+    }
+    
+    result = lua_pcall(L, 0, 0, 0);
+    if (result != LUA_OK)
+    {
+        fprintf(stderr, "Lua execution error: %s\n", lua_tostring(L, -1));
+        free(content);
+        return false;
+    }
+    
+    if (out_content) *out_content = content;
+    else free(content);
+    if (out_size) *out_size = size;
+    
+    return true;
+}
+
+static bool _call_lua_function(lua_State *L, const char *func_name)
+{
+    lua_getglobal(L, func_name);
+    if (!lua_isfunction(L, -1))
+    {
+        lua_pop(L, 1);
+        return false;  // Function doesn't exist, that's ok
+    }
+    
+    int result = lua_pcall(L, 0, 1, 0);
+    if (result != LUA_OK)
+    {
+        fprintf(stderr, "Lua error in %s: %s\n", func_name, lua_tostring(L, -1));
+        lua_pop(L, 1);
+        return false;
+    }
+    
+    bool success = true;
+    if (lua_isboolean(L, -1))
+    {
+        success = lua_toboolean(L, -1);
+    }
+    lua_pop(L, 1);
+    return success;
+}
+
+static int lua_quit_game(lua_State *L)
+{
+    // Get the context from Lua registry
+    lua_getfield(L, LUA_REGISTRYINDEX, "leo_context");
+    leo_LuaGameContext *ctx = (leo_LuaGameContext *)lua_touserdata(L, -1);
+    lua_pop(L, 1);
+    
+    if (ctx) {
+        ctx->request_quit = true;
+    }
+    return 0;
+}
+
+static void _register_lua_functions(lua_State *L, leo_LuaGameContext *ctx)
+{
+    // Store context in registry for access from Lua functions
+    lua_pushlightuserdata(L, ctx);
+    lua_setfield(L, LUA_REGISTRYINDEX, "leo_context");
+    
+    // Register quit function
+    lua_pushcfunction(L, lua_quit_game);
+    lua_setglobal(L, "leo_quit");
+}
+
+static void _call_lua_update(lua_State *L, float dt, double time, int64_t frame)
+{
+    lua_getglobal(L, "leo_update");
+    if (!lua_isfunction(L, -1))
+    {
+        lua_pop(L, 1);
+        return;
+    }
+    
+    lua_pushnumber(L, dt);
+    lua_pushnumber(L, time);
+    lua_pushinteger(L, frame);
+    
+    int result = lua_pcall(L, 3, 0, 0);
+    if (result != LUA_OK)
+    {
+        fprintf(stderr, "Lua error in leo_update: %s\n", lua_tostring(L, -1));
+        lua_pop(L, 1);
+    }
+}
+
 static void leo__LuaGameFrame(void *arg)
 {
     leo__LuaGameLoopData *data = (leo__LuaGameLoopData *)arg;
     leo_LuaGameContext *ctx = &data->ctx;
     const leo_LuaGameConfig *cfg = data->cfg;
-    const leo_LuaGameCallbacks *cb = data->cb;
+    lua_State *L = (lua_State *)ctx->_lua_state;
 
     if (ctx->request_quit || leo_WindowShouldClose())
     {
@@ -40,14 +153,24 @@ static void leo__LuaGameFrame(void *arg)
     ctx->time_sec = leo_GetTime();
     ctx->frame++;
 
-    if (cb->on_update)
-        cb->on_update(ctx);
+#ifdef DEBUG
+    // Hot reload on Delete key press (debug builds only)
+    if (leo_IsKeyPressed(KEY_DELETE))
+    {
+        printf("Hot reloading Lua script...\n");
+        if (_load_lua_script(L, cfg->script_path, NULL, NULL))
+        {
+            printf("Script reloaded successfully!\n");
+        }
+    }
+#endif
+
+    _call_lua_update(L, ctx->dt, ctx->time_sec, ctx->frame);
 
     leo_BeginDrawing();
     {
         leo_ClearBackground(cfg->clear_color.r, cfg->clear_color.g, cfg->clear_color.b, cfg->clear_color.a);
-        if (cb->on_render)
-            cb->on_render(ctx);
+        _call_lua_function(L, "leo_render");
     }
     leo_EndDrawing();
 }
@@ -59,13 +182,13 @@ static const char *leo__nz(const char *s, const char *fallback)
 
 int leo_LuaGameRun(const leo_LuaGameConfig *cfg, const leo_LuaGameCallbacks *cb)
 {
-    if (!cfg || !cb || !cb->on_setup)
+    if (!cfg)
     {
-        fprintf(stderr, "leo_LuaGameRun: invalid arguments\n");
+        fprintf(stderr, "leo_LuaGameRun: invalid config\n");
         return 1;
     }
 
-    // Initialize Lua state to prove it works
+    // Initialize Lua state
     lua_State *L = luaL_newstate();
     if (!L)
     {
@@ -74,18 +197,6 @@ int leo_LuaGameRun(const leo_LuaGameConfig *cfg, const leo_LuaGameCallbacks *cb)
     }
     luaL_openlibs(L);
     
-    // Test Lua with simple expression
-    int lua_result = luaL_dostring(L, "return 2 + 2");
-    if (lua_result != LUA_OK)
-    {
-        fprintf(stderr, "leo_LuaGameRun: Lua test failed\n");
-        lua_close(L);
-        return 1;
-    }
-    
-    // Clean up Lua state
-    lua_close(L);
-
     const char *app_name = (cfg->app_name && *cfg->app_name) ? cfg->app_name : "Lua Game";
     const char *app_version = (cfg->app_version && *cfg->app_version) ? cfg->app_version : "1.0.0";
     const char *app_identifier = (cfg->app_identifier && *cfg->app_identifier) ? cfg->app_identifier : "com.leo-engine.lua-game";
@@ -99,14 +210,26 @@ int leo_LuaGameRun(const leo_LuaGameConfig *cfg, const leo_LuaGameCallbacks *cb)
     if (!leo_InitWindow(win_w, win_h, title))
     {
         fprintf(stderr, "leo_LuaGameRun: leo_InitWindow failed\n");
+        lua_close(L);
         return 2;
     }
 
-    if (cfg->target_fps > 0)
+    // Mount resources directory for VFS access
+    if (!leo_MountDirectory("resources", 0))
     {
-        leo_SetTargetFPS(cfg->target_fps);
+        fprintf(stderr, "leo_LuaGameRun: failed to mount resources directory\n");
+        // Continue anyway - maybe script is elsewhere
     }
 
+    // Load Lua script (after window init so VFS is available)
+    if (!_load_lua_script(L, cfg->script_path, NULL, NULL))
+    {
+        lua_close(L);
+        leo_CloseWindow();
+        return 1;
+    }
+
+    // Initialize context
     leo_LuaGameContext ctx;
     memset(&ctx, 0, sizeof(ctx));
     ctx.user_data = cfg->user_data;
@@ -114,9 +237,21 @@ int leo_LuaGameRun(const leo_LuaGameConfig *cfg, const leo_LuaGameCallbacks *cb)
     ctx.time_sec = 0.0;
     ctx.frame = 0;
     ctx.request_quit = false;
+    ctx._lua_state = L;
 
-    if (!cb->on_setup(&ctx))
+    // Register Leo functions with Lua
+    _register_lua_functions(L, &ctx);
+
+    if (cfg->target_fps > 0)
     {
+        leo_SetTargetFPS(cfg->target_fps);
+    }
+
+    // Call Lua init function
+    if (!_call_lua_function(L, "leo_init"))
+    {
+        fprintf(stderr, "leo_LuaGameRun: leo_init failed or returned false\n");
+        lua_close(L);
         leo_CloseWindow();
         return 3;
     }
@@ -126,6 +261,7 @@ int leo_LuaGameRun(const leo_LuaGameConfig *cfg, const leo_LuaGameCallbacks *cb)
     if (!data)
     {
         fprintf(stderr, "leo_LuaGameRun: malloc failed\n");
+        lua_close(L);
         leo_CloseWindow();
         return 4;
     }
@@ -146,10 +282,19 @@ int leo_LuaGameRun(const leo_LuaGameConfig *cfg, const leo_LuaGameCallbacks *cb)
         ctx.time_sec = leo_GetTime();
         ctx.frame++;
 
-        if (cb->on_update)
+#ifdef DEBUG
+        // Hot reload on Delete key press (debug builds only)
+        if (leo_IsKeyPressed(KEY_DELETE))
         {
-            cb->on_update(&ctx);
+            printf("Hot reloading Lua script...\n");
+            if (_load_lua_script(L, cfg->script_path, NULL, NULL))
+            {
+                printf("Script reloaded successfully!\n");
+            }
         }
+#endif
+
+        _call_lua_update(L, ctx.dt, ctx.time_sec, ctx.frame);
 
         leo_BeginDrawing();
         {
@@ -159,19 +304,15 @@ int leo_LuaGameRun(const leo_LuaGameConfig *cfg, const leo_LuaGameCallbacks *cb)
             const int a = cfg->clear_color.a;
             leo_ClearBackground(r, g, b, a);
 
-            if (cb->on_render)
-            {
-                cb->on_render(&ctx);
-            }
+            _call_lua_function(L, "leo_render");
         }
         leo_EndDrawing();
     }
 
-    if (cb->on_shutdown)
-    {
-        cb->on_shutdown(&ctx);
-    }
+    // Call Lua exit function
+    _call_lua_function(L, "leo_exit");
 
+    lua_close(L);
     leo_CloseWindow();
 #endif
 
