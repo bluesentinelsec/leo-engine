@@ -9,6 +9,11 @@
 #include <stdio.h>
 #include <string.h>
 
+// Lua includes
+#include <lua.h>
+#include <lauxlib.h>
+#include <lualib.h>
+
 typedef struct
 {
     const leo_LuaGameConfig *cfg;
@@ -59,6 +64,27 @@ int leo_LuaGameRun(const leo_LuaGameConfig *cfg, const leo_LuaGameCallbacks *cb)
         fprintf(stderr, "leo_LuaGameRun: invalid arguments\n");
         return 1;
     }
+
+    // Initialize Lua state to prove it works
+    lua_State *L = luaL_newstate();
+    if (!L)
+    {
+        fprintf(stderr, "leo_LuaGameRun: failed to create Lua state\n");
+        return 1;
+    }
+    luaL_openlibs(L);
+    
+    // Test Lua with simple expression
+    int lua_result = luaL_dostring(L, "return 2 + 2");
+    if (lua_result != LUA_OK)
+    {
+        fprintf(stderr, "leo_LuaGameRun: Lua test failed\n");
+        lua_close(L);
+        return 1;
+    }
+    
+    // Clean up Lua state
+    lua_close(L);
 
     const char *app_name = (cfg->app_name && *cfg->app_name) ? cfg->app_name : "Lua Game";
     const char *app_version = (cfg->app_version && *cfg->app_version) ? cfg->app_version : "1.0.0";

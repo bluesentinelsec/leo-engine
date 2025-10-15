@@ -141,3 +141,15 @@ TEST_CASE("leo_LuaGameRun: user_data is plumbed through ctx")
     
     REQUIRE(st.setup_called == 1);
 }
+
+TEST_CASE("leo_LuaGameRun: Lua interpreter initializes and works")
+{
+    LuaCallState st{};
+    auto cfg = make_lua_cfg(&st);
+    auto cbs = make_lua_cbs();
+    
+    // This test verifies that Lua state creation and basic execution works
+    // The Lua test (2+2) happens inside leo_LuaGameRun before the game loop
+    int rc = leo_LuaGameRun(&cfg, &cbs);
+    REQUIRE(rc == 0);  // Should succeed if Lua works correctly
+}

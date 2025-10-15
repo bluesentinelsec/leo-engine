@@ -107,6 +107,15 @@ if (NOT TARGET SDL3::SDL3)
 endif ()
 
 # =========================
+# Lua
+# =========================
+set(LUA_BUILD_BINARY OFF CACHE BOOL "" FORCE)
+set(LUA_BUILD_COMPILER OFF CACHE BOOL "" FORCE)
+set(LUA_ENABLE_SHARED OFF CACHE BOOL "" FORCE)
+set(LUA_ENABLE_TESTING OFF CACHE BOOL "" FORCE)
+add_subdirectory(external/Lua-5.4.5)
+
+# =========================
 # Sources
 # =========================
 # Expected to define: LEO_SOURCES and (optionally) LEO_TEST_SOURCES
@@ -146,7 +155,7 @@ endif ()
 add_library(${ALIAS_NAME} ALIAS ${PROJECT_NAME})
 set_property(TARGET ${PROJECT_NAME} PROPERTY POSITION_INDEPENDENT_CODE ON)
 
-target_link_libraries(${PROJECT_NAME} PUBLIC SDL3::SDL3)
+target_link_libraries(${PROJECT_NAME} PUBLIC SDL3::SDL3 lua_static)
 
 if(APPLE)
     target_link_libraries(${PROJECT_NAME} PUBLIC "-framework CoreFoundation")
@@ -188,7 +197,7 @@ endif ()
 # Always build it STATIC so its symbols are embedded into the test exe.
 add_library(${PROJECT_NAME}_test STATIC ${LEO_SOURCES})
 set_property(TARGET ${PROJECT_NAME}_test PROPERTY POSITION_INDEPENDENT_CODE ON)
-target_link_libraries(${PROJECT_NAME}_test PUBLIC SDL3::SDL3)
+target_link_libraries(${PROJECT_NAME}_test PUBLIC SDL3::SDL3 lua_static)
 
 if(APPLE)
     target_link_libraries(${PROJECT_NAME}_test PUBLIC "-framework CoreFoundation")
