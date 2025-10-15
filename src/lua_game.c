@@ -11,13 +11,13 @@
 #include <string.h>
 
 // Lua includes
-#include <lua.h>
-#include <lauxlib.h>
-#include <lualib.h>
+#include "leo/graphics.h"
 #include "leo/io.h"
 #include "leo/keyboard.h"
 #include "leo/keys.h"
-#include "leo/graphics.h"
+#include <lauxlib.h>
+#include <lua.h>
+#include <lualib.h>
 
 typedef struct
 {
@@ -30,9 +30,9 @@ static bool _load_lua_script(lua_State *L, const char *script_path, char **out_c
 {
     if (!script_path || !*script_path)
     {
-        script_path = "scripts/game.lua";  // Default script
+        script_path = "scripts/game.lua"; // Default script
     }
-    
+
     size_t size = 0;
     char *content = (char *)leo_LoadAsset(script_path, &size);
     if (!content)
@@ -40,7 +40,7 @@ static bool _load_lua_script(lua_State *L, const char *script_path, char **out_c
         fprintf(stderr, "Failed to load Lua script: %s\n", script_path);
         return false;
     }
-    
+
     int result = luaL_loadbuffer(L, content, size, script_path);
     if (result != LUA_OK)
     {
@@ -48,7 +48,7 @@ static bool _load_lua_script(lua_State *L, const char *script_path, char **out_c
         free(content);
         return false;
     }
-    
+
     result = lua_pcall(L, 0, 0, 0);
     if (result != LUA_OK)
     {
@@ -56,11 +56,14 @@ static bool _load_lua_script(lua_State *L, const char *script_path, char **out_c
         free(content);
         return false;
     }
-    
-    if (out_content) *out_content = content;
-    else free(content);
-    if (out_size) *out_size = size;
-    
+
+    if (out_content)
+        *out_content = content;
+    else
+        free(content);
+    if (out_size)
+        *out_size = size;
+
     return true;
 }
 
@@ -70,9 +73,9 @@ static bool _call_lua_function(lua_State *L, const char *func_name)
     if (!lua_isfunction(L, -1))
     {
         lua_pop(L, 1);
-        return false;  // Function doesn't exist, that's ok
+        return false; // Function doesn't exist, that's ok
     }
-    
+
     int result = lua_pcall(L, 0, 1, 0);
     if (result != LUA_OK)
     {
@@ -80,7 +83,7 @@ static bool _call_lua_function(lua_State *L, const char *func_name)
         lua_pop(L, 1);
         return false;
     }
-    
+
     bool success = true;
     if (lua_isboolean(L, -1))
     {
@@ -98,7 +101,7 @@ static int lua_draw_pixel(lua_State *L)
     int g = luaL_checkinteger(L, 4);
     int b = luaL_checkinteger(L, 5);
     int a = luaL_optinteger(L, 6, 255);
-    
+
     leo_Color color = {(unsigned char)r, (unsigned char)g, (unsigned char)b, (unsigned char)a};
     leo_DrawPixel(x, y, color);
     return 0;
@@ -114,7 +117,7 @@ static int lua_draw_rectangle(lua_State *L)
     int g = luaL_checkinteger(L, 6);
     int b = luaL_checkinteger(L, 7);
     int a = luaL_optinteger(L, 8, 255);
-    
+
     leo_Color color = {(unsigned char)r, (unsigned char)g, (unsigned char)b, (unsigned char)a};
     leo_DrawRectangle(x, y, width, height, color);
     return 0;
@@ -126,7 +129,7 @@ static int lua_clear_background(lua_State *L)
     int g = luaL_checkinteger(L, 2);
     int b = luaL_checkinteger(L, 3);
     int a = luaL_optinteger(L, 4, 255);
-    
+
     leo_ClearBackground(r, g, b, a);
     return 0;
 }
@@ -141,7 +144,7 @@ static int lua_draw_line(lua_State *L)
     int g = luaL_checkinteger(L, 6);
     int b = luaL_checkinteger(L, 7);
     int a = luaL_optinteger(L, 8, 255);
-    
+
     leo_Color color = {(unsigned char)r, (unsigned char)g, (unsigned char)b, (unsigned char)a};
     leo_DrawLine(x1, y1, x2, y2, color);
     return 0;
@@ -156,7 +159,7 @@ static int lua_draw_circle(lua_State *L)
     int g = luaL_checkinteger(L, 5);
     int b = luaL_checkinteger(L, 6);
     int a = luaL_optinteger(L, 7, 255);
-    
+
     leo_Color color = {(unsigned char)r, (unsigned char)g, (unsigned char)b, (unsigned char)a};
     leo_DrawCircle(x, y, radius, color);
     return 0;
@@ -171,7 +174,7 @@ static int lua_draw_circle_filled(lua_State *L)
     int g = luaL_checkinteger(L, 5);
     int b = luaL_checkinteger(L, 6);
     int a = luaL_optinteger(L, 7, 255);
-    
+
     leo_Color color = {(unsigned char)r, (unsigned char)g, (unsigned char)b, (unsigned char)a};
     leo_DrawCircleFilled(x, y, radius, color);
     return 0;
@@ -187,7 +190,7 @@ static int lua_draw_rectangle_lines(lua_State *L)
     int g = luaL_checkinteger(L, 6);
     int b = luaL_checkinteger(L, 7);
     int a = luaL_optinteger(L, 8, 255);
-    
+
     leo_Color color = {(unsigned char)r, (unsigned char)g, (unsigned char)b, (unsigned char)a};
     leo_DrawRectangleLines(x, y, width, height, color);
     return 0;
@@ -205,7 +208,7 @@ static int lua_draw_triangle(lua_State *L)
     int g = luaL_checkinteger(L, 8);
     int b = luaL_checkinteger(L, 9);
     int a = luaL_optinteger(L, 10, 255);
-    
+
     leo_Color color = {(unsigned char)r, (unsigned char)g, (unsigned char)b, (unsigned char)a};
     leo_DrawTriangle(x1, y1, x2, y2, x3, y3, color);
     return 0;
@@ -223,7 +226,7 @@ static int lua_draw_triangle_filled(lua_State *L)
     int g = luaL_checkinteger(L, 8);
     int b = luaL_checkinteger(L, 9);
     int a = luaL_optinteger(L, 10, 255);
-    
+
     leo_Color color = {(unsigned char)r, (unsigned char)g, (unsigned char)b, (unsigned char)a};
     leo_DrawTriangleFilled(x1, y1, x2, y2, x3, y3, color);
     return 0;
@@ -233,28 +236,28 @@ static void _register_graphics_bindings(lua_State *L)
 {
     lua_pushcfunction(L, lua_draw_pixel);
     lua_setglobal(L, "leo_draw_pixel");
-    
+
     lua_pushcfunction(L, lua_draw_line);
     lua_setglobal(L, "leo_draw_line");
-    
+
     lua_pushcfunction(L, lua_draw_circle);
     lua_setglobal(L, "leo_draw_circle");
-    
+
     lua_pushcfunction(L, lua_draw_circle_filled);
     lua_setglobal(L, "leo_draw_circle_filled");
-    
+
     lua_pushcfunction(L, lua_draw_rectangle);
     lua_setglobal(L, "leo_draw_rectangle");
-    
+
     lua_pushcfunction(L, lua_draw_rectangle_lines);
     lua_setglobal(L, "leo_draw_rectangle_lines");
-    
+
     lua_pushcfunction(L, lua_draw_triangle);
     lua_setglobal(L, "leo_draw_triangle");
-    
+
     lua_pushcfunction(L, lua_draw_triangle_filled);
     lua_setglobal(L, "leo_draw_triangle_filled");
-    
+
     lua_pushcfunction(L, lua_clear_background);
     lua_setglobal(L, "leo_clear_background");
 }
@@ -265,8 +268,9 @@ static int lua_quit_game(lua_State *L)
     lua_getfield(L, LUA_REGISTRYINDEX, "leo_context");
     leo_LuaGameContext *ctx = (leo_LuaGameContext *)lua_touserdata(L, -1);
     lua_pop(L, 1);
-    
-    if (ctx) {
+
+    if (ctx)
+    {
         ctx->request_quit = true;
     }
     return 0;
@@ -277,11 +281,11 @@ static void _register_lua_functions(lua_State *L, leo_LuaGameContext *ctx)
     // Store context in registry for access from Lua functions
     lua_pushlightuserdata(L, ctx);
     lua_setfield(L, LUA_REGISTRYINDEX, "leo_context");
-    
+
     // Register quit function
     lua_pushcfunction(L, lua_quit_game);
     lua_setglobal(L, "leo_quit");
-    
+
     // Register graphics bindings
     _register_graphics_bindings(L);
 }
@@ -294,9 +298,9 @@ static void _call_lua_update(lua_State *L, float dt)
         lua_pop(L, 1);
         return;
     }
-    
+
     lua_pushnumber(L, dt);
-    
+
     int result = lua_pcall(L, 1, 0, 0);
     if (result != LUA_OK)
     {
@@ -367,10 +371,11 @@ int leo_LuaGameRun(const leo_LuaGameConfig *cfg, const leo_LuaGameCallbacks *cb)
         return 1;
     }
     luaL_openlibs(L);
-    
+
     const char *app_name = (cfg->app_name && *cfg->app_name) ? cfg->app_name : "Lua Game";
     const char *app_version = (cfg->app_version && *cfg->app_version) ? cfg->app_version : "1.0.0";
-    const char *app_identifier = (cfg->app_identifier && *cfg->app_identifier) ? cfg->app_identifier : "com.leo-engine.lua-game";
+    const char *app_identifier =
+        (cfg->app_identifier && *cfg->app_identifier) ? cfg->app_identifier : "com.leo-engine.lua-game";
 
     SDL_SetAppMetadata(app_name, app_version, app_identifier);
 

@@ -81,6 +81,20 @@ extern "C"
     /* Convenience: load text (adds a trailing '\0'). Caller frees. */
     LEO_API char *leo_LoadTextAsset(const char *logicalName, size_t *out_size_without_nul);
 
+    /* ---------------- File Writing API --------------- */
+
+    /* Write data to file in user data directory. Creates directories as needed. */
+    LEO_API bool leo_WriteFile(const char *relativePath, const void *data, size_t size);
+
+    /* Read data from file in user data directory. Caller frees returned data. */
+    LEO_API void *leo_ReadFile(const char *relativePath, size_t *out_size);
+
+    /* Read text file from user data directory (adds trailing '\0'). Caller frees. */
+    LEO_API char *leo_ReadTextFile(const char *relativePath, size_t *out_size_without_nul);
+
+    /* Get writable directory path for organization/application. Caller frees. */
+    LEO_API char *leo_GetWriteDirectory(const char *org, const char *app);
+
 #ifdef __cplusplus
 }
 #endif

@@ -20,9 +20,9 @@ static void resetSDLState()
 TEST_CASE("Lua bindings: draw_pixel function works", "[lua_bindings]")
 {
     resetSDLState();
-    
+
     // Create test script that calls draw_pixel
-    const char* test_script = R"(
+    const char *test_script = R"(
         function leo_init()
             return true
         end
@@ -38,32 +38,32 @@ TEST_CASE("Lua bindings: draw_pixel function works", "[lua_bindings]")
         function leo_exit() 
         end
     )";
-    
+
     // Write test script to temp file
     std::ofstream f("build/resources/scripts/test_draw_pixel.lua");
     f << test_script;
     f.close();
-    
+
     leo_LuaGameConfig cfg{};
     cfg.script_path = "scripts/test_draw_pixel.lua";
     cfg.window_width = 100;
     cfg.window_height = 100;
     cfg.clear_color = LEO_BLACK;
-    
+
     leo_LuaGameCallbacks cbs{};
-    
+
     int rc = leo_LuaGameRun(&cfg, &cbs);
-    REQUIRE(rc == 0);  // Should succeed if draw_pixel binding works
-    
+    REQUIRE(rc == 0); // Should succeed if draw_pixel binding works
+
     resetSDLState();
 }
 
 TEST_CASE("Lua bindings: draw_rectangle function works", "[lua_bindings]")
 {
     resetSDLState();
-    
+
     // Create test script that calls draw_rectangle
-    const char* test_script = R"(
+    const char *test_script = R"(
         function leo_init()
             return true
         end
@@ -79,30 +79,30 @@ TEST_CASE("Lua bindings: draw_rectangle function works", "[lua_bindings]")
         function leo_exit() 
         end
     )";
-    
+
     // Write test script to temp file
     std::ofstream f("build/resources/scripts/test_draw_rectangle.lua");
     f << test_script;
     f.close();
-    
+
     leo_LuaGameConfig cfg{};
     cfg.script_path = "scripts/test_draw_rectangle.lua";
     cfg.window_width = 100;
     cfg.window_height = 100;
     cfg.clear_color = LEO_BLACK;
-    
+
     leo_LuaGameCallbacks cbs{};
-    
+
     int rc = leo_LuaGameRun(&cfg, &cbs);
-    REQUIRE(rc == 0);  // Should succeed if draw_rectangle binding works
-    
+    REQUIRE(rc == 0); // Should succeed if draw_rectangle binding works
+
     resetSDLState();
 }
 TEST_CASE("Lua bindings: clear_background function works", "[lua_bindings]")
 {
     resetSDLState();
-    
-    const char* test_script = R"(
+
+    const char *test_script = R"(
         function leo_init() return true end
         function leo_update(dt) leo_quit() end
         function leo_render()
@@ -110,26 +110,26 @@ TEST_CASE("Lua bindings: clear_background function works", "[lua_bindings]")
         end
         function leo_exit() end
     )";
-    
+
     std::ofstream f("build/resources/scripts/test_clear_background.lua");
     f << test_script;
     f.close();
-    
+
     leo_LuaGameConfig cfg{};
     cfg.script_path = "scripts/test_clear_background.lua";
     cfg.window_width = 100;
     cfg.window_height = 100;
-    
+
     int rc = leo_LuaGameRun(&cfg, nullptr);
     REQUIRE(rc == 0);
-    
+
     resetSDLState();
 }
 TEST_CASE("Lua bindings: all graphics functions work", "[lua_bindings]")
 {
     resetSDLState();
-    
-    const char* test_script = R"(
+
+    const char *test_script = R"(
         function leo_init() return true end
         function leo_update(dt) leo_quit() end
         function leo_render()
@@ -145,18 +145,18 @@ TEST_CASE("Lua bindings: all graphics functions work", "[lua_bindings]")
         end
         function leo_exit() end
     )";
-    
+
     std::ofstream f("build/resources/scripts/test_all_graphics.lua");
     f << test_script;
     f.close();
-    
+
     leo_LuaGameConfig cfg{};
     cfg.script_path = "scripts/test_all_graphics.lua";
     cfg.window_width = 100;
     cfg.window_height = 100;
-    
+
     int rc = leo_LuaGameRun(&cfg, nullptr);
     REQUIRE(rc == 0);
-    
+
     resetSDLState();
 }

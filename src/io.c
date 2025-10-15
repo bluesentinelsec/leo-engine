@@ -791,3 +791,174 @@ char *leo_LoadTextAsset(const char *logicalName, size_t *out_size_without_nul)
     free(p);
     return s;
 }
+
+/* ---------------- File Writing API --------------- */
+
+char *leo_GetWriteDirectory(const char *org, const char *app)
+{
+    if (!org || !app)
+        return NULL;
+
+    return SDL_GetPrefPath(org, app);
+}
+
+static bool _create_directories_for_file(const char *filepath)
+{
+    if (!filepath)
+        return false;
+
+    // Find the last directory separator
+    const char *last_sep = strrchr(filepath, '/');
+    if (!last_sep)
+        return true; // No directory to create
+
+    // Create a copy of the directory path
+    size_t dir_len = last_sep - filepath;
+    char *dir_path = (char *)malloc(dir_len + 1);
+    if (!dir_path)
+        return false;
+
+    strncpy(dir_path, filepath, dir_len);
+    dir_path[dir_len] = '\0';
+
+    bool result = SDL_CreateDirectory(dir_path);
+    free(dir_path);
+    return result;
+}
+
+bool leo_WriteFile(const char *relativePath, const void *data, size_t size)
+{
+    if (!relativePath || !data)
+        return false;
+
+    // Get write directory
+    char *write_dir = leo_GetWriteDirectory("Leo", "Engine");
+    if (!write_dir)
+        return false;
+
+    // Build full path
+    size_t full_path_len = strlen(write_dir) + strlen(relativePath) + 1;
+    char *full_path = (char *)malloc(full_path_len);
+    if (!full_path)
+    {
+        free(write_dir);
+        return false;
+    }
+
+    strcpy(full_path, write_dir);
+    strcat(full_path, relativePath);
+
+    // Create directories if needed
+    if (!_create_directories_for_file(full_path))
+    {
+        // Directory creation failed, but continue - file might still be writable
+    }
+
+    // Write file
+    FILE *file = fopen(full_path, "wb");
+    bool success = false;
+
+    if (file)
+    {
+        if (size == 0 || fwrite(data, 1, size, file) == size)
+        {
+            success = true;
+        }
+        fclose(file);
+    }
+
+    free(full_path);
+    free(write_dir);
+    return success;
+}
+
+void *leo_ReadFile(const char *relativePath, size_t *out_size)
+{
+    if (out_size)
+        *out_size = 0;
+
+    if (!relativePath)
+        return NULL;
+
+    // Get write directory
+    char *write_dir = leo_GetWriteDirectory("Leo", "Engine");
+    if (!write_dir)
+        return NULL;
+
+    // Build full path
+    size_t full_path_len = strlen(write_dir) + strlen(relativePath) + 1;
+    char *full_path = (char *)malloc(full_path_len);
+    if (!full_path)
+    {
+        free(write_dir);
+        return NULL;
+    }
+
+    strcpy(full_path, write_dir);
+    strcat(full_path, relativePath);
+
+    // Open and read file
+    FILE *file = fopen(full_path, "rb");
+    void *data = NULL;
+
+    if (file)
+    {
+        // Get file size
+        fseek(file, 0, SEEK_END);
+        long file_size = ftell(file);
+        fseek(file, 0, SEEK_SET);
+
+        if (file_size >= 0)
+        {
+            data = malloc((size_t)file_size);
+            if (data)
+            {
+                size_t bytes_read = fread(data, 1, (size_t)file_size, file);
+                if (bytes_read == (size_t)file_size)
+                {
+                    if (out_size)
+                        *out_size = (size_t)file_size;
+                }
+                else
+                {
+                    // Read failed
+                    free(data);
+                    data = NULL;
+                }
+            }
+        }
+        fclose(file);
+    }
+
+    free(full_path);
+    free(write_dir);
+    return data;
+}
+
+char *leo_ReadTextFile(const char *relativePath, size_t *out_size_without_nul)
+{
+    if (out_size_without_nul)
+        *out_size_without_nul = 0;
+
+    size_t size = 0;
+    void *data = leo_ReadFile(relativePath, &size);
+    if (!data)
+        return NULL;
+
+    // Add null terminator
+    char *text = (char *)malloc(size + 1);
+    if (!text)
+    {
+        free(data);
+        return NULL;
+    }
+
+    memcpy(text, data, size);
+    text[size] = '\0';
+
+    if (out_size_without_nul)
+        *out_size_without_nul = size;
+
+    free(data);
+    return text;
+}
