@@ -17,6 +17,7 @@
 #include "leo/io.h"
 #include "leo/keyboard.h"
 #include "leo/keys.h"
+#include "leo/graphics.h"
 
 typedef struct
 {
@@ -89,6 +90,175 @@ static bool _call_lua_function(lua_State *L, const char *func_name)
     return success;
 }
 
+static int lua_draw_pixel(lua_State *L)
+{
+    int x = luaL_checkinteger(L, 1);
+    int y = luaL_checkinteger(L, 2);
+    int r = luaL_checkinteger(L, 3);
+    int g = luaL_checkinteger(L, 4);
+    int b = luaL_checkinteger(L, 5);
+    int a = luaL_optinteger(L, 6, 255);
+    
+    leo_Color color = {(unsigned char)r, (unsigned char)g, (unsigned char)b, (unsigned char)a};
+    leo_DrawPixel(x, y, color);
+    return 0;
+}
+
+static int lua_draw_rectangle(lua_State *L)
+{
+    int x = luaL_checkinteger(L, 1);
+    int y = luaL_checkinteger(L, 2);
+    int width = luaL_checkinteger(L, 3);
+    int height = luaL_checkinteger(L, 4);
+    int r = luaL_checkinteger(L, 5);
+    int g = luaL_checkinteger(L, 6);
+    int b = luaL_checkinteger(L, 7);
+    int a = luaL_optinteger(L, 8, 255);
+    
+    leo_Color color = {(unsigned char)r, (unsigned char)g, (unsigned char)b, (unsigned char)a};
+    leo_DrawRectangle(x, y, width, height, color);
+    return 0;
+}
+
+static int lua_clear_background(lua_State *L)
+{
+    int r = luaL_checkinteger(L, 1);
+    int g = luaL_checkinteger(L, 2);
+    int b = luaL_checkinteger(L, 3);
+    int a = luaL_optinteger(L, 4, 255);
+    
+    leo_ClearBackground(r, g, b, a);
+    return 0;
+}
+
+static int lua_draw_line(lua_State *L)
+{
+    int x1 = luaL_checkinteger(L, 1);
+    int y1 = luaL_checkinteger(L, 2);
+    int x2 = luaL_checkinteger(L, 3);
+    int y2 = luaL_checkinteger(L, 4);
+    int r = luaL_checkinteger(L, 5);
+    int g = luaL_checkinteger(L, 6);
+    int b = luaL_checkinteger(L, 7);
+    int a = luaL_optinteger(L, 8, 255);
+    
+    leo_Color color = {(unsigned char)r, (unsigned char)g, (unsigned char)b, (unsigned char)a};
+    leo_DrawLine(x1, y1, x2, y2, color);
+    return 0;
+}
+
+static int lua_draw_circle(lua_State *L)
+{
+    int x = luaL_checkinteger(L, 1);
+    int y = luaL_checkinteger(L, 2);
+    float radius = (float)luaL_checknumber(L, 3);
+    int r = luaL_checkinteger(L, 4);
+    int g = luaL_checkinteger(L, 5);
+    int b = luaL_checkinteger(L, 6);
+    int a = luaL_optinteger(L, 7, 255);
+    
+    leo_Color color = {(unsigned char)r, (unsigned char)g, (unsigned char)b, (unsigned char)a};
+    leo_DrawCircle(x, y, radius, color);
+    return 0;
+}
+
+static int lua_draw_circle_filled(lua_State *L)
+{
+    int x = luaL_checkinteger(L, 1);
+    int y = luaL_checkinteger(L, 2);
+    float radius = (float)luaL_checknumber(L, 3);
+    int r = luaL_checkinteger(L, 4);
+    int g = luaL_checkinteger(L, 5);
+    int b = luaL_checkinteger(L, 6);
+    int a = luaL_optinteger(L, 7, 255);
+    
+    leo_Color color = {(unsigned char)r, (unsigned char)g, (unsigned char)b, (unsigned char)a};
+    leo_DrawCircleFilled(x, y, radius, color);
+    return 0;
+}
+
+static int lua_draw_rectangle_lines(lua_State *L)
+{
+    int x = luaL_checkinteger(L, 1);
+    int y = luaL_checkinteger(L, 2);
+    int width = luaL_checkinteger(L, 3);
+    int height = luaL_checkinteger(L, 4);
+    int r = luaL_checkinteger(L, 5);
+    int g = luaL_checkinteger(L, 6);
+    int b = luaL_checkinteger(L, 7);
+    int a = luaL_optinteger(L, 8, 255);
+    
+    leo_Color color = {(unsigned char)r, (unsigned char)g, (unsigned char)b, (unsigned char)a};
+    leo_DrawRectangleLines(x, y, width, height, color);
+    return 0;
+}
+
+static int lua_draw_triangle(lua_State *L)
+{
+    int x1 = luaL_checkinteger(L, 1);
+    int y1 = luaL_checkinteger(L, 2);
+    int x2 = luaL_checkinteger(L, 3);
+    int y2 = luaL_checkinteger(L, 4);
+    int x3 = luaL_checkinteger(L, 5);
+    int y3 = luaL_checkinteger(L, 6);
+    int r = luaL_checkinteger(L, 7);
+    int g = luaL_checkinteger(L, 8);
+    int b = luaL_checkinteger(L, 9);
+    int a = luaL_optinteger(L, 10, 255);
+    
+    leo_Color color = {(unsigned char)r, (unsigned char)g, (unsigned char)b, (unsigned char)a};
+    leo_DrawTriangle(x1, y1, x2, y2, x3, y3, color);
+    return 0;
+}
+
+static int lua_draw_triangle_filled(lua_State *L)
+{
+    int x1 = luaL_checkinteger(L, 1);
+    int y1 = luaL_checkinteger(L, 2);
+    int x2 = luaL_checkinteger(L, 3);
+    int y2 = luaL_checkinteger(L, 4);
+    int x3 = luaL_checkinteger(L, 5);
+    int y3 = luaL_checkinteger(L, 6);
+    int r = luaL_checkinteger(L, 7);
+    int g = luaL_checkinteger(L, 8);
+    int b = luaL_checkinteger(L, 9);
+    int a = luaL_optinteger(L, 10, 255);
+    
+    leo_Color color = {(unsigned char)r, (unsigned char)g, (unsigned char)b, (unsigned char)a};
+    leo_DrawTriangleFilled(x1, y1, x2, y2, x3, y3, color);
+    return 0;
+}
+
+static void _register_graphics_bindings(lua_State *L)
+{
+    lua_pushcfunction(L, lua_draw_pixel);
+    lua_setglobal(L, "leo_draw_pixel");
+    
+    lua_pushcfunction(L, lua_draw_line);
+    lua_setglobal(L, "leo_draw_line");
+    
+    lua_pushcfunction(L, lua_draw_circle);
+    lua_setglobal(L, "leo_draw_circle");
+    
+    lua_pushcfunction(L, lua_draw_circle_filled);
+    lua_setglobal(L, "leo_draw_circle_filled");
+    
+    lua_pushcfunction(L, lua_draw_rectangle);
+    lua_setglobal(L, "leo_draw_rectangle");
+    
+    lua_pushcfunction(L, lua_draw_rectangle_lines);
+    lua_setglobal(L, "leo_draw_rectangle_lines");
+    
+    lua_pushcfunction(L, lua_draw_triangle);
+    lua_setglobal(L, "leo_draw_triangle");
+    
+    lua_pushcfunction(L, lua_draw_triangle_filled);
+    lua_setglobal(L, "leo_draw_triangle_filled");
+    
+    lua_pushcfunction(L, lua_clear_background);
+    lua_setglobal(L, "leo_clear_background");
+}
+
 static int lua_quit_game(lua_State *L)
 {
     // Get the context from Lua registry
@@ -111,6 +281,9 @@ static void _register_lua_functions(lua_State *L, leo_LuaGameContext *ctx)
     // Register quit function
     lua_pushcfunction(L, lua_quit_game);
     lua_setglobal(L, "leo_quit");
+    
+    // Register graphics bindings
+    _register_graphics_bindings(L);
 }
 
 static void _call_lua_update(lua_State *L, float dt)

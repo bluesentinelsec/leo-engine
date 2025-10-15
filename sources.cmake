@@ -71,6 +71,7 @@ set(LEO_TEST_SOURCES
         tests/actor_test.cpp
         tests/game_test.cpp
         tests/lua_game_test.cpp
+        tests/lua_bindings_test.cpp
         tests/touch_test.cpp
         tests/window_mode_test.cpp
         tests/transitions_test.cpp
