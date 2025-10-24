@@ -359,12 +359,6 @@ bool leo_SetWindowMode(leo_WindowMode mode)
         break;
 
     case LEO_WINDOW_MODE_BORDERLESS_FULLSCREEN:
-        // Clear any exclusive fullscreen mode first
-        if (!SDL_SetWindowFullscreenMode(globalWindow, NULL))
-        {
-            leo_SetError("%s", SDL_GetError());
-            return false;
-        }
         if (!SDL_SetWindowFullscreen(globalWindow, true))
         {
             leo_SetError("%s", SDL_GetError());
