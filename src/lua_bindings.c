@@ -2,6 +2,8 @@
 
 #include "leo/engine.h"
 #include "leo/image.h"
+#include "leo/keyboard.h"
+#include "leo/keys.h"
 
 #include <lauxlib.h>
 #include <lua.h>
@@ -303,6 +305,83 @@ static int l_leo_get_screen_height(lua_State *L)
 }
 
 // -----------------------------------------------------------------------------
+// Keyboard input
+// -----------------------------------------------------------------------------
+static int l_leo_is_key_pressed(lua_State *L)
+{
+    int key = (int)luaL_checkinteger(L, 1);
+    lua_pushboolean(L, leo_IsKeyPressed(key));
+    return 1;
+}
+
+static int l_leo_is_key_pressed_repeat(lua_State *L)
+{
+    int key = (int)luaL_checkinteger(L, 1);
+    lua_pushboolean(L, leo_IsKeyPressedRepeat(key));
+    return 1;
+}
+
+static int l_leo_is_key_down(lua_State *L)
+{
+    int key = (int)luaL_checkinteger(L, 1);
+    lua_pushboolean(L, leo_IsKeyDown(key));
+    return 1;
+}
+
+static int l_leo_is_key_released(lua_State *L)
+{
+    int key = (int)luaL_checkinteger(L, 1);
+    lua_pushboolean(L, leo_IsKeyReleased(key));
+    return 1;
+}
+
+static int l_leo_is_key_up(lua_State *L)
+{
+    int key = (int)luaL_checkinteger(L, 1);
+    lua_pushboolean(L, leo_IsKeyUp(key));
+    return 1;
+}
+
+static int l_leo_get_key_pressed(lua_State *L)
+{
+    lua_pushinteger(L, leo_GetKeyPressed());
+    return 1;
+}
+
+static int l_leo_get_char_pressed(lua_State *L)
+{
+    lua_pushinteger(L, leo_GetCharPressed());
+    return 1;
+}
+
+static int l_leo_set_exit_key(lua_State *L)
+{
+    int key = (int)luaL_checkinteger(L, 1);
+    leo_SetExitKey(key);
+    return 0;
+}
+
+static int l_leo_update_keyboard(lua_State *L)
+{
+    (void)L;
+    leo_UpdateKeyboard();
+    return 0;
+}
+
+static int l_leo_is_exit_key_pressed(lua_State *L)
+{
+    lua_pushboolean(L, leo_IsExitKeyPressed());
+    return 1;
+}
+
+static int l_leo_cleanup_keyboard(lua_State *L)
+{
+    (void)L;
+    leo_CleanupKeyboard();
+    return 0;
+}
+
+// -----------------------------------------------------------------------------
 // Camera bindings
 // -----------------------------------------------------------------------------
 static int l_leo_begin_mode2d(lua_State *L)
@@ -596,6 +675,17 @@ int leo_LuaOpenBindings(void *vL)
         {"leo_get_fps", l_leo_get_fps},
         {"leo_get_screen_width", l_leo_get_screen_width},
         {"leo_get_screen_height", l_leo_get_screen_height},
+        {"leo_is_key_pressed", l_leo_is_key_pressed},
+        {"leo_is_key_pressed_repeat", l_leo_is_key_pressed_repeat},
+        {"leo_is_key_down", l_leo_is_key_down},
+        {"leo_is_key_released", l_leo_is_key_released},
+        {"leo_is_key_up", l_leo_is_key_up},
+        {"leo_get_key_pressed", l_leo_get_key_pressed},
+        {"leo_get_char_pressed", l_leo_get_char_pressed},
+        {"leo_set_exit_key", l_leo_set_exit_key},
+        {"leo_update_keyboard", l_leo_update_keyboard},
+        {"leo_is_exit_key_pressed", l_leo_is_exit_key_pressed},
+        {"leo_cleanup_keyboard", l_leo_cleanup_keyboard},
         {"leo_begin_mode2d", l_leo_begin_mode2d},
         {"leo_end_mode2d", l_leo_end_mode2d},
         {"leo_is_camera_active", l_leo_is_camera_active},
@@ -650,6 +740,167 @@ int leo_LuaOpenBindings(void *vL)
     lua_pushinteger(L, LEO_SCALE_NEAREST); lua_setglobal(L, "leo_SCALE_NEAREST");
     lua_pushinteger(L, LEO_SCALE_LINEAR); lua_setglobal(L, "leo_SCALE_LINEAR");
     lua_pushinteger(L, LEO_SCALE_PIXELART); lua_setglobal(L, "leo_SCALE_PIXELART");
+
+#define LEO_SET_KEY_CONST(name)            \
+    do                                     \
+    {                                      \
+        lua_pushinteger(L, name);          \
+        lua_setglobal(L, "leo_" #name);    \
+    } while (0)
+
+    // Keyboard key constants
+    LEO_SET_KEY_CONST(KEY_UNKNOWN);
+    LEO_SET_KEY_CONST(KEY_A);
+    LEO_SET_KEY_CONST(KEY_B);
+    LEO_SET_KEY_CONST(KEY_C);
+    LEO_SET_KEY_CONST(KEY_D);
+    LEO_SET_KEY_CONST(KEY_E);
+    LEO_SET_KEY_CONST(KEY_F);
+    LEO_SET_KEY_CONST(KEY_G);
+    LEO_SET_KEY_CONST(KEY_H);
+    LEO_SET_KEY_CONST(KEY_I);
+    LEO_SET_KEY_CONST(KEY_J);
+    LEO_SET_KEY_CONST(KEY_K);
+    LEO_SET_KEY_CONST(KEY_L);
+    LEO_SET_KEY_CONST(KEY_M);
+    LEO_SET_KEY_CONST(KEY_N);
+    LEO_SET_KEY_CONST(KEY_O);
+    LEO_SET_KEY_CONST(KEY_P);
+    LEO_SET_KEY_CONST(KEY_Q);
+    LEO_SET_KEY_CONST(KEY_R);
+    LEO_SET_KEY_CONST(KEY_S);
+    LEO_SET_KEY_CONST(KEY_T);
+    LEO_SET_KEY_CONST(KEY_U);
+    LEO_SET_KEY_CONST(KEY_V);
+    LEO_SET_KEY_CONST(KEY_W);
+    LEO_SET_KEY_CONST(KEY_X);
+    LEO_SET_KEY_CONST(KEY_Y);
+    LEO_SET_KEY_CONST(KEY_Z);
+    LEO_SET_KEY_CONST(KEY_0);
+    LEO_SET_KEY_CONST(KEY_1);
+    LEO_SET_KEY_CONST(KEY_2);
+    LEO_SET_KEY_CONST(KEY_3);
+    LEO_SET_KEY_CONST(KEY_4);
+    LEO_SET_KEY_CONST(KEY_5);
+    LEO_SET_KEY_CONST(KEY_6);
+    LEO_SET_KEY_CONST(KEY_7);
+    LEO_SET_KEY_CONST(KEY_8);
+    LEO_SET_KEY_CONST(KEY_9);
+    LEO_SET_KEY_CONST(KEY_RETURN);
+    LEO_SET_KEY_CONST(KEY_ESCAPE);
+    LEO_SET_KEY_CONST(KEY_BACKSPACE);
+    LEO_SET_KEY_CONST(KEY_TAB);
+    LEO_SET_KEY_CONST(KEY_SPACE);
+    LEO_SET_KEY_CONST(KEY_LEFT);
+    LEO_SET_KEY_CONST(KEY_RIGHT);
+    LEO_SET_KEY_CONST(KEY_UP);
+    LEO_SET_KEY_CONST(KEY_DOWN);
+    LEO_SET_KEY_CONST(KEY_LCTRL);
+    LEO_SET_KEY_CONST(KEY_LSHIFT);
+    LEO_SET_KEY_CONST(KEY_LALT);
+    LEO_SET_KEY_CONST(KEY_RCTRL);
+    LEO_SET_KEY_CONST(KEY_RSHIFT);
+    LEO_SET_KEY_CONST(KEY_RALT);
+    LEO_SET_KEY_CONST(KEY_F1);
+    LEO_SET_KEY_CONST(KEY_F2);
+    LEO_SET_KEY_CONST(KEY_F3);
+    LEO_SET_KEY_CONST(KEY_F4);
+    LEO_SET_KEY_CONST(KEY_F5);
+    LEO_SET_KEY_CONST(KEY_F6);
+    LEO_SET_KEY_CONST(KEY_F7);
+    LEO_SET_KEY_CONST(KEY_F8);
+    LEO_SET_KEY_CONST(KEY_F9);
+    LEO_SET_KEY_CONST(KEY_F10);
+    LEO_SET_KEY_CONST(KEY_F11);
+    LEO_SET_KEY_CONST(KEY_F12);
+    LEO_SET_KEY_CONST(KEY_MINUS);
+    LEO_SET_KEY_CONST(KEY_EQUALS);
+    LEO_SET_KEY_CONST(KEY_LEFTBRACKET);
+    LEO_SET_KEY_CONST(KEY_RIGHTBRACKET);
+    LEO_SET_KEY_CONST(KEY_BACKSLASH);
+    LEO_SET_KEY_CONST(KEY_SEMICOLON);
+    LEO_SET_KEY_CONST(KEY_APOSTROPHE);
+    LEO_SET_KEY_CONST(KEY_GRAVE);
+    LEO_SET_KEY_CONST(KEY_COMMA);
+    LEO_SET_KEY_CONST(KEY_PERIOD);
+    LEO_SET_KEY_CONST(KEY_SLASH);
+    LEO_SET_KEY_CONST(KEY_INSERT);
+    LEO_SET_KEY_CONST(KEY_DELETE);
+    LEO_SET_KEY_CONST(KEY_HOME);
+    LEO_SET_KEY_CONST(KEY_END);
+    LEO_SET_KEY_CONST(KEY_PAGEUP);
+    LEO_SET_KEY_CONST(KEY_PAGEDOWN);
+    LEO_SET_KEY_CONST(KEY_F13);
+    LEO_SET_KEY_CONST(KEY_F14);
+    LEO_SET_KEY_CONST(KEY_F15);
+    LEO_SET_KEY_CONST(KEY_F16);
+    LEO_SET_KEY_CONST(KEY_F17);
+    LEO_SET_KEY_CONST(KEY_F18);
+    LEO_SET_KEY_CONST(KEY_F19);
+    LEO_SET_KEY_CONST(KEY_F20);
+    LEO_SET_KEY_CONST(KEY_F21);
+    LEO_SET_KEY_CONST(KEY_F22);
+    LEO_SET_KEY_CONST(KEY_F23);
+    LEO_SET_KEY_CONST(KEY_F24);
+    LEO_SET_KEY_CONST(KEY_KP_0);
+    LEO_SET_KEY_CONST(KEY_KP_1);
+    LEO_SET_KEY_CONST(KEY_KP_2);
+    LEO_SET_KEY_CONST(KEY_KP_3);
+    LEO_SET_KEY_CONST(KEY_KP_4);
+    LEO_SET_KEY_CONST(KEY_KP_5);
+    LEO_SET_KEY_CONST(KEY_KP_6);
+    LEO_SET_KEY_CONST(KEY_KP_7);
+    LEO_SET_KEY_CONST(KEY_KP_8);
+    LEO_SET_KEY_CONST(KEY_KP_9);
+    LEO_SET_KEY_CONST(KEY_KP_PLUS);
+    LEO_SET_KEY_CONST(KEY_KP_MINUS);
+    LEO_SET_KEY_CONST(KEY_KP_MULTIPLY);
+    LEO_SET_KEY_CONST(KEY_KP_DIVIDE);
+    LEO_SET_KEY_CONST(KEY_KP_ENTER);
+    LEO_SET_KEY_CONST(KEY_KP_PERIOD);
+    LEO_SET_KEY_CONST(KEY_KP_EQUALS);
+    LEO_SET_KEY_CONST(KEY_PRINTSCREEN);
+    LEO_SET_KEY_CONST(KEY_SCROLLLOCK);
+    LEO_SET_KEY_CONST(KEY_PAUSE);
+    LEO_SET_KEY_CONST(KEY_MENU);
+    LEO_SET_KEY_CONST(KEY_VOLUMEUP);
+    LEO_SET_KEY_CONST(KEY_VOLUMEDOWN);
+    LEO_SET_KEY_CONST(KEY_MUTE);
+    LEO_SET_KEY_CONST(KEY_AUDIONEXT);
+    LEO_SET_KEY_CONST(KEY_AUDIOPREV);
+    LEO_SET_KEY_CONST(KEY_AUDIOSTOP);
+    LEO_SET_KEY_CONST(KEY_AUDIOPLAY);
+    LEO_SET_KEY_CONST(KEY_INTERNATIONAL1);
+    LEO_SET_KEY_CONST(KEY_INTERNATIONAL2);
+    LEO_SET_KEY_CONST(KEY_INTERNATIONAL3);
+    LEO_SET_KEY_CONST(KEY_INTERNATIONAL4);
+    LEO_SET_KEY_CONST(KEY_INTERNATIONAL5);
+    LEO_SET_KEY_CONST(KEY_INTERNATIONAL6);
+    LEO_SET_KEY_CONST(KEY_INTERNATIONAL7);
+    LEO_SET_KEY_CONST(KEY_INTERNATIONAL8);
+    LEO_SET_KEY_CONST(KEY_INTERNATIONAL9);
+    LEO_SET_KEY_CONST(KEY_LANG1);
+    LEO_SET_KEY_CONST(KEY_LANG2);
+    LEO_SET_KEY_CONST(KEY_LANG3);
+    LEO_SET_KEY_CONST(KEY_LANG4);
+    LEO_SET_KEY_CONST(KEY_LANG5);
+    LEO_SET_KEY_CONST(KEY_LANG6);
+    LEO_SET_KEY_CONST(KEY_LANG7);
+    LEO_SET_KEY_CONST(KEY_LANG8);
+    LEO_SET_KEY_CONST(KEY_LANG9);
+    LEO_SET_KEY_CONST(KEY_CAPSLOCK);
+    LEO_SET_KEY_CONST(KEY_NUMLOCKCLEAR);
+    LEO_SET_KEY_CONST(KEY_SYSREQ);
+    LEO_SET_KEY_CONST(KEY_APPLICATION);
+    LEO_SET_KEY_CONST(KEY_POWER);
+    LEO_SET_KEY_CONST(KEY_SLEEP);
+    LEO_SET_KEY_CONST(KEY_AC_SEARCH);
+    LEO_SET_KEY_CONST(KEY_AC_HOME);
+    LEO_SET_KEY_CONST(KEY_AC_BACK);
+    LEO_SET_KEY_CONST(KEY_AC_FORWARD);
+    LEO_SET_KEY_CONST(KEY_AC_STOP);
+
+#undef LEO_SET_KEY_CONST
 
     return 0;
 }
