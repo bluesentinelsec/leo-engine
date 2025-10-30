@@ -172,6 +172,10 @@ static int l_image_bytes_per_pixel(lua_State *L)
     return 1;
 }
 
+// Forward declarations for texture drawing CFunctions
+static int l_leo_draw_texture_rec(lua_State *L);
+static int l_leo_draw_texture_pro(lua_State *L);
+
 int leo_LuaOpenBindings(void *vL)
 {
     lua_State *L = (lua_State *)vL;
@@ -202,5 +206,60 @@ int leo_LuaOpenBindings(void *vL)
     lua_pushinteger(L, LEO_TEXFORMAT_GRAY8); lua_setglobal(L, "leo_TEXFORMAT_GRAY8");
     lua_pushinteger(L, LEO_TEXFORMAT_GRAY8_ALPHA); lua_setglobal(L, "leo_TEXFORMAT_GRAY8_ALPHA");
 
+    // texture drawing globals
+    lua_pushcfunction(L, l_leo_draw_texture_rec); lua_setglobal(L, "leo_draw_texture_rec");
+    lua_pushcfunction(L, l_leo_draw_texture_pro); lua_setglobal(L, "leo_draw_texture_pro");
+
+    return 0;
+}
+
+// ----------------
+// Texture drawing
+// ----------------
+static int l_leo_draw_texture_rec(lua_State *L);
+static int l_leo_draw_texture_pro(lua_State *L);
+static int l_leo_draw_texture_rec(lua_State *L)
+{
+    leo__LuaTexture *ud = check_texture_ud(L, 1);
+    leo_Rectangle src;
+    src.x = (float)luaL_checknumber(L, 2);
+    src.y = (float)luaL_checknumber(L, 3);
+    src.width = (float)luaL_checknumber(L, 4);
+    src.height = (float)luaL_checknumber(L, 5);
+    leo_Vector2 pos;
+    pos.x = (float)luaL_checknumber(L, 6);
+    pos.y = (float)luaL_checknumber(L, 7);
+    int r = (int)luaL_optinteger(L, 8, 255);
+    int g = (int)luaL_optinteger(L, 9, 255);
+    int b = (int)luaL_optinteger(L, 10, 255);
+    int a = (int)luaL_optinteger(L, 11, 255);
+    leo_Color tint = {(unsigned char)r, (unsigned char)g, (unsigned char)b, (unsigned char)a};
+    leo_DrawTextureRec(ud->tex, src, pos, tint);
+    return 0;
+}
+
+static int l_leo_draw_texture_pro(lua_State *L)
+{
+    leo__LuaTexture *ud = check_texture_ud(L, 1);
+    leo_Rectangle src;
+    src.x = (float)luaL_checknumber(L, 2);
+    src.y = (float)luaL_checknumber(L, 3);
+    src.width = (float)luaL_checknumber(L, 4);
+    src.height = (float)luaL_checknumber(L, 5);
+    leo_Rectangle dest;
+    dest.x = (float)luaL_checknumber(L, 6);
+    dest.y = (float)luaL_checknumber(L, 7);
+    dest.width = (float)luaL_checknumber(L, 8);
+    dest.height = (float)luaL_checknumber(L, 9);
+    leo_Vector2 origin;
+    origin.x = (float)luaL_checknumber(L, 10);
+    origin.y = (float)luaL_checknumber(L, 11);
+    float rotation = (float)luaL_optnumber(L, 12, 0.0);
+    int r = (int)luaL_optinteger(L, 13, 255);
+    int g = (int)luaL_optinteger(L, 14, 255);
+    int b = (int)luaL_optinteger(L, 15, 255);
+    int a = (int)luaL_optinteger(L, 16, 255);
+    leo_Color tint = {(unsigned char)r, (unsigned char)g, (unsigned char)b, (unsigned char)a};
+    leo_DrawTexturePro(ud->tex, src, dest, origin, rotation, tint);
     return 0;
 }
