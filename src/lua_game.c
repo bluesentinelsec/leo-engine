@@ -18,6 +18,7 @@
 #include <lauxlib.h>
 #include <lua.h>
 #include <lualib.h>
+#include "leo/lua_bindings.h"
 
 typedef struct
 {
@@ -49,6 +50,8 @@ static bool _load_lua_script(lua_State *L, const char *script_path, char **out_c
         return false;
     }
 
+    // Open leo bindings before executing script so globals exist
+    leo_LuaOpenBindings(L);
     result = lua_pcall(L, 0, 0, 0);
     if (result != LUA_OK)
     {

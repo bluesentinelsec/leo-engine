@@ -28,6 +28,7 @@ set(LEO_SOURCES
         src/actor.c
         src/game.c
         src/lua_game.c
+        src/lua_bindings.c
         src/touch.c
         src/transitions.c
         external/miniaudio/miniaudio.c
