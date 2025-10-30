@@ -4,6 +4,7 @@
 
 #include "leo/color.h"
 #include "leo/engine.h"
+#include "leo/export.h"
 #include <stdbool.h>
 #include <stdint.h>
 
@@ -44,8 +45,8 @@ extern "C"
         void (*on_shutdown)(leo_LuaGameContext *ctx);
     } leo_LuaGameCallbacks;
 
-    int leo_LuaGameRun(const leo_LuaGameConfig *cfg, const leo_LuaGameCallbacks *cb);
-    void leo_LuaGameQuit(leo_LuaGameContext *ctx);
+    LEO_API int leo_LuaGameRun(const leo_LuaGameConfig *cfg, const leo_LuaGameCallbacks *cb);
+    LEO_API void leo_LuaGameQuit(leo_LuaGameContext *ctx);
 
 #ifdef __cplusplus
 }
