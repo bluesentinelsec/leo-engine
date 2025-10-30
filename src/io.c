@@ -193,7 +193,7 @@ bool leo_MountResourcePack(const char *packPath, const char *password, int prior
     if (!packPath || !*packPath)
         return false;
 
-    char fullPackPath[4096];
+    char fullPackPath[4096] = {0};
     bool isRelativePath = (packPath[0] != '/');
 
 #ifdef __APPLE__
@@ -288,7 +288,7 @@ bool leo_MountResourcePack(const char *packPath, const char *password, int prior
         char *basePath = leo_GetResourceBasePath();
         if (basePath)
         {
-            char fallbackDirPath[4096];
+            char fallbackDirPath[4096] = {0};
             int ret = snprintf(fallbackDirPath, sizeof(fallbackDirPath), "%s/resources", basePath);
             free(basePath);
 
@@ -308,7 +308,7 @@ bool leo_MountDirectory(const char *baseDir, int priority)
     if (!baseDir || !*baseDir)
         return false;
 
-    char fullDirPath[4096];
+    char fullDirPath[4096] = {0};
     bool isRelativePath = (baseDir[0] != '/');
 
 #ifdef __APPLE__
