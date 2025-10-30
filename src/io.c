@@ -421,7 +421,7 @@ bool leo_StatAsset(const char *logicalName, leo_AssetInfo *out)
         }
         else if (m->type == LEO_MOUNT_DIR)
         {
-            char full[4096];
+            char full[4096] = {0};
             if (!_join_path(full, sizeof(full), (const char *)m->impl, logicalName))
                 continue;
             FILE *f = fopen(full, "rb");
@@ -486,7 +486,7 @@ size_t leo_ReadAsset(const char *logicalName, void *buffer, size_t bufferCap, si
         }
         else if (m->type == LEO_MOUNT_DIR)
         {
-            char full[4096];
+            char full[4096] = {0};
             if (!_join_path(full, sizeof(full), (const char *)m->impl, logicalName))
                 goto next_mount;
             FILE *f = fopen(full, "rb");
@@ -645,7 +645,7 @@ leo_AssetStream *leo_OpenAsset(const char *logicalName, leo_AssetInfo *info)
         }
         else if (m->type == LEO_MOUNT_DIR)
         {
-            char full[4096];
+            char full[4096] = {0};
             if (!_join_path(full, sizeof(full), (const char *)m->impl, logicalName))
                 continue;
             FILE *f = fopen(full, "rb");
