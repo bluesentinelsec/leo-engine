@@ -1,6 +1,7 @@
 #include "leo/lua_bindings.h"
 
 #include "leo/engine.h"
+#include "leo/gamepad.h"
 #include "leo/image.h"
 #include "leo/keyboard.h"
 #include "leo/keys.h"
@@ -382,6 +383,180 @@ static int l_leo_cleanup_keyboard(lua_State *L)
 }
 
 // -----------------------------------------------------------------------------
+// Gamepad input
+// -----------------------------------------------------------------------------
+static int l_leo_init_gamepads(lua_State *L)
+{
+    (void)L;
+    leo_InitGamepads();
+    return 0;
+}
+
+static int l_leo_update_gamepads(lua_State *L)
+{
+    (void)L;
+    leo_UpdateGamepads();
+    return 0;
+}
+
+static int l_leo_handle_gamepad_event(lua_State *L)
+{
+    luaL_argcheck(L, lua_islightuserdata(L, 1), 1, "expected lightuserdata event");
+    void *evt = lua_touserdata(L, 1);
+    luaL_argcheck(L, evt != NULL, 1, "event pointer must not be NULL");
+    leo_HandleGamepadEvent(evt);
+    return 0;
+}
+
+static int l_leo_shutdown_gamepads(lua_State *L)
+{
+    (void)L;
+    leo_ShutdownGamepads();
+    return 0;
+}
+
+static int l_leo_is_gamepad_available(lua_State *L)
+{
+    int gamepad = (int)luaL_checkinteger(L, 1);
+    lua_pushboolean(L, leo_IsGamepadAvailable(gamepad));
+    return 1;
+}
+
+static int l_leo_get_gamepad_name(lua_State *L)
+{
+    int gamepad = (int)luaL_checkinteger(L, 1);
+    const char *name = leo_GetGamepadName(gamepad);
+    if (name)
+        lua_pushstring(L, name);
+    else
+        lua_pushnil(L);
+    return 1;
+}
+
+static int l_leo_is_gamepad_button_pressed(lua_State *L)
+{
+    int gamepad = (int)luaL_checkinteger(L, 1);
+    int button = (int)luaL_checkinteger(L, 2);
+    lua_pushboolean(L, leo_IsGamepadButtonPressed(gamepad, button));
+    return 1;
+}
+
+static int l_leo_is_gamepad_button_down(lua_State *L)
+{
+    int gamepad = (int)luaL_checkinteger(L, 1);
+    int button = (int)luaL_checkinteger(L, 2);
+    lua_pushboolean(L, leo_IsGamepadButtonDown(gamepad, button));
+    return 1;
+}
+
+static int l_leo_is_gamepad_button_released(lua_State *L)
+{
+    int gamepad = (int)luaL_checkinteger(L, 1);
+    int button = (int)luaL_checkinteger(L, 2);
+    lua_pushboolean(L, leo_IsGamepadButtonReleased(gamepad, button));
+    return 1;
+}
+
+static int l_leo_is_gamepad_button_up(lua_State *L)
+{
+    int gamepad = (int)luaL_checkinteger(L, 1);
+    int button = (int)luaL_checkinteger(L, 2);
+    lua_pushboolean(L, leo_IsGamepadButtonUp(gamepad, button));
+    return 1;
+}
+
+static int l_leo_get_gamepad_button_pressed(lua_State *L)
+{
+    lua_pushinteger(L, leo_GetGamepadButtonPressed());
+    return 1;
+}
+
+static int l_leo_get_gamepad_axis_count(lua_State *L)
+{
+    int gamepad = (int)luaL_checkinteger(L, 1);
+    lua_pushinteger(L, leo_GetGamepadAxisCount(gamepad));
+    return 1;
+}
+
+static int l_leo_get_gamepad_axis_movement(lua_State *L)
+{
+    int gamepad = (int)luaL_checkinteger(L, 1);
+    int axis = (int)luaL_checkinteger(L, 2);
+    lua_pushnumber(L, leo_GetGamepadAxisMovement(gamepad, axis));
+    return 1;
+}
+
+static int l_leo_set_gamepad_vibration(lua_State *L)
+{
+    int gamepad = (int)luaL_checkinteger(L, 1);
+    float left = (float)luaL_checknumber(L, 2);
+    float right = (float)luaL_checknumber(L, 3);
+    float duration = (float)luaL_checknumber(L, 4);
+    lua_pushboolean(L, leo_SetGamepadVibration(gamepad, left, right, duration));
+    return 1;
+}
+
+static int l_leo_set_gamepad_axis_deadzone(lua_State *L)
+{
+    float deadzone = (float)luaL_checknumber(L, 1);
+    leo_SetGamepadAxisDeadzone(deadzone);
+    return 0;
+}
+
+static int l_leo_set_gamepad_stick_threshold(lua_State *L)
+{
+    float press_threshold = (float)luaL_checknumber(L, 1);
+    float release_threshold = (float)luaL_checknumber(L, 2);
+    leo_SetGamepadStickThreshold(press_threshold, release_threshold);
+    return 0;
+}
+
+static int l_leo_get_gamepad_stick(lua_State *L)
+{
+    int gamepad = (int)luaL_checkinteger(L, 1);
+    int stick = (int)luaL_checkinteger(L, 2);
+    leo_Vector2 v = leo_GetGamepadStick(gamepad, stick);
+    lua_push_vector2(L, v);
+    return 2;
+}
+
+static int l_leo_is_gamepad_stick_pressed(lua_State *L)
+{
+    int gamepad = (int)luaL_checkinteger(L, 1);
+    int stick = (int)luaL_checkinteger(L, 2);
+    int dir = (int)luaL_checkinteger(L, 3);
+    lua_pushboolean(L, leo_IsGamepadStickPressed(gamepad, stick, dir));
+    return 1;
+}
+
+static int l_leo_is_gamepad_stick_down(lua_State *L)
+{
+    int gamepad = (int)luaL_checkinteger(L, 1);
+    int stick = (int)luaL_checkinteger(L, 2);
+    int dir = (int)luaL_checkinteger(L, 3);
+    lua_pushboolean(L, leo_IsGamepadStickDown(gamepad, stick, dir));
+    return 1;
+}
+
+static int l_leo_is_gamepad_stick_released(lua_State *L)
+{
+    int gamepad = (int)luaL_checkinteger(L, 1);
+    int stick = (int)luaL_checkinteger(L, 2);
+    int dir = (int)luaL_checkinteger(L, 3);
+    lua_pushboolean(L, leo_IsGamepadStickReleased(gamepad, stick, dir));
+    return 1;
+}
+
+static int l_leo_is_gamepad_stick_up(lua_State *L)
+{
+    int gamepad = (int)luaL_checkinteger(L, 1);
+    int stick = (int)luaL_checkinteger(L, 2);
+    int dir = (int)luaL_checkinteger(L, 3);
+    lua_pushboolean(L, leo_IsGamepadStickUp(gamepad, stick, dir));
+    return 1;
+}
+
+// -----------------------------------------------------------------------------
 // Camera bindings
 // -----------------------------------------------------------------------------
 static int l_leo_begin_mode2d(lua_State *L)
@@ -686,6 +861,27 @@ int leo_LuaOpenBindings(void *vL)
         {"leo_update_keyboard", l_leo_update_keyboard},
         {"leo_is_exit_key_pressed", l_leo_is_exit_key_pressed},
         {"leo_cleanup_keyboard", l_leo_cleanup_keyboard},
+        {"leo_init_gamepads", l_leo_init_gamepads},
+        {"leo_update_gamepads", l_leo_update_gamepads},
+        {"leo_handle_gamepad_event", l_leo_handle_gamepad_event},
+        {"leo_shutdown_gamepads", l_leo_shutdown_gamepads},
+        {"leo_is_gamepad_available", l_leo_is_gamepad_available},
+        {"leo_get_gamepad_name", l_leo_get_gamepad_name},
+        {"leo_is_gamepad_button_pressed", l_leo_is_gamepad_button_pressed},
+        {"leo_is_gamepad_button_down", l_leo_is_gamepad_button_down},
+        {"leo_is_gamepad_button_released", l_leo_is_gamepad_button_released},
+        {"leo_is_gamepad_button_up", l_leo_is_gamepad_button_up},
+        {"leo_get_gamepad_button_pressed", l_leo_get_gamepad_button_pressed},
+        {"leo_get_gamepad_axis_count", l_leo_get_gamepad_axis_count},
+        {"leo_get_gamepad_axis_movement", l_leo_get_gamepad_axis_movement},
+        {"leo_set_gamepad_vibration", l_leo_set_gamepad_vibration},
+        {"leo_set_gamepad_axis_deadzone", l_leo_set_gamepad_axis_deadzone},
+        {"leo_set_gamepad_stick_threshold", l_leo_set_gamepad_stick_threshold},
+        {"leo_get_gamepad_stick", l_leo_get_gamepad_stick},
+        {"leo_is_gamepad_stick_pressed", l_leo_is_gamepad_stick_pressed},
+        {"leo_is_gamepad_stick_down", l_leo_is_gamepad_stick_down},
+        {"leo_is_gamepad_stick_released", l_leo_is_gamepad_stick_released},
+        {"leo_is_gamepad_stick_up", l_leo_is_gamepad_stick_up},
         {"leo_begin_mode2d", l_leo_begin_mode2d},
         {"leo_end_mode2d", l_leo_end_mode2d},
         {"leo_is_camera_active", l_leo_is_camera_active},
@@ -901,6 +1097,54 @@ int leo_LuaOpenBindings(void *vL)
     LEO_SET_KEY_CONST(KEY_AC_STOP);
 
 #undef LEO_SET_KEY_CONST
+
+#define LEO_SET_GAMEPAD_CONST(value, label)    \
+    do                                         \
+    {                                          \
+        lua_pushinteger(L, value);             \
+        lua_setglobal(L, "leo_" label);        \
+    } while (0)
+
+    // Gamepad limits
+    LEO_SET_GAMEPAD_CONST(LEO_MAX_GAMEPADS, "MAX_GAMEPADS");
+
+    // Gamepad button constants
+    LEO_SET_GAMEPAD_CONST(LEO_GAMEPAD_BUTTON_UNKNOWN, "GAMEPAD_BUTTON_UNKNOWN");
+    LEO_SET_GAMEPAD_CONST(LEO_GAMEPAD_BUTTON_FACE_DOWN, "GAMEPAD_BUTTON_FACE_DOWN");
+    LEO_SET_GAMEPAD_CONST(LEO_GAMEPAD_BUTTON_FACE_RIGHT, "GAMEPAD_BUTTON_FACE_RIGHT");
+    LEO_SET_GAMEPAD_CONST(LEO_GAMEPAD_BUTTON_FACE_LEFT, "GAMEPAD_BUTTON_FACE_LEFT");
+    LEO_SET_GAMEPAD_CONST(LEO_GAMEPAD_BUTTON_FACE_UP, "GAMEPAD_BUTTON_FACE_UP");
+    LEO_SET_GAMEPAD_CONST(LEO_GAMEPAD_BUTTON_LEFT_BUMPER, "GAMEPAD_BUTTON_LEFT_BUMPER");
+    LEO_SET_GAMEPAD_CONST(LEO_GAMEPAD_BUTTON_RIGHT_BUMPER, "GAMEPAD_BUTTON_RIGHT_BUMPER");
+    LEO_SET_GAMEPAD_CONST(LEO_GAMEPAD_BUTTON_BACK, "GAMEPAD_BUTTON_BACK");
+    LEO_SET_GAMEPAD_CONST(LEO_GAMEPAD_BUTTON_GUIDE, "GAMEPAD_BUTTON_GUIDE");
+    LEO_SET_GAMEPAD_CONST(LEO_GAMEPAD_BUTTON_START, "GAMEPAD_BUTTON_START");
+    LEO_SET_GAMEPAD_CONST(LEO_GAMEPAD_BUTTON_LEFT_STICK, "GAMEPAD_BUTTON_LEFT_STICK");
+    LEO_SET_GAMEPAD_CONST(LEO_GAMEPAD_BUTTON_RIGHT_STICK, "GAMEPAD_BUTTON_RIGHT_STICK");
+    LEO_SET_GAMEPAD_CONST(LEO_GAMEPAD_BUTTON_DPAD_UP, "GAMEPAD_BUTTON_DPAD_UP");
+    LEO_SET_GAMEPAD_CONST(LEO_GAMEPAD_BUTTON_DPAD_RIGHT, "GAMEPAD_BUTTON_DPAD_RIGHT");
+    LEO_SET_GAMEPAD_CONST(LEO_GAMEPAD_BUTTON_DPAD_DOWN, "GAMEPAD_BUTTON_DPAD_DOWN");
+    LEO_SET_GAMEPAD_CONST(LEO_GAMEPAD_BUTTON_DPAD_LEFT, "GAMEPAD_BUTTON_DPAD_LEFT");
+    LEO_SET_GAMEPAD_CONST(LEO_GAMEPAD_BUTTON_COUNT, "GAMEPAD_BUTTON_COUNT");
+
+    // Gamepad axis constants
+    LEO_SET_GAMEPAD_CONST(LEO_GAMEPAD_AXIS_LEFT_X, "GAMEPAD_AXIS_LEFT_X");
+    LEO_SET_GAMEPAD_CONST(LEO_GAMEPAD_AXIS_LEFT_Y, "GAMEPAD_AXIS_LEFT_Y");
+    LEO_SET_GAMEPAD_CONST(LEO_GAMEPAD_AXIS_RIGHT_X, "GAMEPAD_AXIS_RIGHT_X");
+    LEO_SET_GAMEPAD_CONST(LEO_GAMEPAD_AXIS_RIGHT_Y, "GAMEPAD_AXIS_RIGHT_Y");
+    LEO_SET_GAMEPAD_CONST(LEO_GAMEPAD_AXIS_LEFT_TRIGGER, "GAMEPAD_AXIS_LEFT_TRIGGER");
+    LEO_SET_GAMEPAD_CONST(LEO_GAMEPAD_AXIS_RIGHT_TRIGGER, "GAMEPAD_AXIS_RIGHT_TRIGGER");
+    LEO_SET_GAMEPAD_CONST(LEO_GAMEPAD_AXIS_COUNT, "GAMEPAD_AXIS_COUNT");
+
+    // Gamepad stick and direction constants
+    LEO_SET_GAMEPAD_CONST(LEO_GAMEPAD_STICK_LEFT, "GAMEPAD_STICK_LEFT");
+    LEO_SET_GAMEPAD_CONST(LEO_GAMEPAD_STICK_RIGHT, "GAMEPAD_STICK_RIGHT");
+    LEO_SET_GAMEPAD_CONST(LEO_GAMEPAD_DIR_LEFT, "GAMEPAD_DIR_LEFT");
+    LEO_SET_GAMEPAD_CONST(LEO_GAMEPAD_DIR_RIGHT, "GAMEPAD_DIR_RIGHT");
+    LEO_SET_GAMEPAD_CONST(LEO_GAMEPAD_DIR_UP, "GAMEPAD_DIR_UP");
+    LEO_SET_GAMEPAD_CONST(LEO_GAMEPAD_DIR_DOWN, "GAMEPAD_DIR_DOWN");
+
+#undef LEO_SET_GAMEPAD_CONST
 
     return 0;
 }
