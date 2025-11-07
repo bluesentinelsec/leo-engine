@@ -9,6 +9,7 @@
 #include "leo/keyboard.h"
 #include "leo/keys.h"
 #include "leo/tiled.h"
+#include "leo/touch.h"
 
 #include <lauxlib.h>
 #include <lua.h>
@@ -570,6 +571,13 @@ static void lua_push_vector2(lua_State *L, leo_Vector2 v)
     lua_pushnumber(L, v.y);
 }
 
+static int lua_push_vector2_touch(lua_State *L, leo_Vector2Touch v)
+{
+    lua_pushnumber(L, v.x);
+    lua_pushnumber(L, v.y);
+    return 2;
+}
+
 // -----------------------------------------------------------------------------
 // Engine window/system bindings
 // -----------------------------------------------------------------------------
@@ -777,6 +785,111 @@ static int l_leo_cleanup_keyboard(lua_State *L)
 {
     (void)L;
     leo_CleanupKeyboard();
+    return 0;
+}
+
+// -----------------------------------------------------------------------------
+// Touch input & gestures
+// -----------------------------------------------------------------------------
+static int l_leo_is_touch_down(lua_State *L)
+{
+    int touch = (int)luaL_checkinteger(L, 1);
+    lua_pushboolean(L, leo_IsTouchDown(touch));
+    return 1;
+}
+
+static int l_leo_is_touch_pressed(lua_State *L)
+{
+    int touch = (int)luaL_checkinteger(L, 1);
+    lua_pushboolean(L, leo_IsTouchPressed(touch));
+    return 1;
+}
+
+static int l_leo_is_touch_released(lua_State *L)
+{
+    int touch = (int)luaL_checkinteger(L, 1);
+    lua_pushboolean(L, leo_IsTouchReleased(touch));
+    return 1;
+}
+
+static int l_leo_get_touch_position(lua_State *L)
+{
+    int touch = (int)luaL_checkinteger(L, 1);
+    return lua_push_vector2_touch(L, leo_GetTouchPosition(touch));
+}
+
+static int l_leo_get_touch_x(lua_State *L)
+{
+    int touch = (int)luaL_checkinteger(L, 1);
+    lua_pushinteger(L, leo_GetTouchX(touch));
+    return 1;
+}
+
+static int l_leo_get_touch_y(lua_State *L)
+{
+    int touch = (int)luaL_checkinteger(L, 1);
+    lua_pushinteger(L, leo_GetTouchY(touch));
+    return 1;
+}
+
+static int l_leo_get_touch_point_count(lua_State *L)
+{
+    lua_pushinteger(L, leo_GetTouchPointCount());
+    return 1;
+}
+
+static int l_leo_get_touch_point_id(lua_State *L)
+{
+    int index = (int)luaL_checkinteger(L, 1);
+    lua_pushinteger(L, leo_GetTouchPointId(index));
+    return 1;
+}
+
+static int l_leo_is_gesture_detected(lua_State *L)
+{
+    int gesture = (int)luaL_checkinteger(L, 1);
+    lua_pushboolean(L, leo_IsGestureDetected(gesture));
+    return 1;
+}
+
+static int l_leo_get_gesture_detected(lua_State *L)
+{
+    lua_pushinteger(L, leo_GetGestureDetected());
+    return 1;
+}
+
+static int l_leo_get_gesture_hold_duration(lua_State *L)
+{
+    lua_pushnumber(L, leo_GetGestureHoldDuration());
+    return 1;
+}
+
+static int l_leo_get_gesture_drag_vector(lua_State *L)
+{
+    return lua_push_vector2_touch(L, leo_GetGestureDragVector());
+}
+
+static int l_leo_get_gesture_drag_angle(lua_State *L)
+{
+    lua_pushnumber(L, leo_GetGestureDragAngle());
+    return 1;
+}
+
+static int l_leo_get_gesture_pinch_vector(lua_State *L)
+{
+    return lua_push_vector2_touch(L, leo_GetGesturePinchVector());
+}
+
+static int l_leo_get_gesture_pinch_angle(lua_State *L)
+{
+    lua_pushnumber(L, leo_GetGesturePinchAngle());
+    return 1;
+}
+
+static int l_leo_set_gestures_enabled(lua_State *L)
+{
+    int flags = (int)luaL_checkinteger(L, 1);
+    leo_SetGesturesEnabled(flags);
     return 0;
 }
 
@@ -1924,6 +2037,22 @@ int leo_LuaOpenBindings(void *vL)
         {"leo_update_keyboard", l_leo_update_keyboard},
         {"leo_is_exit_key_pressed", l_leo_is_exit_key_pressed},
         {"leo_cleanup_keyboard", l_leo_cleanup_keyboard},
+        {"leo_is_touch_down", l_leo_is_touch_down},
+        {"leo_is_touch_pressed", l_leo_is_touch_pressed},
+        {"leo_is_touch_released", l_leo_is_touch_released},
+        {"leo_get_touch_position", l_leo_get_touch_position},
+        {"leo_get_touch_x", l_leo_get_touch_x},
+        {"leo_get_touch_y", l_leo_get_touch_y},
+        {"leo_get_touch_point_count", l_leo_get_touch_point_count},
+        {"leo_get_touch_point_id", l_leo_get_touch_point_id},
+        {"leo_is_gesture_detected", l_leo_is_gesture_detected},
+        {"leo_get_gesture_detected", l_leo_get_gesture_detected},
+        {"leo_get_gesture_hold_duration", l_leo_get_gesture_hold_duration},
+        {"leo_get_gesture_drag_vector", l_leo_get_gesture_drag_vector},
+        {"leo_get_gesture_drag_angle", l_leo_get_gesture_drag_angle},
+        {"leo_get_gesture_pinch_vector", l_leo_get_gesture_pinch_vector},
+        {"leo_get_gesture_pinch_angle", l_leo_get_gesture_pinch_angle},
+        {"leo_set_gestures_enabled", l_leo_set_gestures_enabled},
         {"leo_init_gamepads", l_leo_init_gamepads},
         {"leo_update_gamepads", l_leo_update_gamepads},
         {"leo_handle_gamepad_event", l_leo_handle_gamepad_event},
@@ -2062,6 +2191,19 @@ int leo_LuaOpenBindings(void *vL)
     lua_pushinteger(L, (lua_Integer)LEO_TILED_FLIP_V); lua_setglobal(L, "leo_TILED_FLIP_V");
     lua_pushinteger(L, (lua_Integer)LEO_TILED_FLIP_D); lua_setglobal(L, "leo_TILED_FLIP_D");
     lua_pushinteger(L, (lua_Integer)LEO_TILED_GID_MASK); lua_setglobal(L, "leo_TILED_GID_MASK");
+
+    // Touch/gesture constants
+    lua_pushinteger(L, LEO_GESTURE_NONE); lua_setglobal(L, "leo_GESTURE_NONE");
+    lua_pushinteger(L, LEO_GESTURE_TAP); lua_setglobal(L, "leo_GESTURE_TAP");
+    lua_pushinteger(L, LEO_GESTURE_DOUBLETAP); lua_setglobal(L, "leo_GESTURE_DOUBLETAP");
+    lua_pushinteger(L, LEO_GESTURE_HOLD); lua_setglobal(L, "leo_GESTURE_HOLD");
+    lua_pushinteger(L, LEO_GESTURE_DRAG); lua_setglobal(L, "leo_GESTURE_DRAG");
+    lua_pushinteger(L, LEO_GESTURE_SWIPE_RIGHT); lua_setglobal(L, "leo_GESTURE_SWIPE_RIGHT");
+    lua_pushinteger(L, LEO_GESTURE_SWIPE_LEFT); lua_setglobal(L, "leo_GESTURE_SWIPE_LEFT");
+    lua_pushinteger(L, LEO_GESTURE_SWIPE_UP); lua_setglobal(L, "leo_GESTURE_SWIPE_UP");
+    lua_pushinteger(L, LEO_GESTURE_SWIPE_DOWN); lua_setglobal(L, "leo_GESTURE_SWIPE_DOWN");
+    lua_pushinteger(L, LEO_GESTURE_PINCH_IN); lua_setglobal(L, "leo_GESTURE_PINCH_IN");
+    lua_pushinteger(L, LEO_GESTURE_PINCH_OUT); lua_setglobal(L, "leo_GESTURE_PINCH_OUT");
 
 #define LEO_SET_KEY_CONST(name)            \
     do                                     \
