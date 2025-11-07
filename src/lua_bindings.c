@@ -1,16 +1,19 @@
 #include "leo/lua_bindings.h"
 
 #include "leo/engine.h"
+#include "leo/error.h"
 #include "leo/font.h"
 #include "leo/gamepad.h"
 #include "leo/image.h"
 #include "leo/json.h"
 #include "leo/keyboard.h"
 #include "leo/keys.h"
+#include "leo/tiled.h"
 
 #include <lauxlib.h>
 #include <lua.h>
 #include <lualib.h>
+#include <string.h>
 
 typedef struct
 {
@@ -41,11 +44,32 @@ typedef struct
     leo_JsonNode node;
 } leo__LuaJsonNode;
 
+typedef struct
+{
+    leo_TiledMap *map;
+    int owns;
+} leo__LuaTiledMap;
+
+typedef struct
+{
+    leo__LuaTiledMap *map_ud;
+    const leo_TiledTileLayer *layer;
+} leo__LuaTiledTileLayer;
+
+typedef struct
+{
+    leo__LuaTiledMap *map_ud;
+    const leo_TiledObjectLayer *layer;
+} leo__LuaTiledObjectLayer;
+
 static const char *LEO_TEX_META = "leo_texture";
 static const char *LEO_RT_META = "leo_render_texture";
 static const char *LEO_FONT_META = "leo_font";
 static const char *LEO_JSON_DOC_META = "leo_json_doc";
 static const char *LEO_JSON_NODE_META = "leo_json_node";
+static const char *LEO_TILED_MAP_META = "leo_tiled_map";
+static const char *LEO_TILED_TILE_LAYER_META = "leo_tiled_tile_layer";
+static const char *LEO_TILED_OBJECT_LAYER_META = "leo_tiled_object_layer";
 
 static leo__LuaTexture *push_texture(lua_State *L, leo_Texture2D t, int owns)
 {
@@ -134,6 +158,199 @@ static leo_JsonNode lua_check_json_node(lua_State *L, int idx)
     return ud->node;
 }
 
+static leo__LuaTiledMap *push_tiled_map(lua_State *L, leo_TiledMap *map, int owns)
+{
+    leo__LuaTiledMap *ud = (leo__LuaTiledMap *)lua_newuserdata(L, sizeof(leo__LuaTiledMap));
+    ud->map = map;
+    ud->owns = owns;
+    luaL_getmetatable(L, LEO_TILED_MAP_META);
+    lua_setmetatable(L, -2);
+    return ud;
+}
+
+static leo__LuaTiledMap *check_tiled_map_ud(lua_State *L, int idx)
+{
+    return (leo__LuaTiledMap *)luaL_checkudata(L, idx, LEO_TILED_MAP_META);
+}
+
+static leo_TiledMap *lua_check_tiled_map(lua_State *L, int idx)
+{
+    leo__LuaTiledMap *ud = check_tiled_map_ud(L, idx);
+    luaL_argcheck(L, ud->map != NULL, idx, "tiled map has been freed");
+    return ud->map;
+}
+
+static leo__LuaTiledTileLayer *push_tiled_tile_layer(lua_State *L, leo__LuaTiledMap *map_ud,
+                                                     const leo_TiledTileLayer *layer, int map_index)
+{
+    leo__LuaTiledTileLayer *ud =
+        (leo__LuaTiledTileLayer *)lua_newuserdata(L, sizeof(leo__LuaTiledTileLayer));
+    ud->map_ud = map_ud;
+    ud->layer = layer;
+    luaL_getmetatable(L, LEO_TILED_TILE_LAYER_META);
+    lua_setmetatable(L, -2);
+    lua_pushvalue(L, map_index);
+    lua_setiuservalue(L, -2, 1);
+    return ud;
+}
+
+static leo__LuaTiledObjectLayer *push_tiled_object_layer(lua_State *L, leo__LuaTiledMap *map_ud,
+                                                         const leo_TiledObjectLayer *layer, int map_index)
+{
+    leo__LuaTiledObjectLayer *ud =
+        (leo__LuaTiledObjectLayer *)lua_newuserdata(L, sizeof(leo__LuaTiledObjectLayer));
+    ud->map_ud = map_ud;
+    ud->layer = layer;
+    luaL_getmetatable(L, LEO_TILED_OBJECT_LAYER_META);
+    lua_setmetatable(L, -2);
+    lua_pushvalue(L, map_index);
+    lua_setiuservalue(L, -2, 1);
+    return ud;
+}
+
+static leo__LuaTiledTileLayer *check_tiled_tile_layer_ud(lua_State *L, int idx)
+{
+    return (leo__LuaTiledTileLayer *)luaL_checkudata(L, idx, LEO_TILED_TILE_LAYER_META);
+}
+
+static const leo_TiledTileLayer *lua_check_tiled_tile_layer(lua_State *L, int idx)
+{
+    leo__LuaTiledTileLayer *ud = check_tiled_tile_layer_ud(L, idx);
+    luaL_argcheck(L, ud->map_ud && ud->map_ud->map, idx, "tiled map has been freed");
+    return ud->layer;
+}
+
+static leo__LuaTiledObjectLayer *check_tiled_object_layer_ud(lua_State *L, int idx)
+{
+    return (leo__LuaTiledObjectLayer *)luaL_checkudata(L, idx, LEO_TILED_OBJECT_LAYER_META);
+}
+
+static const leo_TiledObjectLayer *lua_check_tiled_object_layer(lua_State *L, int idx)
+{
+    leo__LuaTiledObjectLayer *ud = check_tiled_object_layer_ud(L, idx);
+    luaL_argcheck(L, ud->map_ud && ud->map_ud->map, idx, "tiled map has been freed");
+    return ud->layer;
+}
+
+static void lua_push_tiled_properties(lua_State *L, const leo_TiledProperty *props, int count)
+{
+    lua_createtable(L, 0, count > 0 ? count : 0);
+    for (int i = 0; i < count; ++i)
+    {
+        const char *name = props[i].name ? props[i].name : "";
+        switch (props[i].type)
+        {
+        case LEO_TILED_PROP_STRING:
+            lua_pushstring(L, props[i].val.s ? props[i].val.s : "");
+            break;
+        case LEO_TILED_PROP_INT:
+            lua_pushinteger(L, props[i].val.i);
+            break;
+        case LEO_TILED_PROP_FLOAT:
+            lua_pushnumber(L, props[i].val.f);
+            break;
+        case LEO_TILED_PROP_BOOL:
+            lua_pushboolean(L, props[i].val.b != 0);
+            break;
+        default:
+            lua_pushnil(L);
+            break;
+        }
+        lua_setfield(L, -2, name);
+    }
+}
+
+static void lua_push_tiled_object(lua_State *L, const leo_TiledObject *obj)
+{
+    lua_createtable(L, 0, 9);
+    lua_pushstring(L, obj->name ? obj->name : "");
+    lua_setfield(L, -2, "name");
+    lua_pushstring(L, obj->type ? obj->type : "");
+    lua_setfield(L, -2, "type");
+    lua_pushnumber(L, obj->x);
+    lua_setfield(L, -2, "x");
+    lua_pushnumber(L, obj->y);
+    lua_setfield(L, -2, "y");
+    lua_pushnumber(L, obj->width);
+    lua_setfield(L, -2, "width");
+    lua_pushnumber(L, obj->height);
+    lua_setfield(L, -2, "height");
+    lua_pushinteger(L, (lua_Integer)obj->gid_raw);
+    lua_setfield(L, -2, "gid");
+    lua_push_tiled_properties(L, obj->props, obj->prop_count);
+    lua_setfield(L, -2, "properties");
+}
+
+static void lua_push_tiled_tileset(lua_State *L, const leo_TiledTileset *ts)
+{
+    lua_createtable(L, 0, 8);
+    lua_pushinteger(L, ts->first_gid);
+    lua_setfield(L, -2, "first_gid");
+    lua_pushinteger(L, ts->tilewidth);
+    lua_setfield(L, -2, "tilewidth");
+    lua_pushinteger(L, ts->tileheight);
+    lua_setfield(L, -2, "tileheight");
+    lua_pushinteger(L, ts->imagewidth);
+    lua_setfield(L, -2, "imagewidth");
+    lua_pushinteger(L, ts->imageheight);
+    lua_setfield(L, -2, "imageheight");
+    lua_pushinteger(L, ts->columns);
+    lua_setfield(L, -2, "columns");
+    lua_pushinteger(L, ts->tilecount);
+    lua_setfield(L, -2, "tilecount");
+    lua_pushstring(L, ts->name ? ts->name : "");
+    lua_setfield(L, -2, "name");
+    lua_pushstring(L, ts->image ? ts->image : "");
+    lua_setfield(L, -2, "image");
+}
+
+static int leo_tiled_count_layers_of_type(const leo_TiledMap *map, leo_TiledLayerType type)
+{
+    int count = 0;
+    if (!map)
+        return 0;
+    for (int i = 0; i < map->layer_count; ++i)
+    {
+        if (map->layers[i].type == type)
+            count++;
+    }
+    return count;
+}
+
+static const leo_TiledTileLayer *leo_tiled_get_tile_layer_at(const leo_TiledMap *map, int idx)
+{
+    int count = 0;
+    if (!map)
+        return NULL;
+    for (int i = 0; i < map->layer_count; ++i)
+    {
+        if (map->layers[i].type == LEO_TILED_LAYER_TILE)
+        {
+            count++;
+            if (count == idx)
+                return &map->layers[i].as.tile;
+        }
+    }
+    return NULL;
+}
+
+static const leo_TiledObjectLayer *leo_tiled_get_object_layer_at(const leo_TiledMap *map, int idx)
+{
+    int count = 0;
+    if (!map)
+        return NULL;
+    for (int i = 0; i < map->layer_count; ++i)
+    {
+        if (map->layers[i].type == LEO_TILED_LAYER_OBJECT)
+        {
+            count++;
+            if (count == idx)
+                return &map->layers[i].as.object;
+        }
+    }
+    return NULL;
+}
+
 static int l_texture_gc(lua_State *L)
 {
     leo__LuaTexture *ud = (leo__LuaTexture *)luaL_testudata(L, 1, LEO_TEX_META);
@@ -195,6 +412,18 @@ static int l_json_doc_gc(lua_State *L)
     return 0;
 }
 
+static int l_tiled_map_gc(lua_State *L)
+{
+    leo__LuaTiledMap *ud = (leo__LuaTiledMap *)luaL_testudata(L, 1, LEO_TILED_MAP_META);
+    if (ud && ud->owns && ud->map)
+    {
+        leo_tiled_free(ud->map);
+        ud->map = NULL;
+        ud->owns = 0;
+    }
+    return 0;
+}
+
 static void register_texture_mt(lua_State *L)
 {
     if (luaL_newmetatable(L, LEO_TEX_META))
@@ -240,6 +469,36 @@ static void register_json_node_mt(lua_State *L)
     if (luaL_newmetatable(L, LEO_JSON_NODE_META))
     {
         lua_pushstring(L, "leo_json_node");
+        lua_setfield(L, -2, "__name");
+    }
+    lua_pop(L, 1);
+}
+
+static void register_tiled_map_mt(lua_State *L)
+{
+    if (luaL_newmetatable(L, LEO_TILED_MAP_META))
+    {
+        lua_pushcfunction(L, l_tiled_map_gc);
+        lua_setfield(L, -2, "__gc");
+    }
+    lua_pop(L, 1);
+}
+
+static void register_tiled_tile_layer_mt(lua_State *L)
+{
+    if (luaL_newmetatable(L, LEO_TILED_TILE_LAYER_META))
+    {
+        lua_pushstring(L, "leo_tiled_tile_layer");
+        lua_setfield(L, -2, "__name");
+    }
+    lua_pop(L, 1);
+}
+
+static void register_tiled_object_layer_mt(lua_State *L)
+{
+    if (luaL_newmetatable(L, LEO_TILED_OBJECT_LAYER_META))
+    {
+        lua_pushstring(L, "leo_tiled_object_layer");
         lua_setfield(L, -2, "__name");
     }
     lua_pop(L, 1);
@@ -1331,6 +1590,284 @@ static int l_leo_json_as_bool(lua_State *L)
 
 
 // -----------------------------------------------------------------------------
+// Tiled bindings
+// -----------------------------------------------------------------------------
+static int l_leo_tiled_load(lua_State *L)
+{
+    const char *path = luaL_checkstring(L, 1);
+    leo_TiledLoadOptions opt;
+    leo_TiledLoadOptions *opt_ptr = NULL;
+    if (!lua_isnoneornil(L, 2))
+    {
+        luaL_checktype(L, 2, LUA_TTABLE);
+        memset(&opt, 0, sizeof(opt));
+        opt.allow_compression = 1;
+        lua_getfield(L, 2, "image_base");
+        if (!lua_isnil(L, -1))
+            opt.image_base = luaL_checkstring(L, -1);
+        lua_pop(L, 1);
+
+        lua_getfield(L, 2, "allow_compression");
+        if (!lua_isnil(L, -1))
+            opt.allow_compression = lua_toboolean(L, -1) ? 1 : 0;
+        lua_pop(L, 1);
+
+        lua_getfield(L, 2, "remap_image");
+        if (!lua_isnil(L, -1))
+        {
+            return luaL_error(L, "leo_tiled_load: remap_image option is not supported in Lua bindings");
+        }
+        lua_pop(L, 1);
+
+        opt_ptr = &opt;
+    }
+
+    leo_TiledMap *map = leo_tiled_load(path, opt_ptr);
+    if (!map)
+    {
+        const char *err = leo_GetError();
+        lua_pushnil(L);
+        lua_pushstring(L, (err && *err) ? err : "leo_tiled_load failed");
+        return 2;
+    }
+
+    push_tiled_map(L, map, 1);
+    return 1;
+}
+
+static int l_leo_tiled_free(lua_State *L)
+{
+    leo__LuaTiledMap *ud = check_tiled_map_ud(L, 1);
+    if (ud->map)
+    {
+        leo_tiled_free(ud->map);
+        ud->map = NULL;
+    }
+    ud->owns = 0;
+    return 0;
+}
+
+static int l_leo_tiled_map_get_size(lua_State *L)
+{
+    leo_TiledMap *map = lua_check_tiled_map(L, 1);
+    lua_pushinteger(L, map->width);
+    lua_pushinteger(L, map->height);
+    return 2;
+}
+
+static int l_leo_tiled_map_get_tile_size(lua_State *L)
+{
+    leo_TiledMap *map = lua_check_tiled_map(L, 1);
+    lua_pushinteger(L, map->tilewidth);
+    lua_pushinteger(L, map->tileheight);
+    return 2;
+}
+
+static int l_leo_tiled_map_get_metadata(lua_State *L)
+{
+    leo_TiledMap *map = lua_check_tiled_map(L, 1);
+    lua_createtable(L, 0, 2);
+    lua_pushstring(L, map->orientation ? map->orientation : "");
+    lua_setfield(L, -2, "orientation");
+    lua_pushstring(L, map->renderorder ? map->renderorder : "");
+    lua_setfield(L, -2, "renderorder");
+    return 1;
+}
+
+static int l_leo_tiled_map_get_properties(lua_State *L)
+{
+    leo_TiledMap *map = lua_check_tiled_map(L, 1);
+    lua_push_tiled_properties(L, map->props, map->prop_count);
+    return 1;
+}
+
+static int l_leo_tiled_map_tile_layer_count(lua_State *L)
+{
+    leo_TiledMap *map = lua_check_tiled_map(L, 1);
+    lua_pushinteger(L, leo_tiled_count_layers_of_type(map, LEO_TILED_LAYER_TILE));
+    return 1;
+}
+
+static int l_leo_tiled_map_object_layer_count(lua_State *L)
+{
+    leo_TiledMap *map = lua_check_tiled_map(L, 1);
+    lua_pushinteger(L, leo_tiled_count_layers_of_type(map, LEO_TILED_LAYER_OBJECT));
+    return 1;
+}
+
+static int l_leo_tiled_map_get_tile_layer(lua_State *L)
+{
+    leo__LuaTiledMap *map_ud = check_tiled_map_ud(L, 1);
+    leo_TiledMap *map = lua_check_tiled_map(L, 1);
+    int idx = (int)luaL_checkinteger(L, 2);
+    luaL_argcheck(L, idx >= 1, 2, "index must be >= 1");
+    const leo_TiledTileLayer *layer = leo_tiled_get_tile_layer_at(map, idx);
+    if (!layer)
+    {
+        lua_pushnil(L);
+        return 1;
+    }
+    int abs_map = lua_absindex(L, 1);
+    push_tiled_tile_layer(L, map_ud, layer, abs_map);
+    return 1;
+}
+
+static int l_leo_tiled_map_get_object_layer(lua_State *L)
+{
+    leo__LuaTiledMap *map_ud = check_tiled_map_ud(L, 1);
+    leo_TiledMap *map = lua_check_tiled_map(L, 1);
+    int idx = (int)luaL_checkinteger(L, 2);
+    luaL_argcheck(L, idx >= 1, 2, "index must be >= 1");
+    const leo_TiledObjectLayer *layer = leo_tiled_get_object_layer_at(map, idx);
+    if (!layer)
+    {
+        lua_pushnil(L);
+        return 1;
+    }
+    int abs_map = lua_absindex(L, 1);
+    push_tiled_object_layer(L, map_ud, layer, abs_map);
+    return 1;
+}
+
+static int l_leo_tiled_find_tile_layer(lua_State *L)
+{
+    leo__LuaTiledMap *map_ud = check_tiled_map_ud(L, 1);
+    leo_TiledMap *map = lua_check_tiled_map(L, 1);
+    const char *name = luaL_checkstring(L, 2);
+    const leo_TiledTileLayer *layer = leo_tiled_find_tile_layer(map, name);
+    if (!layer)
+    {
+        lua_pushnil(L);
+        return 1;
+    }
+    int abs_map = lua_absindex(L, 1);
+    push_tiled_tile_layer(L, map_ud, layer, abs_map);
+    return 1;
+}
+
+static int l_leo_tiled_find_object_layer(lua_State *L)
+{
+    leo__LuaTiledMap *map_ud = check_tiled_map_ud(L, 1);
+    leo_TiledMap *map = lua_check_tiled_map(L, 1);
+    const char *name = luaL_checkstring(L, 2);
+    const leo_TiledObjectLayer *layer = leo_tiled_find_object_layer(map, name);
+    if (!layer)
+    {
+        lua_pushnil(L);
+        return 1;
+    }
+    int abs_map = lua_absindex(L, 1);
+    push_tiled_object_layer(L, map_ud, layer, abs_map);
+    return 1;
+}
+
+static int l_leo_tiled_tile_layer_get_name(lua_State *L)
+{
+    const leo_TiledTileLayer *layer = lua_check_tiled_tile_layer(L, 1);
+    lua_pushstring(L, layer->name ? layer->name : "");
+    return 1;
+}
+
+static int l_leo_tiled_tile_layer_get_size(lua_State *L)
+{
+    const leo_TiledTileLayer *layer = lua_check_tiled_tile_layer(L, 1);
+    lua_pushinteger(L, layer->width);
+    lua_pushinteger(L, layer->height);
+    return 2;
+}
+
+static int l_leo_tiled_get_gid(lua_State *L)
+{
+    const leo_TiledTileLayer *layer = lua_check_tiled_tile_layer(L, 1);
+    int x = (int)luaL_checkinteger(L, 2);
+    int y = (int)luaL_checkinteger(L, 3);
+    lua_pushinteger(L, (lua_Integer)leo_tiled_get_gid(layer, x, y));
+    return 1;
+}
+
+static int l_leo_tiled_object_layer_get_name(lua_State *L)
+{
+    const leo_TiledObjectLayer *layer = lua_check_tiled_object_layer(L, 1);
+    lua_pushstring(L, layer->name ? layer->name : "");
+    return 1;
+}
+
+static int l_leo_tiled_object_layer_get_count(lua_State *L)
+{
+    const leo_TiledObjectLayer *layer = lua_check_tiled_object_layer(L, 1);
+    lua_pushinteger(L, layer->object_count);
+    return 1;
+}
+
+static int l_leo_tiled_object_layer_get_object(lua_State *L)
+{
+    const leo_TiledObjectLayer *layer = lua_check_tiled_object_layer(L, 1);
+    int idx = (int)luaL_checkinteger(L, 2);
+    luaL_argcheck(L, idx >= 1 && idx <= layer->object_count, 2, "index out of range");
+    lua_push_tiled_object(L, &layer->objects[idx - 1]);
+    return 1;
+}
+
+static int l_leo_tiled_tileset_count(lua_State *L)
+{
+    leo_TiledMap *map = lua_check_tiled_map(L, 1);
+    lua_pushinteger(L, map->tileset_count);
+    return 1;
+}
+
+static int l_leo_tiled_map_get_tileset(lua_State *L)
+{
+    leo_TiledMap *map = lua_check_tiled_map(L, 1);
+    int idx = (int)luaL_checkinteger(L, 2);
+    luaL_argcheck(L, idx >= 1 && idx <= map->tileset_count, 2, "index out of range");
+    lua_push_tiled_tileset(L, &map->tilesets[idx - 1]);
+    return 1;
+}
+
+static int l_leo_tiled_gid_info(lua_State *L)
+{
+    uint32_t gid = (uint32_t)luaL_checkinteger(L, 1);
+    leo_TiledGidInfo info = leo_tiled_gid_info(gid);
+    lua_createtable(L, 0, 5);
+    lua_pushinteger(L, info.gid_raw);
+    lua_setfield(L, -2, "gid_raw");
+    lua_pushinteger(L, info.id);
+    lua_setfield(L, -2, "id");
+    lua_pushboolean(L, info.flip_h);
+    lua_setfield(L, -2, "flip_h");
+    lua_pushboolean(L, info.flip_v);
+    lua_setfield(L, -2, "flip_v");
+    lua_pushboolean(L, info.flip_d);
+    lua_setfield(L, -2, "flip_d");
+    return 1;
+}
+
+static int l_leo_tiled_resolve_gid(lua_State *L)
+{
+    leo_TiledMap *map = lua_check_tiled_map(L, 1);
+    uint32_t gid = (uint32_t)luaL_checkinteger(L, 2);
+    const leo_TiledTileset *ts = NULL;
+    leo_Rectangle src;
+    if (!leo_tiled_resolve_gid(map, gid, &ts, &src))
+    {
+        lua_pushboolean(L, 0);
+        return 1;
+    }
+    lua_pushboolean(L, 1);
+    lua_push_tiled_tileset(L, ts);
+    lua_createtable(L, 0, 4);
+    lua_pushnumber(L, src.x);
+    lua_setfield(L, -2, "x");
+    lua_pushnumber(L, src.y);
+    lua_setfield(L, -2, "y");
+    lua_pushnumber(L, src.width);
+    lua_setfield(L, -2, "width");
+    lua_pushnumber(L, src.height);
+    lua_setfield(L, -2, "height");
+    return 3;
+}
+
+// -----------------------------------------------------------------------------
 // Logical resolution
 // -----------------------------------------------------------------------------
 static int l_leo_set_logical_resolution(lua_State *L)
@@ -1354,6 +1891,9 @@ int leo_LuaOpenBindings(void *vL)
     register_font_mt(L);
     register_json_doc_mt(L);
     register_json_node_mt(L);
+    register_tiled_map_mt(L);
+    register_tiled_tile_layer_mt(L);
+    register_tiled_object_layer_mt(L);
 
     static const luaL_Reg leo_funcs[] = {
         {"leo_init_window", l_leo_init_window},
@@ -1462,6 +2002,28 @@ int leo_LuaOpenBindings(void *vL)
         {"leo_json_as_int", l_leo_json_as_int},
         {"leo_json_as_double", l_leo_json_as_double},
         {"leo_json_as_bool", l_leo_json_as_bool},
+        {"leo_tiled_load", l_leo_tiled_load},
+        {"leo_tiled_free", l_leo_tiled_free},
+        {"leo_tiled_map_get_size", l_leo_tiled_map_get_size},
+        {"leo_tiled_map_get_tile_size", l_leo_tiled_map_get_tile_size},
+        {"leo_tiled_map_get_metadata", l_leo_tiled_map_get_metadata},
+        {"leo_tiled_map_get_properties", l_leo_tiled_map_get_properties},
+        {"leo_tiled_map_tile_layer_count", l_leo_tiled_map_tile_layer_count},
+        {"leo_tiled_map_object_layer_count", l_leo_tiled_map_object_layer_count},
+        {"leo_tiled_map_get_tile_layer", l_leo_tiled_map_get_tile_layer},
+        {"leo_tiled_map_get_object_layer", l_leo_tiled_map_get_object_layer},
+        {"leo_tiled_find_tile_layer", l_leo_tiled_find_tile_layer},
+        {"leo_tiled_find_object_layer", l_leo_tiled_find_object_layer},
+        {"leo_tiled_tile_layer_get_name", l_leo_tiled_tile_layer_get_name},
+        {"leo_tiled_tile_layer_get_size", l_leo_tiled_tile_layer_get_size},
+        {"leo_tiled_get_gid", l_leo_tiled_get_gid},
+        {"leo_tiled_object_layer_get_name", l_leo_tiled_object_layer_get_name},
+        {"leo_tiled_object_layer_get_count", l_leo_tiled_object_layer_get_count},
+        {"leo_tiled_object_layer_get_object", l_leo_tiled_object_layer_get_object},
+        {"leo_tiled_tileset_count", l_leo_tiled_tileset_count},
+        {"leo_tiled_map_get_tileset", l_leo_tiled_map_get_tileset},
+        {"leo_tiled_gid_info", l_leo_tiled_gid_info},
+        {"leo_tiled_resolve_gid", l_leo_tiled_resolve_gid},
         {"leo_set_logical_resolution", l_leo_set_logical_resolution},
         {NULL, NULL}
     };
@@ -1494,6 +2056,12 @@ int leo_LuaOpenBindings(void *vL)
     lua_pushinteger(L, LEO_SCALE_NEAREST); lua_setglobal(L, "leo_SCALE_NEAREST");
     lua_pushinteger(L, LEO_SCALE_LINEAR); lua_setglobal(L, "leo_SCALE_LINEAR");
     lua_pushinteger(L, LEO_SCALE_PIXELART); lua_setglobal(L, "leo_SCALE_PIXELART");
+
+    // Tiled GID flags
+    lua_pushinteger(L, (lua_Integer)LEO_TILED_FLIP_H); lua_setglobal(L, "leo_TILED_FLIP_H");
+    lua_pushinteger(L, (lua_Integer)LEO_TILED_FLIP_V); lua_setglobal(L, "leo_TILED_FLIP_V");
+    lua_pushinteger(L, (lua_Integer)LEO_TILED_FLIP_D); lua_setglobal(L, "leo_TILED_FLIP_D");
+    lua_pushinteger(L, (lua_Integer)LEO_TILED_GID_MASK); lua_setglobal(L, "leo_TILED_GID_MASK");
 
 #define LEO_SET_KEY_CONST(name)            \
     do                                     \
