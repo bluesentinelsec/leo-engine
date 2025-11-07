@@ -1,5 +1,6 @@
 #include "leo/lua_bindings.h"
 
+#include "leo/actor.h"
 #include "leo/engine.h"
 #include "leo/error.h"
 #include "leo/font.h"
@@ -14,6 +15,8 @@
 #include <lauxlib.h>
 #include <lua.h>
 #include <lualib.h>
+#include <stdio.h>
+#include <stdlib.h>
 #include <string.h>
 
 typedef struct
@@ -63,6 +66,32 @@ typedef struct
     const leo_TiledObjectLayer *layer;
 } leo__LuaTiledObjectLayer;
 
+typedef struct leo__LuaActorSystemUD
+{
+    leo_ActorSystem *sys;
+    lua_State *L;
+    int owns;
+    struct leo__LuaActorSystemUD *next;
+} leo__LuaActorSystemUD;
+
+typedef struct leo__LuaActorBinding
+{
+    uint32_t magic;
+    leo__LuaActorSystemUD *sys_ud;
+    int ref_table;
+    void *user_ptr;
+    char *name_owned;
+} leo__LuaActorBinding;
+
+#define LEO_LUA_ACTOR_MAGIC 0x4C414354u /* 'LACT' */
+
+typedef struct
+{
+    lua_State *L;
+    int ref_func;
+    int ref_user;
+} leo__LuaActorEnumCtx;
+
 static const char *LEO_TEX_META = "leo_texture";
 static const char *LEO_RT_META = "leo_render_texture";
 static const char *LEO_FONT_META = "leo_font";
@@ -71,6 +100,21 @@ static const char *LEO_JSON_NODE_META = "leo_json_node";
 static const char *LEO_TILED_MAP_META = "leo_tiled_map";
 static const char *LEO_TILED_TILE_LAYER_META = "leo_tiled_tile_layer";
 static const char *LEO_TILED_OBJECT_LAYER_META = "leo_tiled_object_layer";
+static const char *LEO_ACTOR_SYSTEM_META = "leo_actor_system";
+
+static leo__LuaActorSystemUD *g_actor_systems = NULL;
+
+static bool leo__lua_actor_on_init(leo_Actor *self);
+static void leo__lua_actor_on_update(leo_Actor *self, float dt);
+static void leo__lua_actor_on_render(leo_Actor *self);
+static void leo__lua_actor_on_exit(leo_Actor *self);
+
+static const leo_ActorVTable LEO_LUA_ACTOR_VTABLE = {
+    leo__lua_actor_on_init,
+    leo__lua_actor_on_update,
+    leo__lua_actor_on_render,
+    leo__lua_actor_on_exit,
+};
 
 static leo__LuaTexture *push_texture(lua_State *L, leo_Texture2D t, int owns)
 {
@@ -157,6 +201,133 @@ static leo_JsonNode lua_check_json_node(lua_State *L, int idx)
 {
     leo__LuaJsonNode *ud = check_json_node_ud(L, idx);
     return ud->node;
+}
+
+static leo_SignalEmitter *lua_check_signal_emitter_ptr(lua_State *L, int idx)
+{
+    luaL_argcheck(L, lua_islightuserdata(L, idx), idx, "expected lightuserdata (leo_SignalEmitter*)");
+    return (leo_SignalEmitter *)lua_touserdata(L, idx);
+}
+
+static void lua_actor_system_register(leo__LuaActorSystemUD *ud)
+{
+    ud->next = g_actor_systems;
+    g_actor_systems = ud;
+}
+
+static void lua_actor_system_unregister(leo__LuaActorSystemUD *ud)
+{
+    leo__LuaActorSystemUD **it = &g_actor_systems;
+    while (*it)
+    {
+        if (*it == ud)
+        {
+            *it = ud->next;
+            return;
+        }
+        it = &(*it)->next;
+    }
+}
+
+static leo__LuaActorBinding *lua_actor_binding_from_actor(const leo_Actor *actor)
+{
+    if (!actor)
+        return NULL;
+    void *ptr = leo_actor_userdata((leo_Actor *)actor);
+    if (!ptr)
+        return NULL;
+    leo__LuaActorBinding *binding = (leo__LuaActorBinding *)ptr;
+    return (binding && binding->magic == LEO_LUA_ACTOR_MAGIC) ? binding : NULL;
+}
+
+static lua_State *lua_actor_binding_state(leo__LuaActorBinding *binding)
+{
+    if (!binding || !binding->sys_ud)
+        return NULL;
+    return binding->sys_ud->L;
+}
+
+static leo__LuaActorSystemUD *check_actor_system_ud(lua_State *L, int idx)
+{
+    return (leo__LuaActorSystemUD *)luaL_checkudata(L, idx, LEO_ACTOR_SYSTEM_META);
+}
+
+static leo_ActorSystem *lua_get_actor_system(lua_State *L, int idx, leo__LuaActorSystemUD **out_ud)
+{
+    leo__LuaActorSystemUD *ud = check_actor_system_ud(L, idx);
+    luaL_argcheck(L, ud->sys != NULL, idx, "actor system has been destroyed");
+    if (out_ud)
+        *out_ud = ud;
+    return ud->sys;
+}
+
+static leo_Actor *lua_check_actor(lua_State *L, int idx)
+{
+    luaL_argcheck(L, lua_islightuserdata(L, idx), idx, "expected actor pointer (lightuserdata)");
+    return (leo_Actor *)lua_touserdata(L, idx);
+}
+
+static int lua_actor_binding_get_field(lua_State *L, leo__LuaActorBinding *binding, const char *field)
+{
+    if (!binding || binding->ref_table == LUA_NOREF)
+        return 0;
+    lua_rawgeti(L, LUA_REGISTRYINDEX, binding->ref_table);
+    lua_getfield(L, -1, field);
+    lua_remove(L, -2);
+    if (lua_isnil(L, -1))
+    {
+        lua_pop(L, 1);
+        return 0;
+    }
+    return 1;
+}
+
+static void lua_actor_binding_release(lua_State *L, leo__LuaActorBinding *binding)
+{
+    if (!binding)
+        return;
+    if (binding->ref_table != LUA_NOREF && binding->ref_table != LUA_REFNIL)
+    {
+        luaL_unref(L, LUA_REGISTRYINDEX, binding->ref_table);
+        binding->ref_table = LUA_NOREF;
+    }
+    if (binding->name_owned)
+    {
+        free(binding->name_owned);
+        binding->name_owned = NULL;
+    }
+    binding->magic = 0;
+    free(binding);
+}
+
+static void leo__lua_actor_enum_invoke(leo__LuaActorEnumCtx *ctx, leo_Actor *actor)
+{
+    if (!ctx || ctx->ref_func == LUA_NOREF)
+        return;
+    lua_State *L = ctx->L;
+    lua_rawgeti(L, LUA_REGISTRYINDEX, ctx->ref_func);
+    lua_pushlightuserdata(L, actor);
+    if (ctx->ref_user != LUA_NOREF)
+        lua_rawgeti(L, LUA_REGISTRYINDEX, ctx->ref_user);
+    else
+        lua_pushnil(L);
+    if (lua_pcall(L, 2, 0, 0) != LUA_OK)
+    {
+        fprintf(stderr, "leo_actor callback error: %s\n", lua_tostring(L, -1));
+        lua_pop(L, 1);
+    }
+}
+
+static void leo__lua_actor_child_fn(leo_Actor *child, void *user)
+{
+    leo__LuaActorEnumCtx *ctx = (leo__LuaActorEnumCtx *)user;
+    leo__lua_actor_enum_invoke(ctx, child);
+}
+
+static void leo__lua_actor_group_fn(leo_Actor *actor, void *user)
+{
+    leo__LuaActorEnumCtx *ctx = (leo__LuaActorEnumCtx *)user;
+    leo__lua_actor_enum_invoke(ctx, actor);
 }
 
 static leo__LuaTiledMap *push_tiled_map(lua_State *L, leo_TiledMap *map, int owns)
@@ -501,6 +672,31 @@ static void register_tiled_object_layer_mt(lua_State *L)
     {
         lua_pushstring(L, "leo_tiled_object_layer");
         lua_setfield(L, -2, "__name");
+    }
+    lua_pop(L, 1);
+}
+
+static int l_actor_system_gc(lua_State *L)
+{
+    leo__LuaActorSystemUD *ud = (leo__LuaActorSystemUD *)luaL_testudata(L, 1, LEO_ACTOR_SYSTEM_META);
+    if (!ud || !ud->owns)
+        return 0;
+    if (ud->sys)
+    {
+        lua_actor_system_unregister(ud);
+        leo_actor_system_destroy(ud->sys);
+        ud->sys = NULL;
+    }
+    ud->owns = 0;
+    return 0;
+}
+
+static void register_actor_system_mt(lua_State *L)
+{
+    if (luaL_newmetatable(L, LEO_ACTOR_SYSTEM_META))
+    {
+        lua_pushcfunction(L, l_actor_system_gc);
+        lua_setfield(L, -2, "__gc");
     }
     lua_pop(L, 1);
 }
@@ -1703,6 +1899,562 @@ static int l_leo_json_as_bool(lua_State *L)
 
 
 // -----------------------------------------------------------------------------
+// Actor bindings
+// -----------------------------------------------------------------------------
+static int l_leo_actor_system_create(lua_State *L)
+{
+    leo_ActorSystem *sys = leo_actor_system_create();
+    if (!sys)
+    {
+        lua_pushnil(L);
+        lua_pushstring(L, "leo_actor_system_create failed");
+        return 2;
+    }
+    leo__LuaActorSystemUD *ud = (leo__LuaActorSystemUD *)lua_newuserdata(L, sizeof(*ud));
+    ud->sys = sys;
+    ud->L = L;
+    ud->owns = 1;
+    lua_actor_system_register(ud);
+    luaL_getmetatable(L, LEO_ACTOR_SYSTEM_META);
+    lua_setmetatable(L, -2);
+    return 1;
+}
+
+static int l_leo_actor_system_destroy(lua_State *L)
+{
+    leo__LuaActorSystemUD *ud = check_actor_system_ud(L, 1);
+    if (ud->sys)
+    {
+        lua_actor_system_unregister(ud);
+        leo_actor_system_destroy(ud->sys);
+        ud->sys = NULL;
+    }
+    ud->owns = 0;
+    return 0;
+}
+
+static int l_leo_actor_system_update(lua_State *L)
+{
+    leo__LuaActorSystemUD *ud = NULL;
+    leo_ActorSystem *sys = lua_get_actor_system(L, 1, &ud);
+    float dt = (float)luaL_checknumber(L, 2);
+    ud->L = L;
+    leo_actor_system_update(sys, dt);
+    return 0;
+}
+
+static int l_leo_actor_system_render(lua_State *L)
+{
+    leo__LuaActorSystemUD *ud = NULL;
+    leo_ActorSystem *sys = lua_get_actor_system(L, 1, &ud);
+    ud->L = L;
+    leo_actor_system_render(sys);
+    return 0;
+}
+
+static int l_leo_actor_system_set_paused(lua_State *L)
+{
+    leo_ActorSystem *sys = lua_get_actor_system(L, 1, NULL);
+    bool paused = lua_toboolean(L, 2) != 0;
+    leo_actor_system_set_paused(sys, paused);
+    return 0;
+}
+
+static int l_leo_actor_system_is_paused(lua_State *L)
+{
+    leo_ActorSystem *sys = lua_get_actor_system(L, 1, NULL);
+    lua_pushboolean(L, leo_actor_system_is_paused(sys));
+    return 1;
+}
+
+static int l_leo_actor_system_root(lua_State *L)
+{
+    leo_ActorSystem *sys = lua_get_actor_system(L, 1, NULL);
+    leo_Actor *root = leo_actor_system_root(sys);
+    if (root)
+        lua_pushlightuserdata(L, root);
+    else
+        lua_pushnil(L);
+    return 1;
+}
+
+static int l_leo_actor_spawn(lua_State *L)
+{
+    leo__LuaActorSystemUD *sys_ud = NULL;
+    lua_get_actor_system(L, 1, &sys_ud);
+    leo_Actor *parent = lua_check_actor(L, 2);
+    luaL_checktype(L, 3, LUA_TTABLE);
+    sys_ud->L = L;
+
+    const int desc_index = 3;
+    leo_ActorDesc desc;
+    memset(&desc, 0, sizeof(desc));
+
+    lua_getfield(L, desc_index, "name");
+    int has_name = !lua_isnil(L, -1);
+    const char *name_str = NULL;
+    if (has_name)
+    {
+        name_str = luaL_checkstring(L, -1);
+        desc.name = name_str;
+    }
+    lua_pop(L, 1);
+
+    lua_getfield(L, desc_index, "groups");
+    if (!lua_isnil(L, -1))
+        desc.groups = (leo_ActorGroupMask)luaL_checkinteger(L, -1);
+    lua_pop(L, 1);
+
+    lua_getfield(L, desc_index, "start_paused");
+    if (!lua_isnil(L, -1))
+        desc.start_paused = lua_toboolean(L, -1) ? true : false;
+    lua_pop(L, 1);
+
+    const leo_ActorVTable *external_vtable = NULL;
+    lua_getfield(L, desc_index, "vtable");
+    if (!lua_isnil(L, -1))
+        external_vtable = (const leo_ActorVTable *)lua_touserdata(L, -1);
+    lua_pop(L, 1);
+
+    void *user_ptr = NULL;
+    lua_getfield(L, desc_index, "user_ptr");
+    if (!lua_isnil(L, -1))
+        user_ptr = lua_touserdata(L, -1);
+    lua_pop(L, 1);
+
+    int has_on_init = 0, has_on_update = 0, has_on_render = 0, has_on_exit = 0;
+
+    lua_getfield(L, desc_index, "on_init");
+    has_on_init = lua_isfunction(L, -1);
+    lua_pop(L, 1);
+
+    lua_getfield(L, desc_index, "on_update");
+    has_on_update = lua_isfunction(L, -1);
+    lua_pop(L, 1);
+
+    lua_getfield(L, desc_index, "on_render");
+    has_on_render = lua_isfunction(L, -1);
+    lua_pop(L, 1);
+
+    lua_getfield(L, desc_index, "on_exit");
+    has_on_exit = lua_isfunction(L, -1);
+    lua_pop(L, 1);
+
+    lua_getfield(L, desc_index, "user_value");
+    int has_user_value = !lua_isnil(L, -1);
+    lua_pop(L, 1);
+
+    if (external_vtable && (has_on_init || has_on_update || has_on_render || has_on_exit))
+        return luaL_error(L, "leo_actor_spawn: cannot supply both custom vtable and Lua callbacks");
+    if (external_vtable && has_name)
+        return luaL_error(L, "leo_actor_spawn: cannot set Lua string name when supplying custom vtable");
+
+    int needs_binding = (!external_vtable) && (has_on_init || has_on_update || has_on_render ||
+                                               has_on_exit || has_user_value || has_name);
+    leo__LuaActorBinding *binding = NULL;
+
+    if (needs_binding)
+    {
+        binding = (leo__LuaActorBinding *)calloc(1, sizeof(*binding));
+        if (!binding)
+            return luaL_error(L, "leo_actor_spawn: OOM allocating binding");
+        binding->magic = 0;
+        binding->sys_ud = sys_ud;
+        binding->user_ptr = user_ptr;
+        binding->ref_table = LUA_NOREF;
+
+        lua_newtable(L);
+        if (has_on_init)
+        {
+            lua_getfield(L, desc_index, "on_init");
+            lua_setfield(L, -2, "on_init");
+        }
+        if (has_on_update)
+        {
+            lua_getfield(L, desc_index, "on_update");
+            lua_setfield(L, -2, "on_update");
+        }
+        if (has_on_render)
+        {
+            lua_getfield(L, desc_index, "on_render");
+            lua_setfield(L, -2, "on_render");
+        }
+        if (has_on_exit)
+        {
+            lua_getfield(L, desc_index, "on_exit");
+            lua_setfield(L, -2, "on_exit");
+        }
+        if (has_user_value)
+        {
+            lua_getfield(L, desc_index, "user_value");
+            lua_setfield(L, -2, "user_value");
+        }
+        binding->ref_table = luaL_ref(L, LUA_REGISTRYINDEX);
+        desc.vtable = &LEO_LUA_ACTOR_VTABLE;
+        desc.user_data = binding;
+
+        if (has_name && name_str)
+        {
+            binding->name_owned = strdup(name_str);
+            if (!binding->name_owned)
+            {
+                lua_actor_binding_release(L, binding);
+                return luaL_error(L, "leo_actor_spawn: OOM duplicating name");
+            }
+            desc.name = binding->name_owned;
+        }
+    }
+    else
+    {
+        desc.vtable = external_vtable;
+        desc.user_data = user_ptr;
+    }
+
+    sys_ud->L = L;
+    leo_Actor *actor = leo_actor_spawn(parent, &desc);
+    if (!actor)
+    {
+        if (binding && binding->magic != LEO_LUA_ACTOR_MAGIC)
+            lua_actor_binding_release(L, binding);
+        lua_pushnil(L);
+        return 1;
+    }
+
+    lua_pushlightuserdata(L, actor);
+    return 1;
+}
+
+static int l_leo_actor_kill(lua_State *L)
+{
+    leo_Actor *actor = lua_check_actor(L, 1);
+    leo_actor_kill(actor);
+    return 0;
+}
+
+static int l_leo_actor_uid(lua_State *L)
+{
+    leo_Actor *actor = lua_check_actor(L, 1);
+    lua_pushinteger(L, (lua_Integer)leo_actor_uid(actor));
+    return 1;
+}
+
+static int l_leo_actor_name(lua_State *L)
+{
+    leo_Actor *actor = lua_check_actor(L, 1);
+    const char *name = leo_actor_name(actor);
+    if (name)
+        lua_pushstring(L, name);
+    else
+        lua_pushnil(L);
+    return 1;
+}
+
+static int l_leo_actor_parent(lua_State *L)
+{
+    leo_Actor *actor = lua_check_actor(L, 1);
+    leo_Actor *parent = leo_actor_parent(actor);
+    if (parent)
+        lua_pushlightuserdata(L, parent);
+    else
+        lua_pushnil(L);
+    return 1;
+}
+
+static int l_leo_actor_find_child_by_name(lua_State *L)
+{
+    leo_Actor *parent = lua_check_actor(L, 1);
+    const char *name = luaL_checkstring(L, 2);
+    leo_Actor *child = leo_actor_find_child_by_name(parent, name);
+    if (child)
+        lua_pushlightuserdata(L, child);
+    else
+        lua_pushnil(L);
+    return 1;
+}
+
+static int l_leo_actor_find_recursive_by_name(lua_State *L)
+{
+    leo_Actor *parent = lua_check_actor(L, 1);
+    const char *name = luaL_checkstring(L, 2);
+    leo_Actor *child = leo_actor_find_recursive_by_name(parent, name);
+    if (child)
+        lua_pushlightuserdata(L, child);
+    else
+        lua_pushnil(L);
+    return 1;
+}
+
+static int l_leo_actor_find_by_uid(lua_State *L)
+{
+    leo_ActorSystem *sys = lua_get_actor_system(L, 1, NULL);
+    leo_ActorUID uid = (leo_ActorUID)luaL_checkinteger(L, 2);
+    leo_Actor *actor = leo_actor_find_by_uid(sys, uid);
+    if (actor)
+        lua_pushlightuserdata(L, actor);
+    else
+        lua_pushnil(L);
+    return 1;
+}
+
+static int l_leo_actor_group_get_or_create(lua_State *L)
+{
+    leo_ActorSystem *sys = lua_get_actor_system(L, 1, NULL);
+    const char *name = luaL_checkstring(L, 2);
+    lua_pushinteger(L, leo_actor_group_get_or_create(sys, name));
+    return 1;
+}
+
+static int l_leo_actor_group_find(lua_State *L)
+{
+    const leo_ActorSystem *sys = lua_get_actor_system(L, 1, NULL);
+    const char *name = luaL_checkstring(L, 2);
+    lua_pushinteger(L, leo_actor_group_find(sys, name));
+    return 1;
+}
+
+static int l_leo_actor_add_to_group(lua_State *L)
+{
+    leo_Actor *actor = lua_check_actor(L, 1);
+    int bit = (int)luaL_checkinteger(L, 2);
+    leo_actor_add_to_group(actor, bit);
+    return 0;
+}
+
+static int l_leo_actor_remove_from_group(lua_State *L)
+{
+    leo_Actor *actor = lua_check_actor(L, 1);
+    int bit = (int)luaL_checkinteger(L, 2);
+    leo_actor_remove_from_group(actor, bit);
+    return 0;
+}
+
+static int l_leo_actor_in_group(lua_State *L)
+{
+    const leo_Actor *actor = lua_check_actor(L, 1);
+    int bit = (int)luaL_checkinteger(L, 2);
+    lua_pushboolean(L, leo_actor_in_group(actor, bit));
+    return 1;
+}
+
+static int l_leo_actor_groups(lua_State *L)
+{
+    const leo_Actor *actor = lua_check_actor(L, 1);
+    lua_pushinteger(L, (lua_Integer)leo_actor_groups(actor));
+    return 1;
+}
+
+static int l_leo_actor_for_each_in_group(lua_State *L)
+{
+    leo_ActorSystem *sys = lua_get_actor_system(L, 1, NULL);
+    int bit = (int)luaL_checkinteger(L, 2);
+    luaL_checktype(L, 3, LUA_TFUNCTION);
+
+    leo__LuaActorEnumCtx ctx = {0};
+    ctx.L = L;
+    lua_pushvalue(L, 3);
+    ctx.ref_func = luaL_ref(L, LUA_REGISTRYINDEX);
+    if (!lua_isnoneornil(L, 4))
+    {
+        lua_pushvalue(L, 4);
+        ctx.ref_user = luaL_ref(L, LUA_REGISTRYINDEX);
+    }
+    else
+    {
+        ctx.ref_user = LUA_NOREF;
+    }
+
+    leo_actor_for_each_in_group(sys, bit, leo__lua_actor_group_fn, &ctx);
+
+    luaL_unref(L, LUA_REGISTRYINDEX, ctx.ref_func);
+    if (ctx.ref_user != LUA_NOREF)
+        luaL_unref(L, LUA_REGISTRYINDEX, ctx.ref_user);
+    return 0;
+}
+
+static int l_leo_actor_set_paused(lua_State *L)
+{
+    leo_Actor *actor = lua_check_actor(L, 1);
+    bool paused = lua_toboolean(L, 2) != 0;
+    leo_actor_set_paused(actor, paused);
+    return 0;
+}
+
+static int l_leo_actor_is_paused(lua_State *L)
+{
+    const leo_Actor *actor = lua_check_actor(L, 1);
+    lua_pushboolean(L, leo_actor_is_paused(actor));
+    return 1;
+}
+
+static int l_leo_actor_is_effectively_paused(lua_State *L)
+{
+    const leo_Actor *actor = lua_check_actor(L, 1);
+    lua_pushboolean(L, leo_actor_is_effectively_paused(actor));
+    return 1;
+}
+
+static int l_leo_actor_emitter(lua_State *L)
+{
+    leo_Actor *actor = lua_check_actor(L, 1);
+    lua_pushlightuserdata(L, leo_actor_emitter(actor));
+    return 1;
+}
+
+static int l_leo_actor_emitter_const(lua_State *L)
+{
+    const leo_Actor *actor = lua_check_actor(L, 1);
+    lua_pushlightuserdata(L, (void *)leo_actor_emitter_const(actor));
+    return 1;
+}
+
+static int l_leo_actor_userdata(lua_State *L)
+{
+    leo_Actor *actor = lua_check_actor(L, 1);
+    leo__LuaActorBinding *binding = lua_actor_binding_from_actor(actor);
+    void *ptr = binding ? binding->user_ptr : leo_actor_userdata(actor);
+    if (ptr)
+        lua_pushlightuserdata(L, ptr);
+    else
+        lua_pushnil(L);
+    return 1;
+}
+
+static int l_leo_actor_set_userdata(lua_State *L)
+{
+    leo_Actor *actor = lua_check_actor(L, 1);
+    void *ptr = lua_isnoneornil(L, 2) ? NULL : lua_touserdata(L, 2);
+    leo__LuaActorBinding *binding = lua_actor_binding_from_actor(actor);
+    if (binding)
+        binding->user_ptr = ptr;
+    else
+        leo_actor_set_userdata(actor, ptr);
+    return 0;
+}
+
+static int l_leo_actor_for_each_child(lua_State *L)
+{
+    leo_Actor *parent = lua_check_actor(L, 1);
+    luaL_checktype(L, 2, LUA_TFUNCTION);
+
+    leo__LuaActorEnumCtx ctx = {0};
+    ctx.L = L;
+    lua_pushvalue(L, 2);
+    ctx.ref_func = luaL_ref(L, LUA_REGISTRYINDEX);
+    if (!lua_isnoneornil(L, 3))
+    {
+        lua_pushvalue(L, 3);
+        ctx.ref_user = luaL_ref(L, LUA_REGISTRYINDEX);
+    }
+    else
+    {
+        ctx.ref_user = LUA_NOREF;
+    }
+
+    leo_actor_for_each_child(parent, leo__lua_actor_child_fn, &ctx);
+
+    luaL_unref(L, LUA_REGISTRYINDEX, ctx.ref_func);
+    if (ctx.ref_user != LUA_NOREF)
+        luaL_unref(L, LUA_REGISTRYINDEX, ctx.ref_user);
+    return 0;
+}
+
+static int l_leo_actor_set_z(lua_State *L)
+{
+    leo_Actor *actor = lua_check_actor(L, 1);
+    int z = (int)luaL_checkinteger(L, 2);
+    leo_actor_set_z(actor, z);
+    return 0;
+}
+
+static int l_leo_actor_get_z(lua_State *L)
+{
+    const leo_Actor *actor = lua_check_actor(L, 1);
+    lua_pushinteger(L, leo_actor_get_z(actor));
+    return 1;
+}
+
+static bool leo__lua_actor_on_init(leo_Actor *self)
+{
+    leo__LuaActorBinding *binding = lua_actor_binding_from_actor(self);
+    if (!binding)
+        return true;
+    binding->magic = LEO_LUA_ACTOR_MAGIC;
+    lua_State *L = lua_actor_binding_state(binding);
+    if (!L)
+        return true;
+    if (!lua_actor_binding_get_field(L, binding, "on_init"))
+        return true;
+    lua_pushlightuserdata(L, self);
+    if (lua_pcall(L, 1, 1, 0) != LUA_OK)
+    {
+        fprintf(stderr, "leo_actor on_init error: %s\n", lua_tostring(L, -1));
+        lua_pop(L, 1);
+        return true;
+    }
+    bool ok = lua_toboolean(L, -1);
+    lua_pop(L, 1);
+    return ok;
+}
+
+static void leo__lua_actor_on_update(leo_Actor *self, float dt)
+{
+    leo__LuaActorBinding *binding = lua_actor_binding_from_actor(self);
+    if (!binding)
+        return;
+    lua_State *L = lua_actor_binding_state(binding);
+    if (!L || !lua_actor_binding_get_field(L, binding, "on_update"))
+        return;
+    lua_pushlightuserdata(L, self);
+    lua_pushnumber(L, dt);
+    if (lua_pcall(L, 2, 0, 0) != LUA_OK)
+    {
+        fprintf(stderr, "leo_actor on_update error: %s\n", lua_tostring(L, -1));
+        lua_pop(L, 1);
+    }
+}
+
+static void leo__lua_actor_on_render(leo_Actor *self)
+{
+    leo__LuaActorBinding *binding = lua_actor_binding_from_actor(self);
+    if (!binding)
+        return;
+    lua_State *L = lua_actor_binding_state(binding);
+    if (!L || !lua_actor_binding_get_field(L, binding, "on_render"))
+        return;
+    lua_pushlightuserdata(L, self);
+    if (lua_pcall(L, 1, 0, 0) != LUA_OK)
+    {
+        fprintf(stderr, "leo_actor on_render error: %s\n", lua_tostring(L, -1));
+        lua_pop(L, 1);
+    }
+}
+
+static void leo__lua_actor_on_exit(leo_Actor *self)
+{
+    leo__LuaActorBinding *binding = lua_actor_binding_from_actor(self);
+    if (!binding)
+        return;
+    lua_State *L = lua_actor_binding_state(binding);
+    if (L && lua_actor_binding_get_field(L, binding, "on_exit"))
+    {
+        lua_pushlightuserdata(L, self);
+        if (lua_pcall(L, 1, 0, 0) != LUA_OK)
+        {
+            fprintf(stderr, "leo_actor on_exit error: %s\n", lua_tostring(L, -1));
+            lua_pop(L, 1);
+        }
+    }
+    if (!L)
+        L = binding->sys_ud ? binding->sys_ud->L : NULL;
+    if (L)
+        lua_actor_binding_release(L, binding);
+    else
+        free(binding);
+    leo_actor_set_userdata(self, NULL);
+}
+
+
+// -----------------------------------------------------------------------------
 // Tiled bindings
 // -----------------------------------------------------------------------------
 static int l_leo_tiled_load(lua_State *L)
@@ -2007,6 +2759,7 @@ int leo_LuaOpenBindings(void *vL)
     register_tiled_map_mt(L);
     register_tiled_tile_layer_mt(L);
     register_tiled_object_layer_mt(L);
+    register_actor_system_mt(L);
 
     static const luaL_Reg leo_funcs[] = {
         {"leo_init_window", l_leo_init_window},
@@ -2037,6 +2790,38 @@ int leo_LuaOpenBindings(void *vL)
         {"leo_update_keyboard", l_leo_update_keyboard},
         {"leo_is_exit_key_pressed", l_leo_is_exit_key_pressed},
         {"leo_cleanup_keyboard", l_leo_cleanup_keyboard},
+        {"leo_actor_system_create", l_leo_actor_system_create},
+        {"leo_actor_system_destroy", l_leo_actor_system_destroy},
+        {"leo_actor_system_update", l_leo_actor_system_update},
+        {"leo_actor_system_render", l_leo_actor_system_render},
+        {"leo_actor_system_set_paused", l_leo_actor_system_set_paused},
+        {"leo_actor_system_is_paused", l_leo_actor_system_is_paused},
+        {"leo_actor_system_root", l_leo_actor_system_root},
+        {"leo_actor_spawn", l_leo_actor_spawn},
+        {"leo_actor_kill", l_leo_actor_kill},
+        {"leo_actor_uid", l_leo_actor_uid},
+        {"leo_actor_name", l_leo_actor_name},
+        {"leo_actor_parent", l_leo_actor_parent},
+        {"leo_actor_find_child_by_name", l_leo_actor_find_child_by_name},
+        {"leo_actor_find_recursive_by_name", l_leo_actor_find_recursive_by_name},
+        {"leo_actor_find_by_uid", l_leo_actor_find_by_uid},
+        {"leo_actor_group_get_or_create", l_leo_actor_group_get_or_create},
+        {"leo_actor_group_find", l_leo_actor_group_find},
+        {"leo_actor_add_to_group", l_leo_actor_add_to_group},
+        {"leo_actor_remove_from_group", l_leo_actor_remove_from_group},
+        {"leo_actor_in_group", l_leo_actor_in_group},
+        {"leo_actor_groups", l_leo_actor_groups},
+        {"leo_actor_for_each_in_group", l_leo_actor_for_each_in_group},
+        {"leo_actor_set_paused", l_leo_actor_set_paused},
+        {"leo_actor_is_paused", l_leo_actor_is_paused},
+        {"leo_actor_is_effectively_paused", l_leo_actor_is_effectively_paused},
+        {"leo_actor_emitter", l_leo_actor_emitter},
+        {"leo_actor_emitter_const", l_leo_actor_emitter_const},
+        {"leo_actor_userdata", l_leo_actor_userdata},
+        {"leo_actor_set_userdata", l_leo_actor_set_userdata},
+        {"leo_actor_for_each_child", l_leo_actor_for_each_child},
+        {"leo_actor_set_z", l_leo_actor_set_z},
+        {"leo_actor_get_z", l_leo_actor_get_z},
         {"leo_is_touch_down", l_leo_is_touch_down},
         {"leo_is_touch_pressed", l_leo_is_touch_pressed},
         {"leo_is_touch_released", l_leo_is_touch_released},
