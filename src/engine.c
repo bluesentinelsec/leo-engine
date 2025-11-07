@@ -365,11 +365,34 @@ bool leo_SetWindowMode(leo_WindowMode mode)
             leo_SetError("%s", SDL_GetError());
             return false;
         }
-        if (!SDL_SetWindowFullscreen(globalWindow, true))
+        
+        // For borderless fullscreen, we need to:
+        // 1. Make window borderless
+        // 2. Set it to desktop size
+        // 3. Position it at (0,0)
+        SDL_SetWindowBordered(globalWindow, false);
+        
+        // Get desktop display mode for sizing
+        SDL_DisplayID displayID = SDL_GetDisplayForWindow(globalWindow);
+        if (displayID == 0)
         {
-            leo_SetError("%s", SDL_GetError());
+            leo_SetError("Failed to get display for window: %s", SDL_GetError());
             return false;
         }
+        
+        const SDL_DisplayMode *desktopMode = SDL_GetDesktopDisplayMode(displayID);
+        if (!desktopMode)
+        {
+            leo_SetError("Failed to get desktop display mode: %s", SDL_GetError());
+            return false;
+        }
+        
+        // Set window size to desktop size and position at (0,0)
+        SDL_SetWindowSize(globalWindow, desktopMode->w, desktopMode->h);
+        SDL_SetWindowPosition(globalWindow, 0, 0);
+        
+        // Raise window to top
+        SDL_RaiseWindow(globalWindow);
         break;
 
     case LEO_WINDOW_MODE_FULLSCREEN_EXCLUSIVE: {
