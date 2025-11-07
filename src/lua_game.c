@@ -15,6 +15,7 @@
 #include "leo/io.h"
 #include "leo/keyboard.h"
 #include "leo/keys.h"
+#include "leo/mouse.h"
 #include <lauxlib.h>
 #include <lua.h>
 #include <lualib.h>
@@ -235,6 +236,98 @@ static int lua_draw_triangle_filled(lua_State *L)
     return 0;
 }
 
+static int lua_is_mouse_button_pressed(lua_State *L)
+{
+    const int button = luaL_checkinteger(L, 1);
+    lua_pushboolean(L, leo_IsMouseButtonPressed(button));
+    return 1;
+}
+
+static int lua_is_mouse_button_down(lua_State *L)
+{
+    const int button = luaL_checkinteger(L, 1);
+    lua_pushboolean(L, leo_IsMouseButtonDown(button));
+    return 1;
+}
+
+static int lua_is_mouse_button_released(lua_State *L)
+{
+    const int button = luaL_checkinteger(L, 1);
+    lua_pushboolean(L, leo_IsMouseButtonReleased(button));
+    return 1;
+}
+
+static int lua_is_mouse_button_up(lua_State *L)
+{
+    const int button = luaL_checkinteger(L, 1);
+    lua_pushboolean(L, leo_IsMouseButtonUp(button));
+    return 1;
+}
+
+static int lua_get_mouse_x(lua_State *L)
+{
+    lua_pushinteger(L, leo_GetMouseX());
+    return 1;
+}
+
+static int lua_get_mouse_y(lua_State *L)
+{
+    lua_pushinteger(L, leo_GetMouseY());
+    return 1;
+}
+
+static int lua_push_vector2(lua_State *L, leo_Vector2 vec)
+{
+    lua_pushnumber(L, vec.x);
+    lua_pushnumber(L, vec.y);
+    return 2;
+}
+
+static int lua_get_mouse_position(lua_State *L)
+{
+    return lua_push_vector2(L, leo_GetMousePosition());
+}
+
+static int lua_get_mouse_delta(lua_State *L)
+{
+    return lua_push_vector2(L, leo_GetMouseDelta());
+}
+
+static int lua_set_mouse_position(lua_State *L)
+{
+    const int x = luaL_checkinteger(L, 1);
+    const int y = luaL_checkinteger(L, 2);
+    leo_SetMousePosition(x, y);
+    return 0;
+}
+
+static int lua_set_mouse_offset(lua_State *L)
+{
+    const int offset_x = luaL_checkinteger(L, 1);
+    const int offset_y = luaL_checkinteger(L, 2);
+    leo_SetMouseOffset(offset_x, offset_y);
+    return 0;
+}
+
+static int lua_set_mouse_scale(lua_State *L)
+{
+    const float scale_x = (float)luaL_checknumber(L, 1);
+    const float scale_y = (float)luaL_checknumber(L, 2);
+    leo_SetMouseScale(scale_x, scale_y);
+    return 0;
+}
+
+static int lua_get_mouse_wheel_move(lua_State *L)
+{
+    lua_pushnumber(L, leo_GetMouseWheelMove());
+    return 1;
+}
+
+static int lua_get_mouse_wheel_move_v(lua_State *L)
+{
+    return lua_push_vector2(L, leo_GetMouseWheelMoveV());
+}
+
 static void _register_graphics_bindings(lua_State *L)
 {
     lua_pushcfunction(L, lua_draw_pixel);
@@ -265,6 +358,63 @@ static void _register_graphics_bindings(lua_State *L)
     lua_setglobal(L, "leo_clear_background");
 }
 
+static void _register_mouse_bindings(lua_State *L)
+{
+    lua_pushcfunction(L, lua_is_mouse_button_pressed);
+    lua_setglobal(L, "leo_is_mouse_button_pressed");
+
+    lua_pushcfunction(L, lua_is_mouse_button_down);
+    lua_setglobal(L, "leo_is_mouse_button_down");
+
+    lua_pushcfunction(L, lua_is_mouse_button_released);
+    lua_setglobal(L, "leo_is_mouse_button_released");
+
+    lua_pushcfunction(L, lua_is_mouse_button_up);
+    lua_setglobal(L, "leo_is_mouse_button_up");
+
+    lua_pushcfunction(L, lua_get_mouse_x);
+    lua_setglobal(L, "leo_get_mouse_x");
+
+    lua_pushcfunction(L, lua_get_mouse_y);
+    lua_setglobal(L, "leo_get_mouse_y");
+
+    lua_pushcfunction(L, lua_get_mouse_position);
+    lua_setglobal(L, "leo_get_mouse_position");
+
+    lua_pushcfunction(L, lua_get_mouse_delta);
+    lua_setglobal(L, "leo_get_mouse_delta");
+
+    lua_pushcfunction(L, lua_set_mouse_position);
+    lua_setglobal(L, "leo_set_mouse_position");
+
+    lua_pushcfunction(L, lua_set_mouse_offset);
+    lua_setglobal(L, "leo_set_mouse_offset");
+
+    lua_pushcfunction(L, lua_set_mouse_scale);
+    lua_setglobal(L, "leo_set_mouse_scale");
+
+    lua_pushcfunction(L, lua_get_mouse_wheel_move);
+    lua_setglobal(L, "leo_get_mouse_wheel_move");
+
+    lua_pushcfunction(L, lua_get_mouse_wheel_move_v);
+    lua_setglobal(L, "leo_get_mouse_wheel_move_v");
+
+    lua_pushinteger(L, LEO_MOUSE_BUTTON_LEFT);
+    lua_setglobal(L, "LEO_MOUSE_BUTTON_LEFT");
+
+    lua_pushinteger(L, LEO_MOUSE_BUTTON_MIDDLE);
+    lua_setglobal(L, "LEO_MOUSE_BUTTON_MIDDLE");
+
+    lua_pushinteger(L, LEO_MOUSE_BUTTON_RIGHT);
+    lua_setglobal(L, "LEO_MOUSE_BUTTON_RIGHT");
+
+    lua_pushinteger(L, LEO_MOUSE_BUTTON_X1);
+    lua_setglobal(L, "LEO_MOUSE_BUTTON_X1");
+
+    lua_pushinteger(L, LEO_MOUSE_BUTTON_X2);
+    lua_setglobal(L, "LEO_MOUSE_BUTTON_X2");
+}
+
 static int lua_quit_game(lua_State *L)
 {
     // Get the context from Lua registry
@@ -291,6 +441,7 @@ static void _register_lua_functions(lua_State *L, leo_LuaGameContext *ctx)
 
     // Register graphics bindings
     _register_graphics_bindings(L);
+    _register_mouse_bindings(L);
 }
 
 static void _call_lua_update(lua_State *L, float dt)
