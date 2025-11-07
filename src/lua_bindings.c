@@ -2,6 +2,7 @@
 
 #include "leo/actor.h"
 #include "leo/animation.h"
+#include "leo/audio.h"
 #include "leo/engine.h"
 #include "leo/error.h"
 #include "leo/font.h"
@@ -104,6 +105,12 @@ typedef struct
     leo_AnimationPlayer player;
 } leo__LuaAnimationPlayer;
 
+typedef struct
+{
+    leo_Sound sound;
+    int owns;
+} leo__LuaSound;
+
 static const char *LEO_TEX_META = "leo_texture";
 static const char *LEO_RT_META = "leo_render_texture";
 static const char *LEO_FONT_META = "leo_font";
@@ -115,6 +122,7 @@ static const char *LEO_TILED_OBJECT_LAYER_META = "leo_tiled_object_layer";
 static const char *LEO_ACTOR_SYSTEM_META = "leo_actor_system";
 static const char *LEO_ANIMATION_META = "leo_animation";
 static const char *LEO_ANIMATION_PLAYER_META = "leo_animation_player";
+static const char *LEO_SOUND_META = "leo_sound";
 
 static leo__LuaActorSystemUD *g_actor_systems = NULL;
 
@@ -776,6 +784,30 @@ static void register_animation_player_mt(lua_State *L)
     {
         lua_pushstring(L, "leo_animation_player");
         lua_setfield(L, -2, "__name");
+    }
+    lua_pop(L, 1);
+}
+
+static int l_sound_gc(lua_State *L)
+{
+    leo__LuaSound *ud = (leo__LuaSound *)luaL_testudata(L, 1, LEO_SOUND_META);
+    if (ud && ud->owns)
+    {
+        leo_UnloadSound(&ud->sound);
+        ud->owns = 0;
+        ud->sound._handle = NULL;
+        ud->sound.channels = 0;
+        ud->sound.sampleRate = 0;
+    }
+    return 0;
+}
+
+static void register_sound_mt(lua_State *L)
+{
+    if (luaL_newmetatable(L, LEO_SOUND_META))
+    {
+        lua_pushcfunction(L, l_sound_gc);
+        lua_setfield(L, -2, "__gc");
     }
     lua_pop(L, 1);
 }
@@ -2890,6 +2922,124 @@ static int l_leo_reset_animation(lua_State *L)
 }
 
 // -----------------------------------------------------------------------------
+// Audio bindings
+// -----------------------------------------------------------------------------
+static int l_leo_init_audio(lua_State *L)
+{
+    lua_pushboolean(L, leo_InitAudio());
+    return 1;
+}
+
+static int l_leo_shutdown_audio(lua_State *L)
+{
+    (void)L;
+    leo_ShutdownAudio();
+    return 0;
+}
+
+static leo__LuaSound *push_sound(lua_State *L, leo_Sound sound, int owns)
+{
+    leo__LuaSound *ud = (leo__LuaSound *)lua_newuserdata(L, sizeof(leo__LuaSound));
+    ud->sound = sound;
+    ud->owns = owns;
+    luaL_getmetatable(L, LEO_SOUND_META);
+    lua_setmetatable(L, -2);
+    return ud;
+}
+
+static leo__LuaSound *check_sound_ud(lua_State *L, int idx)
+{
+    return (leo__LuaSound *)luaL_checkudata(L, idx, LEO_SOUND_META);
+}
+
+static int l_leo_load_sound(lua_State *L)
+{
+    const char *path = luaL_checkstring(L, 1);
+    leo_Sound sound = leo_LoadSound(path);
+    return push_sound(L, sound, 1) ? 1 : luaL_error(L, "leo_load_sound: allocation failed");
+}
+
+static int l_leo_unload_sound(lua_State *L)
+{
+    leo__LuaSound *ud = check_sound_ud(L, 1);
+    if (ud->owns)
+    {
+        leo_UnloadSound(&ud->sound);
+        ud->owns = 0;
+        ud->sound._handle = NULL;
+    }
+    return 0;
+}
+
+static int l_leo_is_sound_ready(lua_State *L)
+{
+    leo__LuaSound *ud = check_sound_ud(L, 1);
+    lua_pushboolean(L, leo_IsSoundReady(ud->sound));
+    return 1;
+}
+
+static int l_leo_play_sound(lua_State *L)
+{
+    leo__LuaSound *ud = check_sound_ud(L, 1);
+    float volume = (float)luaL_optnumber(L, 2, 1.0);
+    bool loop = lua_toboolean(L, 3) != 0;
+    lua_pushboolean(L, leo_PlaySound(&ud->sound, volume, loop));
+    return 1;
+}
+
+static int l_leo_stop_sound(lua_State *L)
+{
+    leo__LuaSound *ud = check_sound_ud(L, 1);
+    leo_StopSound(&ud->sound);
+    return 0;
+}
+
+static int l_leo_pause_sound(lua_State *L)
+{
+    leo__LuaSound *ud = check_sound_ud(L, 1);
+    leo_PauseSound(&ud->sound);
+    return 0;
+}
+
+static int l_leo_resume_sound(lua_State *L)
+{
+    leo__LuaSound *ud = check_sound_ud(L, 1);
+    leo_ResumeSound(&ud->sound);
+    return 0;
+}
+
+static int l_leo_is_sound_playing(lua_State *L)
+{
+    leo__LuaSound *ud = check_sound_ud(L, 1);
+    lua_pushboolean(L, leo_IsSoundPlaying(&ud->sound));
+    return 1;
+}
+
+static int l_leo_set_sound_volume(lua_State *L)
+{
+    leo__LuaSound *ud = check_sound_ud(L, 1);
+    float vol = (float)luaL_checknumber(L, 2);
+    leo_SetSoundVolume(&ud->sound, vol);
+    return 0;
+}
+
+static int l_leo_set_sound_pitch(lua_State *L)
+{
+    leo__LuaSound *ud = check_sound_ud(L, 1);
+    float pitch = (float)luaL_checknumber(L, 2);
+    leo_SetSoundPitch(&ud->sound, pitch);
+    return 0;
+}
+
+static int l_leo_set_sound_pan(lua_State *L)
+{
+    leo__LuaSound *ud = check_sound_ud(L, 1);
+    float pan = (float)luaL_checknumber(L, 2);
+    leo_SetSoundPan(&ud->sound, pan);
+    return 0;
+}
+
+// -----------------------------------------------------------------------------
 // Logical resolution
 // -----------------------------------------------------------------------------
 static int l_leo_set_logical_resolution(lua_State *L)
@@ -2919,6 +3069,7 @@ int leo_LuaOpenBindings(void *vL)
     register_actor_system_mt(L);
     register_animation_mt(L);
     register_animation_player_mt(L);
+    register_sound_mt(L);
 
     static const luaL_Reg leo_funcs[] = {
         {"leo_init_window", l_leo_init_window},
@@ -3105,6 +3256,19 @@ int leo_LuaOpenBindings(void *vL)
         {"leo_play_animation", l_leo_play_animation},
         {"leo_pause_animation", l_leo_pause_animation},
         {"leo_reset_animation", l_leo_reset_animation},
+        {"leo_init_audio", l_leo_init_audio},
+        {"leo_shutdown_audio", l_leo_shutdown_audio},
+        {"leo_load_sound", l_leo_load_sound},
+        {"leo_unload_sound", l_leo_unload_sound},
+        {"leo_is_sound_ready", l_leo_is_sound_ready},
+        {"leo_play_sound", l_leo_play_sound},
+        {"leo_stop_sound", l_leo_stop_sound},
+        {"leo_pause_sound", l_leo_pause_sound},
+        {"leo_resume_sound", l_leo_resume_sound},
+        {"leo_is_sound_playing", l_leo_is_sound_playing},
+        {"leo_set_sound_volume", l_leo_set_sound_volume},
+        {"leo_set_sound_pitch", l_leo_set_sound_pitch},
+        {"leo_set_sound_pan", l_leo_set_sound_pan},
         {"leo_set_logical_resolution", l_leo_set_logical_resolution},
         {NULL, NULL}
     };
