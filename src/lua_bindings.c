@@ -4,6 +4,7 @@
 #include "leo/font.h"
 #include "leo/gamepad.h"
 #include "leo/image.h"
+#include "leo/json.h"
 #include "leo/keyboard.h"
 #include "leo/keys.h"
 
@@ -29,9 +30,22 @@ typedef struct
     int owns; // whether GC should unload
 } leo__LuaFont;
 
+typedef struct
+{
+    leo_JsonDoc *doc;
+    int owns;
+} leo__LuaJsonDoc;
+
+typedef struct
+{
+    leo_JsonNode node;
+} leo__LuaJsonNode;
+
 static const char *LEO_TEX_META = "leo_texture";
 static const char *LEO_RT_META = "leo_render_texture";
 static const char *LEO_FONT_META = "leo_font";
+static const char *LEO_JSON_DOC_META = "leo_json_doc";
+static const char *LEO_JSON_NODE_META = "leo_json_node";
 
 static leo__LuaTexture *push_texture(lua_State *L, leo_Texture2D t, int owns)
 {
@@ -76,6 +90,48 @@ static leo__LuaFont *push_font(lua_State *L, leo_Font font, int owns)
 static leo__LuaFont *check_font_ud(lua_State *L, int idx)
 {
     return (leo__LuaFont *)luaL_checkudata(L, idx, LEO_FONT_META);
+}
+
+static leo__LuaJsonDoc *push_json_doc(lua_State *L, leo_JsonDoc *doc, int owns)
+{
+    leo__LuaJsonDoc *ud = (leo__LuaJsonDoc *)lua_newuserdata(L, sizeof(leo__LuaJsonDoc));
+    ud->doc = doc;
+    ud->owns = owns;
+    luaL_getmetatable(L, LEO_JSON_DOC_META);
+    lua_setmetatable(L, -2);
+    return ud;
+}
+
+static leo__LuaJsonDoc *check_json_doc_ud(lua_State *L, int idx)
+{
+    return (leo__LuaJsonDoc *)luaL_checkudata(L, idx, LEO_JSON_DOC_META);
+}
+
+static leo__LuaJsonNode *push_json_node(lua_State *L, leo_JsonNode node)
+{
+    leo__LuaJsonNode *ud = (leo__LuaJsonNode *)lua_newuserdata(L, sizeof(leo__LuaJsonNode));
+    ud->node = node;
+    luaL_getmetatable(L, LEO_JSON_NODE_META);
+    lua_setmetatable(L, -2);
+    return ud;
+}
+
+static leo__LuaJsonNode *check_json_node_ud(lua_State *L, int idx)
+{
+    return (leo__LuaJsonNode *)luaL_checkudata(L, idx, LEO_JSON_NODE_META);
+}
+
+static leo_JsonDoc *lua_check_json_doc(lua_State *L, int idx)
+{
+    leo__LuaJsonDoc *ud = check_json_doc_ud(L, idx);
+    luaL_argcheck(L, ud->doc != NULL, idx, "json document has been freed");
+    return ud->doc;
+}
+
+static leo_JsonNode lua_check_json_node(lua_State *L, int idx)
+{
+    leo__LuaJsonNode *ud = check_json_node_ud(L, idx);
+    return ud->node;
 }
 
 static int l_texture_gc(lua_State *L)
@@ -127,6 +183,18 @@ static int l_font_gc(lua_State *L)
     return 0;
 }
 
+static int l_json_doc_gc(lua_State *L)
+{
+    leo__LuaJsonDoc *ud = (leo__LuaJsonDoc *)luaL_testudata(L, 1, LEO_JSON_DOC_META);
+    if (ud && ud->owns && ud->doc)
+    {
+        leo_json_free(ud->doc);
+        ud->doc = NULL;
+        ud->owns = 0;
+    }
+    return 0;
+}
+
 static void register_texture_mt(lua_State *L)
 {
     if (luaL_newmetatable(L, LEO_TEX_META))
@@ -153,6 +221,26 @@ static void register_render_texture_mt(lua_State *L)
     {
         lua_pushcfunction(L, l_render_texture_gc);
         lua_setfield(L, -2, "__gc");
+    }
+    lua_pop(L, 1);
+}
+
+static void register_json_doc_mt(lua_State *L)
+{
+    if (luaL_newmetatable(L, LEO_JSON_DOC_META))
+    {
+        lua_pushcfunction(L, l_json_doc_gc);
+        lua_setfield(L, -2, "__gc");
+    }
+    lua_pop(L, 1);
+}
+
+static void register_json_node_mt(lua_State *L)
+{
+    if (luaL_newmetatable(L, LEO_JSON_NODE_META))
+    {
+        lua_pushstring(L, "leo_json_node");
+        lua_setfield(L, -2, "__name");
     }
     lua_pop(L, 1);
 }
@@ -1046,6 +1134,203 @@ static int l_leo_get_font_base_size(lua_State *L)
 }
 
 // -----------------------------------------------------------------------------
+// JSON bindings
+// -----------------------------------------------------------------------------
+static int l_leo_json_parse(lua_State *L)
+{
+    size_t len = 0;
+    const char *data = luaL_checklstring(L, 1, &len);
+    const char *err = NULL;
+    leo_JsonDoc *doc = leo_json_parse(data, len, &err);
+    if (!doc)
+    {
+        lua_pushnil(L);
+        lua_pushstring(L, err ? err : "leo_json_parse failed");
+        return 2;
+    }
+    push_json_doc(L, doc, 1);
+    return 1;
+}
+
+static int l_leo_json_load(lua_State *L)
+{
+    const char *path = luaL_checkstring(L, 1);
+    const char *err = NULL;
+    leo_JsonDoc *doc = leo_json_load(path, &err);
+    if (!doc)
+    {
+        lua_pushnil(L);
+        lua_pushstring(L, err ? err : "leo_json_load failed");
+        return 2;
+    }
+    push_json_doc(L, doc, 1);
+    return 1;
+}
+
+static int l_leo_json_free(lua_State *L)
+{
+    leo__LuaJsonDoc *ud = check_json_doc_ud(L, 1);
+    if (ud->doc)
+    {
+        leo_json_free(ud->doc);
+        ud->doc = NULL;
+    }
+    ud->owns = 0;
+    return 0;
+}
+
+static int l_leo_json_root(lua_State *L)
+{
+    leo_JsonDoc *doc = lua_check_json_doc(L, 1);
+    push_json_node(L, leo_json_root(doc));
+    return 1;
+}
+
+static int l_leo_json_is_null(lua_State *L)
+{
+    lua_pushboolean(L, leo_json_is_null(lua_check_json_node(L, 1)));
+    return 1;
+}
+
+static int l_leo_json_is_object(lua_State *L)
+{
+    lua_pushboolean(L, leo_json_is_object(lua_check_json_node(L, 1)));
+    return 1;
+}
+
+static int l_leo_json_is_array(lua_State *L)
+{
+    lua_pushboolean(L, leo_json_is_array(lua_check_json_node(L, 1)));
+    return 1;
+}
+
+static int l_leo_json_is_string(lua_State *L)
+{
+    lua_pushboolean(L, leo_json_is_string(lua_check_json_node(L, 1)));
+    return 1;
+}
+
+static int l_leo_json_is_number(lua_State *L)
+{
+    lua_pushboolean(L, leo_json_is_number(lua_check_json_node(L, 1)));
+    return 1;
+}
+
+static int l_leo_json_is_bool(lua_State *L)
+{
+    lua_pushboolean(L, leo_json_is_bool(lua_check_json_node(L, 1)));
+    return 1;
+}
+
+static int l_leo_json_obj_get(lua_State *L)
+{
+    leo_JsonNode obj = lua_check_json_node(L, 1);
+    const char *key = luaL_checkstring(L, 2);
+    push_json_node(L, leo_json_obj_get(obj, key));
+    return 1;
+}
+
+static int l_leo_json_arr_size(lua_State *L)
+{
+    size_t size = leo_json_arr_size(lua_check_json_node(L, 1));
+    lua_pushinteger(L, (lua_Integer)size);
+    return 1;
+}
+
+static int l_leo_json_arr_get(lua_State *L)
+{
+    leo_JsonNode arr = lua_check_json_node(L, 1);
+    size_t index = (size_t)luaL_checkinteger(L, 2);
+    push_json_node(L, leo_json_arr_get(arr, index));
+    return 1;
+}
+
+static int l_leo_json_get_string(lua_State *L)
+{
+    leo_JsonNode obj = lua_check_json_node(L, 1);
+    const char *key = luaL_checkstring(L, 2);
+    const char *out = NULL;
+    bool ok = leo_json_get_string(obj, key, &out) && out;
+    lua_pushboolean(L, ok);
+    if (ok)
+        lua_pushstring(L, out);
+    else
+        lua_pushnil(L);
+    return 2;
+}
+
+static int l_leo_json_get_int(lua_State *L)
+{
+    leo_JsonNode obj = lua_check_json_node(L, 1);
+    const char *key = luaL_checkstring(L, 2);
+    int out = 0;
+    bool ok = leo_json_get_int(obj, key, &out);
+    lua_pushboolean(L, ok);
+    if (ok)
+        lua_pushinteger(L, out);
+    else
+        lua_pushnil(L);
+    return 2;
+}
+
+static int l_leo_json_get_double(lua_State *L)
+{
+    leo_JsonNode obj = lua_check_json_node(L, 1);
+    const char *key = luaL_checkstring(L, 2);
+    double out = 0.0;
+    bool ok = leo_json_get_double(obj, key, &out);
+    lua_pushboolean(L, ok);
+    if (ok)
+        lua_pushnumber(L, out);
+    else
+        lua_pushnil(L);
+    return 2;
+}
+
+static int l_leo_json_get_bool(lua_State *L)
+{
+    leo_JsonNode obj = lua_check_json_node(L, 1);
+    const char *key = luaL_checkstring(L, 2);
+    bool out = false;
+    bool ok = leo_json_get_bool(obj, key, &out);
+    lua_pushboolean(L, ok);
+    if (ok)
+        lua_pushboolean(L, out);
+    else
+        lua_pushnil(L);
+    return 2;
+}
+
+static int l_leo_json_as_string(lua_State *L)
+{
+    const char *s = leo_json_as_string(lua_check_json_node(L, 1));
+    if (s)
+        lua_pushstring(L, s);
+    else
+        lua_pushnil(L);
+    return 1;
+}
+
+static int l_leo_json_as_int(lua_State *L)
+{
+    lua_pushinteger(L, leo_json_as_int(lua_check_json_node(L, 1)));
+    return 1;
+}
+
+static int l_leo_json_as_double(lua_State *L)
+{
+    lua_pushnumber(L, leo_json_as_double(lua_check_json_node(L, 1)));
+    return 1;
+}
+
+static int l_leo_json_as_bool(lua_State *L)
+{
+    lua_pushboolean(L, leo_json_as_bool(lua_check_json_node(L, 1)));
+    return 1;
+}
+
+
+// -----------------------------------------------------------------------------
 // Logical resolution
 // -----------------------------------------------------------------------------
 static int l_leo_set_logical_resolution(lua_State *L)
@@ -1067,6 +1352,8 @@ int leo_LuaOpenBindings(void *vL)
     register_texture_mt(L);
     register_render_texture_mt(L);
     register_font_mt(L);
+    register_json_doc_mt(L);
+    register_json_node_mt(L);
 
     static const luaL_Reg leo_funcs[] = {
         {"leo_init_window", l_leo_init_window},
@@ -1154,6 +1441,27 @@ int leo_LuaOpenBindings(void *vL)
         {"leo_measure_text", l_leo_measure_text},
         {"leo_get_font_line_height", l_leo_get_font_line_height},
         {"leo_get_font_base_size", l_leo_get_font_base_size},
+        {"leo_json_parse", l_leo_json_parse},
+        {"leo_json_load", l_leo_json_load},
+        {"leo_json_free", l_leo_json_free},
+        {"leo_json_root", l_leo_json_root},
+        {"leo_json_is_null", l_leo_json_is_null},
+        {"leo_json_is_object", l_leo_json_is_object},
+        {"leo_json_is_array", l_leo_json_is_array},
+        {"leo_json_is_string", l_leo_json_is_string},
+        {"leo_json_is_number", l_leo_json_is_number},
+        {"leo_json_is_bool", l_leo_json_is_bool},
+        {"leo_json_obj_get", l_leo_json_obj_get},
+        {"leo_json_arr_size", l_leo_json_arr_size},
+        {"leo_json_arr_get", l_leo_json_arr_get},
+        {"leo_json_get_string", l_leo_json_get_string},
+        {"leo_json_get_int", l_leo_json_get_int},
+        {"leo_json_get_double", l_leo_json_get_double},
+        {"leo_json_get_bool", l_leo_json_get_bool},
+        {"leo_json_as_string", l_leo_json_as_string},
+        {"leo_json_as_int", l_leo_json_as_int},
+        {"leo_json_as_double", l_leo_json_as_double},
+        {"leo_json_as_bool", l_leo_json_as_bool},
         {"leo_set_logical_resolution", l_leo_set_logical_resolution},
         {NULL, NULL}
     };
