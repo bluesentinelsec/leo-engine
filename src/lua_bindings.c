@@ -1,6 +1,7 @@
 #include "leo/lua_bindings.h"
 
 #include "leo/engine.h"
+#include "leo/font.h"
 #include "leo/gamepad.h"
 #include "leo/image.h"
 #include "leo/keyboard.h"
@@ -22,8 +23,15 @@ typedef struct
     int owns; // whether GC should unload
 } leo__LuaRenderTexture;
 
+typedef struct
+{
+    leo_Font font;
+    int owns; // whether GC should unload
+} leo__LuaFont;
+
 static const char *LEO_TEX_META = "leo_texture";
 static const char *LEO_RT_META = "leo_render_texture";
+static const char *LEO_FONT_META = "leo_font";
 
 static leo__LuaTexture *push_texture(lua_State *L, leo_Texture2D t, int owns)
 {
@@ -53,6 +61,21 @@ static leo__LuaRenderTexture *push_render_texture(lua_State *L, leo_RenderTextur
 static leo__LuaRenderTexture *check_render_texture_ud(lua_State *L, int idx)
 {
     return (leo__LuaRenderTexture *)luaL_checkudata(L, idx, LEO_RT_META);
+}
+
+static leo__LuaFont *push_font(lua_State *L, leo_Font font, int owns)
+{
+    leo__LuaFont *ud = (leo__LuaFont *)lua_newuserdata(L, sizeof(leo__LuaFont));
+    ud->font = font;
+    ud->owns = owns;
+    luaL_getmetatable(L, LEO_FONT_META);
+    lua_setmetatable(L, -2);
+    return ud;
+}
+
+static leo__LuaFont *check_font_ud(lua_State *L, int idx)
+{
+    return (leo__LuaFont *)luaL_checkudata(L, idx, LEO_FONT_META);
 }
 
 static int l_texture_gc(lua_State *L)
@@ -86,11 +109,39 @@ static int l_render_texture_gc(lua_State *L)
     return 0;
 }
 
+static int l_font_gc(lua_State *L)
+{
+    leo__LuaFont *ud = (leo__LuaFont *)luaL_testudata(L, 1, LEO_FONT_META);
+    if (ud && ud->owns)
+    {
+        leo_UnloadFont(&ud->font);
+        ud->owns = 0;
+        ud->font._atlas = NULL;
+        ud->font._glyphs = NULL;
+        ud->font.baseSize = 0;
+        ud->font.lineHeight = 0;
+        ud->font.glyphCount = 0;
+        ud->font._atlasW = 0;
+        ud->font._atlasH = 0;
+    }
+    return 0;
+}
+
 static void register_texture_mt(lua_State *L)
 {
     if (luaL_newmetatable(L, LEO_TEX_META))
     {
         lua_pushcfunction(L, l_texture_gc);
+        lua_setfield(L, -2, "__gc");
+    }
+    lua_pop(L, 1);
+}
+
+static void register_font_mt(lua_State *L)
+{
+    if (luaL_newmetatable(L, LEO_FONT_META))
+    {
+        lua_pushcfunction(L, l_font_gc);
         lua_setfield(L, -2, "__gc");
     }
     lua_pop(L, 1);
@@ -811,6 +862,190 @@ static int l_leo_draw_texture_pro(lua_State *L)
 }
 
 // -----------------------------------------------------------------------------
+// Font bindings
+// -----------------------------------------------------------------------------
+static int l_leo_load_font(lua_State *L)
+{
+    const char *path = luaL_checkstring(L, 1);
+    int pixel_size = (int)luaL_checkinteger(L, 2);
+    leo_Font font = leo_LoadFont(path, pixel_size);
+    push_font(L, font, 1);
+    return 1;
+}
+
+static int l_leo_load_font_from_memory(lua_State *L)
+{
+    const char *file_type = NULL;
+    size_t len = 0;
+    const unsigned char *data = NULL;
+    int pixel_size = 0;
+    int top = lua_gettop(L);
+    if (top >= 3)
+    {
+        if (!lua_isnoneornil(L, 1))
+            file_type = luaL_checkstring(L, 1);
+        data = (const unsigned char *)luaL_checklstring(L, 2, &len);
+        pixel_size = (int)luaL_checkinteger(L, 3);
+    }
+    else
+    {
+        data = (const unsigned char *)luaL_checklstring(L, 1, &len);
+        pixel_size = (int)luaL_checkinteger(L, 2);
+    }
+    leo_Font font = leo_LoadFontFromMemory(file_type, data, (int)len, pixel_size);
+    push_font(L, font, 1);
+    return 1;
+}
+
+static int l_leo_unload_font(lua_State *L)
+{
+    leo__LuaFont *ud = check_font_ud(L, 1);
+    if (ud->owns)
+    {
+        leo_UnloadFont(&ud->font);
+        ud->owns = 0;
+    }
+    ud->font._atlas = NULL;
+    ud->font._glyphs = NULL;
+    ud->font.baseSize = 0;
+    ud->font.lineHeight = 0;
+    ud->font.glyphCount = 0;
+    ud->font._atlasW = 0;
+    ud->font._atlasH = 0;
+    return 0;
+}
+
+static int l_leo_is_font_ready(lua_State *L)
+{
+    leo__LuaFont *ud = check_font_ud(L, 1);
+    lua_pushboolean(L, leo_IsFontReady(ud->font));
+    return 1;
+}
+
+static int l_leo_set_default_font(lua_State *L)
+{
+    if (lua_isnoneornil(L, 1))
+    {
+        leo_Font empty = {0};
+        leo_SetDefaultFont(empty);
+    }
+    else
+    {
+        leo__LuaFont *ud = check_font_ud(L, 1);
+        leo_SetDefaultFont(ud->font);
+    }
+    return 0;
+}
+
+static int l_leo_get_default_font(lua_State *L)
+{
+    leo_Font font = leo_GetDefaultFont();
+    if (!leo_IsFontReady(font))
+    {
+        lua_pushnil(L);
+        return 1;
+    }
+    push_font(L, font, 0);
+    return 1;
+}
+
+static inline leo_Color lua_check_color(lua_State *L, int idx)
+{
+    int r = (int)luaL_checkinteger(L, idx);
+    int g = (int)luaL_checkinteger(L, idx + 1);
+    int b = (int)luaL_checkinteger(L, idx + 2);
+    int a = (int)luaL_optinteger(L, idx + 3, 255);
+    leo_Color col = {(unsigned char)r, (unsigned char)g, (unsigned char)b, (unsigned char)a};
+    return col;
+}
+
+static int l_leo_draw_fps(lua_State *L)
+{
+    int x = (int)luaL_checkinteger(L, 1);
+    int y = (int)luaL_checkinteger(L, 2);
+    leo_DrawFPS(x, y);
+    return 0;
+}
+
+static int l_leo_draw_text(lua_State *L)
+{
+    const char *text = luaL_checkstring(L, 1);
+    int x = (int)luaL_checkinteger(L, 2);
+    int y = (int)luaL_checkinteger(L, 3);
+    int font_size = (int)luaL_checkinteger(L, 4);
+    leo_Color tint = lua_check_color(L, 5);
+    leo_DrawText(text, x, y, font_size, tint);
+    return 0;
+}
+
+static int l_leo_draw_text_ex(lua_State *L)
+{
+    leo__LuaFont *ud = check_font_ud(L, 1);
+    const char *text = luaL_checkstring(L, 2);
+    leo_Vector2 pos;
+    pos.x = (float)luaL_checknumber(L, 3);
+    pos.y = (float)luaL_checknumber(L, 4);
+    float font_size = (float)luaL_checknumber(L, 5);
+    float spacing = (float)luaL_checknumber(L, 6);
+    leo_Color tint = lua_check_color(L, 7);
+    leo_DrawTextEx(ud->font, text, pos, font_size, spacing, tint);
+    return 0;
+}
+
+static int l_leo_draw_text_pro(lua_State *L)
+{
+    leo__LuaFont *ud = check_font_ud(L, 1);
+    const char *text = luaL_checkstring(L, 2);
+    leo_Vector2 pos;
+    pos.x = (float)luaL_checknumber(L, 3);
+    pos.y = (float)luaL_checknumber(L, 4);
+    leo_Vector2 origin;
+    origin.x = (float)luaL_checknumber(L, 5);
+    origin.y = (float)luaL_checknumber(L, 6);
+    float rotation = (float)luaL_checknumber(L, 7);
+    float font_size = (float)luaL_checknumber(L, 8);
+    float spacing = (float)luaL_checknumber(L, 9);
+    leo_Color tint = lua_check_color(L, 10);
+    leo_DrawTextPro(ud->font, text, pos, origin, rotation, font_size, spacing, tint);
+    return 0;
+}
+
+static int l_leo_measure_text_ex(lua_State *L)
+{
+    leo__LuaFont *ud = check_font_ud(L, 1);
+    const char *text = luaL_checkstring(L, 2);
+    float font_size = (float)luaL_checknumber(L, 3);
+    float spacing = (float)luaL_checknumber(L, 4);
+    leo_Vector2 dims = leo_MeasureTextEx(ud->font, text, font_size, spacing);
+    lua_pushnumber(L, dims.x);
+    lua_pushnumber(L, dims.y);
+    return 2;
+}
+
+static int l_leo_measure_text(lua_State *L)
+{
+    const char *text = luaL_checkstring(L, 1);
+    int font_size = (int)luaL_checkinteger(L, 2);
+    lua_pushinteger(L, leo_MeasureText(text, font_size));
+    return 1;
+}
+
+static int l_leo_get_font_line_height(lua_State *L)
+{
+    leo__LuaFont *ud = check_font_ud(L, 1);
+    float font_size = (float)luaL_checknumber(L, 2);
+    lua_pushinteger(L, leo_GetFontLineHeight(ud->font, font_size));
+    return 1;
+}
+
+static int l_leo_get_font_base_size(lua_State *L)
+{
+    leo__LuaFont *ud = check_font_ud(L, 1);
+    lua_pushinteger(L, leo_GetFontBaseSize(ud->font));
+    return 1;
+}
+
+// -----------------------------------------------------------------------------
 // Logical resolution
 // -----------------------------------------------------------------------------
 static int l_leo_set_logical_resolution(lua_State *L)
@@ -831,6 +1066,7 @@ int leo_LuaOpenBindings(void *vL)
 
     register_texture_mt(L);
     register_render_texture_mt(L);
+    register_font_mt(L);
 
     static const luaL_Reg leo_funcs[] = {
         {"leo_init_window", l_leo_init_window},
@@ -904,6 +1140,20 @@ int leo_LuaOpenBindings(void *vL)
         {"leo_texture_get_size", l_leo_texture_get_size},
         {"leo_draw_texture_rec", l_leo_draw_texture_rec},
         {"leo_draw_texture_pro", l_leo_draw_texture_pro},
+        {"leo_load_font", l_leo_load_font},
+        {"leo_load_font_from_memory", l_leo_load_font_from_memory},
+        {"leo_unload_font", l_leo_unload_font},
+        {"leo_is_font_ready", l_leo_is_font_ready},
+        {"leo_set_default_font", l_leo_set_default_font},
+        {"leo_get_default_font", l_leo_get_default_font},
+        {"leo_draw_fps", l_leo_draw_fps},
+        {"leo_draw_text", l_leo_draw_text},
+        {"leo_draw_text_ex", l_leo_draw_text_ex},
+        {"leo_draw_text_pro", l_leo_draw_text_pro},
+        {"leo_measure_text_ex", l_leo_measure_text_ex},
+        {"leo_measure_text", l_leo_measure_text},
+        {"leo_get_font_line_height", l_leo_get_font_line_height},
+        {"leo_get_font_base_size", l_leo_get_font_base_size},
         {"leo_set_logical_resolution", l_leo_set_logical_resolution},
         {NULL, NULL}
     };
