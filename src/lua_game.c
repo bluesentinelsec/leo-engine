@@ -550,6 +550,15 @@ int leo_LuaGameRun(const leo_LuaGameConfig *cfg, const leo_LuaGameCallbacks *cb)
         fprintf(stderr, "leo_LuaGameRun: leo_SetWindowMode failed; continuing in windowed mode\n");
     }
 
+    if (cfg->logical_width > 0 && cfg->logical_height > 0)
+    {
+        if (!leo_SetLogicalResolution(cfg->logical_width, cfg->logical_height, cfg->presentation, cfg->scale_mode))
+        {
+            /* Non-fatal: keep running without logical scaling */
+            fprintf(stderr, "leo_LuaGameRun: leo_SetLogicalResolution failed; continuing without logical scaling\n");
+        }
+    }
+
     // Mount resources directory for VFS access
     if (!leo_MountDirectory("resources", 0))
     {
