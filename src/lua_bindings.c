@@ -1,6 +1,7 @@
 #include "leo/lua_bindings.h"
 
 #include "leo/actor.h"
+#include "leo/animation.h"
 #include "leo/engine.h"
 #include "leo/error.h"
 #include "leo/font.h"
@@ -92,6 +93,17 @@ typedef struct
     int ref_user;
 } leo__LuaActorEnumCtx;
 
+typedef struct
+{
+    leo_Animation anim;
+    int owns;
+} leo__LuaAnimation;
+
+typedef struct
+{
+    leo_AnimationPlayer player;
+} leo__LuaAnimationPlayer;
+
 static const char *LEO_TEX_META = "leo_texture";
 static const char *LEO_RT_META = "leo_render_texture";
 static const char *LEO_FONT_META = "leo_font";
@@ -101,6 +113,8 @@ static const char *LEO_TILED_MAP_META = "leo_tiled_map";
 static const char *LEO_TILED_TILE_LAYER_META = "leo_tiled_tile_layer";
 static const char *LEO_TILED_OBJECT_LAYER_META = "leo_tiled_object_layer";
 static const char *LEO_ACTOR_SYSTEM_META = "leo_actor_system";
+static const char *LEO_ANIMATION_META = "leo_animation";
+static const char *LEO_ANIMATION_PLAYER_META = "leo_animation_player";
 
 static leo__LuaActorSystemUD *g_actor_systems = NULL;
 
@@ -328,6 +342,36 @@ static void leo__lua_actor_group_fn(leo_Actor *actor, void *user)
 {
     leo__LuaActorEnumCtx *ctx = (leo__LuaActorEnumCtx *)user;
     leo__lua_actor_enum_invoke(ctx, actor);
+}
+
+static leo__LuaAnimation *push_animation(lua_State *L, leo_Animation anim, int owns)
+{
+    leo__LuaAnimation *ud = (leo__LuaAnimation *)lua_newuserdata(L, sizeof(leo__LuaAnimation));
+    ud->anim = anim;
+    ud->owns = owns;
+    luaL_getmetatable(L, LEO_ANIMATION_META);
+    lua_setmetatable(L, -2);
+    return ud;
+}
+
+static leo__LuaAnimation *check_animation_ud(lua_State *L, int idx)
+{
+    return (leo__LuaAnimation *)luaL_checkudata(L, idx, LEO_ANIMATION_META);
+}
+
+static leo__LuaAnimationPlayer *push_animation_player(lua_State *L, leo_AnimationPlayer player)
+{
+    leo__LuaAnimationPlayer *ud =
+        (leo__LuaAnimationPlayer *)lua_newuserdata(L, sizeof(leo__LuaAnimationPlayer));
+    ud->player = player;
+    luaL_getmetatable(L, LEO_ANIMATION_PLAYER_META);
+    lua_setmetatable(L, -2);
+    return ud;
+}
+
+static leo__LuaAnimationPlayer *check_animation_player_ud(lua_State *L, int idx)
+{
+    return (leo__LuaAnimationPlayer *)luaL_checkudata(L, idx, LEO_ANIMATION_PLAYER_META);
 }
 
 static leo__LuaTiledMap *push_tiled_map(lua_State *L, leo_TiledMap *map, int owns)
@@ -697,6 +741,41 @@ static void register_actor_system_mt(lua_State *L)
     {
         lua_pushcfunction(L, l_actor_system_gc);
         lua_setfield(L, -2, "__gc");
+    }
+    lua_pop(L, 1);
+}
+
+static int l_animation_gc(lua_State *L)
+{
+    leo__LuaAnimation *ud = (leo__LuaAnimation *)luaL_testudata(L, 1, LEO_ANIMATION_META);
+    if (ud && ud->owns)
+    {
+        leo_UnloadAnimation(&ud->anim);
+        ud->owns = 0;
+        ud->anim.texture.width = 0;
+        ud->anim.texture.height = 0;
+        ud->anim.texture._handle = NULL;
+        ud->anim.frameCount = 0;
+    }
+    return 0;
+}
+
+static void register_animation_mt(lua_State *L)
+{
+    if (luaL_newmetatable(L, LEO_ANIMATION_META))
+    {
+        lua_pushcfunction(L, l_animation_gc);
+        lua_setfield(L, -2, "__gc");
+    }
+    lua_pop(L, 1);
+}
+
+static void register_animation_player_mt(lua_State *L)
+{
+    if (luaL_newmetatable(L, LEO_ANIMATION_PLAYER_META))
+    {
+        lua_pushstring(L, "leo_animation_player");
+        lua_setfield(L, -2, "__name");
     }
     lua_pop(L, 1);
 }
@@ -2733,6 +2812,84 @@ static int l_leo_tiled_resolve_gid(lua_State *L)
 }
 
 // -----------------------------------------------------------------------------
+// Animation bindings
+// -----------------------------------------------------------------------------
+static int l_leo_load_animation(lua_State *L)
+{
+    const char *path = luaL_checkstring(L, 1);
+    int frame_w = (int)luaL_checkinteger(L, 2);
+    int frame_h = (int)luaL_checkinteger(L, 3);
+    int frame_count = (int)luaL_checkinteger(L, 4);
+    float frame_time = (float)luaL_checknumber(L, 5);
+    bool loop = lua_toboolean(L, 6) != 0;
+    leo_Animation anim = leo_LoadAnimation(path, frame_w, frame_h, frame_count, frame_time, loop);
+    return push_animation(L, anim, 1) ? 1 : luaL_error(L, "leo_load_animation: allocation failed");
+}
+
+static int l_leo_unload_animation(lua_State *L)
+{
+    leo__LuaAnimation *ud = check_animation_ud(L, 1);
+    if (ud->owns)
+    {
+        leo_UnloadAnimation(&ud->anim);
+        ud->owns = 0;
+        ud->anim.texture.width = 0;
+        ud->anim.texture.height = 0;
+        ud->anim.texture._handle = NULL;
+    }
+    return 0;
+}
+
+static int l_leo_create_animation_player(lua_State *L)
+{
+    leo__LuaAnimation *anim_ud = check_animation_ud(L, 1);
+    leo_AnimationPlayer player = leo_CreateAnimationPlayer(&anim_ud->anim);
+    leo__LuaAnimationPlayer *player_ud = push_animation_player(L, player);
+    int anim_index = lua_absindex(L, 1);
+    lua_pushvalue(L, anim_index);
+    lua_setiuservalue(L, -2, 1);
+    return 1;
+}
+
+static int l_leo_update_animation(lua_State *L)
+{
+    leo__LuaAnimationPlayer *player_ud = check_animation_player_ud(L, 1);
+    float dt = (float)luaL_checknumber(L, 2);
+    leo_UpdateAnimation(&player_ud->player, dt);
+    return 0;
+}
+
+static int l_leo_draw_animation(lua_State *L)
+{
+    leo__LuaAnimationPlayer *player_ud = check_animation_player_ud(L, 1);
+    int x = (int)luaL_checkinteger(L, 2);
+    int y = (int)luaL_checkinteger(L, 3);
+    leo_DrawAnimation(&player_ud->player, x, y);
+    return 0;
+}
+
+static int l_leo_play_animation(lua_State *L)
+{
+    leo__LuaAnimationPlayer *player_ud = check_animation_player_ud(L, 1);
+    leo_PlayAnimation(&player_ud->player);
+    return 0;
+}
+
+static int l_leo_pause_animation(lua_State *L)
+{
+    leo__LuaAnimationPlayer *player_ud = check_animation_player_ud(L, 1);
+    leo_PauseAnimation(&player_ud->player);
+    return 0;
+}
+
+static int l_leo_reset_animation(lua_State *L)
+{
+    leo__LuaAnimationPlayer *player_ud = check_animation_player_ud(L, 1);
+    leo_ResetAnimation(&player_ud->player);
+    return 0;
+}
+
+// -----------------------------------------------------------------------------
 // Logical resolution
 // -----------------------------------------------------------------------------
 static int l_leo_set_logical_resolution(lua_State *L)
@@ -2760,6 +2917,8 @@ int leo_LuaOpenBindings(void *vL)
     register_tiled_tile_layer_mt(L);
     register_tiled_object_layer_mt(L);
     register_actor_system_mt(L);
+    register_animation_mt(L);
+    register_animation_player_mt(L);
 
     static const luaL_Reg leo_funcs[] = {
         {"leo_init_window", l_leo_init_window},
@@ -2938,6 +3097,14 @@ int leo_LuaOpenBindings(void *vL)
         {"leo_tiled_map_get_tileset", l_leo_tiled_map_get_tileset},
         {"leo_tiled_gid_info", l_leo_tiled_gid_info},
         {"leo_tiled_resolve_gid", l_leo_tiled_resolve_gid},
+        {"leo_load_animation", l_leo_load_animation},
+        {"leo_unload_animation", l_leo_unload_animation},
+        {"leo_create_animation_player", l_leo_create_animation_player},
+        {"leo_update_animation", l_leo_update_animation},
+        {"leo_draw_animation", l_leo_draw_animation},
+        {"leo_play_animation", l_leo_play_animation},
+        {"leo_pause_animation", l_leo_pause_animation},
+        {"leo_reset_animation", l_leo_reset_animation},
         {"leo_set_logical_resolution", l_leo_set_logical_resolution},
         {NULL, NULL}
     };
