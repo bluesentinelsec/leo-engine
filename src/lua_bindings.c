@@ -3,6 +3,8 @@
 #include "leo/actor.h"
 #include "leo/animation.h"
 #include "leo/audio.h"
+#include "leo/base64.h"
+#include "leo/collisions.h"
 #include "leo/engine.h"
 #include "leo/error.h"
 #include "leo/font.h"
@@ -13,6 +15,7 @@
 #include "leo/keys.h"
 #include "leo/tiled.h"
 #include "leo/touch.h"
+#include "leo/transitions.h"
 
 #include <lauxlib.h>
 #include <lua.h>
@@ -125,6 +128,11 @@ static const char *LEO_ANIMATION_PLAYER_META = "leo_animation_player";
 static const char *LEO_SOUND_META = "leo_sound";
 
 static leo__LuaActorSystemUD *g_actor_systems = NULL;
+static struct
+{
+    lua_State *L;
+    int ref;
+} g_transition_callback = {NULL, LUA_NOREF};
 
 static bool leo__lua_actor_on_init(leo_Actor *self);
 static void leo__lua_actor_on_update(leo_Actor *self, float dt);
@@ -350,6 +358,41 @@ static void leo__lua_actor_group_fn(leo_Actor *actor, void *user)
 {
     leo__LuaActorEnumCtx *ctx = (leo__LuaActorEnumCtx *)user;
     leo__lua_actor_enum_invoke(ctx, actor);
+}
+
+static void lua_transition_clear_callback(void)
+{
+    if (g_transition_callback.ref != LUA_NOREF && g_transition_callback.L)
+    {
+        luaL_unref(g_transition_callback.L, LUA_REGISTRYINDEX, g_transition_callback.ref);
+    }
+    g_transition_callback.ref = LUA_NOREF;
+    g_transition_callback.L = NULL;
+}
+
+static void leo__lua_transition_on_complete(void)
+{
+    if (g_transition_callback.ref == LUA_NOREF || !g_transition_callback.L)
+        return;
+    lua_State *L = g_transition_callback.L;
+    lua_rawgeti(L, LUA_REGISTRYINDEX, g_transition_callback.ref);
+    lua_transition_clear_callback();
+    if (lua_pcall(L, 0, 0, 0) != LUA_OK)
+    {
+        fprintf(stderr, "leo_transition callback error: %s\n", lua_tostring(L, -1));
+        lua_pop(L, 1);
+    }
+}
+
+static void lua_transition_set_callback(lua_State *L, int idx)
+{
+    lua_transition_clear_callback();
+    if (lua_isnoneornil(L, idx))
+        return;
+    luaL_checktype(L, idx, LUA_TFUNCTION);
+    lua_pushvalue(L, idx);
+    g_transition_callback.ref = luaL_ref(L, LUA_REGISTRYINDEX);
+    g_transition_callback.L = L;
 }
 
 static leo__LuaAnimation *push_animation(lua_State *L, leo_Animation anim, int owns)
@@ -883,6 +926,37 @@ static int lua_push_vector2_touch(lua_State *L, leo_Vector2Touch v)
     lua_pushnumber(L, v.x);
     lua_pushnumber(L, v.y);
     return 2;
+}
+
+static leo_Rectangle lua_read_rect_args(lua_State *L, int idx)
+{
+    leo_Rectangle rect;
+    rect.x = (float)luaL_checknumber(L, idx);
+    rect.y = (float)luaL_checknumber(L, idx + 1);
+    rect.width = (float)luaL_checknumber(L, idx + 2);
+    rect.height = (float)luaL_checknumber(L, idx + 3);
+    return rect;
+}
+
+static leo_Vector2 lua_read_vec2_args(lua_State *L, int idx)
+{
+    leo_Vector2 v;
+    v.x = (float)luaL_checknumber(L, idx);
+    v.y = (float)luaL_checknumber(L, idx + 1);
+    return v;
+}
+
+static void lua_push_rectangle_table(lua_State *L, leo_Rectangle rect)
+{
+    lua_createtable(L, 0, 4);
+    lua_pushnumber(L, rect.x);
+    lua_setfield(L, -2, "x");
+    lua_pushnumber(L, rect.y);
+    lua_setfield(L, -2, "y");
+    lua_pushnumber(L, rect.width);
+    lua_setfield(L, -2, "width");
+    lua_pushnumber(L, rect.height);
+    lua_setfield(L, -2, "height");
 }
 
 // -----------------------------------------------------------------------------
@@ -1723,6 +1797,35 @@ static inline leo_Color lua_check_color(lua_State *L, int idx)
     int b = (int)luaL_checkinteger(L, idx + 2);
     int a = (int)luaL_optinteger(L, idx + 3, 255);
     leo_Color col = {(unsigned char)r, (unsigned char)g, (unsigned char)b, (unsigned char)a};
+    return col;
+}
+
+static leo_Color lua_check_color_param(lua_State *L, int idx, int *next_idx)
+{
+    leo_Color col = {255, 255, 255, 255};
+    if (lua_istable(L, idx))
+    {
+        lua_getfield(L, idx, "r");
+        col.r = (unsigned char)luaL_optinteger(L, -1, 255);
+        lua_pop(L, 1);
+        lua_getfield(L, idx, "g");
+        col.g = (unsigned char)luaL_optinteger(L, -1, 255);
+        lua_pop(L, 1);
+        lua_getfield(L, idx, "b");
+        col.b = (unsigned char)luaL_optinteger(L, -1, 255);
+        lua_pop(L, 1);
+        lua_getfield(L, idx, "a");
+        col.a = (unsigned char)luaL_optinteger(L, -1, 255);
+        lua_pop(L, 1);
+        if (next_idx)
+            *next_idx = idx + 1;
+    }
+    else
+    {
+        col = lua_check_color(L, idx);
+        if (next_idx)
+            *next_idx = idx + 4;
+    }
     return col;
 }
 
@@ -2844,6 +2947,186 @@ static int l_leo_tiled_resolve_gid(lua_State *L)
 }
 
 // -----------------------------------------------------------------------------
+// Collision bindings
+// -----------------------------------------------------------------------------
+static int l_leo_check_collision_recs(lua_State *L)
+{
+    leo_Rectangle a = lua_read_rect_args(L, 1);
+    leo_Rectangle b = lua_read_rect_args(L, 5);
+    lua_pushboolean(L, leo_CheckCollisionRecs(a, b));
+    return 1;
+}
+
+static int l_leo_check_collision_circles(lua_State *L)
+{
+    leo_Vector2 c1 = lua_read_vec2_args(L, 1);
+    float r1 = (float)luaL_checknumber(L, 3);
+    leo_Vector2 c2 = lua_read_vec2_args(L, 4);
+    float r2 = (float)luaL_checknumber(L, 6);
+    lua_pushboolean(L, leo_CheckCollisionCircles(c1, r1, c2, r2));
+    return 1;
+}
+
+static int l_leo_check_collision_circle_rec(lua_State *L)
+{
+    leo_Vector2 center = lua_read_vec2_args(L, 1);
+    float radius = (float)luaL_checknumber(L, 3);
+    leo_Rectangle rec = lua_read_rect_args(L, 4);
+    lua_pushboolean(L, leo_CheckCollisionCircleRec(center, radius, rec));
+    return 1;
+}
+
+static int l_leo_check_collision_circle_line(lua_State *L)
+{
+    leo_Vector2 center = lua_read_vec2_args(L, 1);
+    float radius = (float)luaL_checknumber(L, 3);
+    leo_Vector2 p1 = lua_read_vec2_args(L, 4);
+    leo_Vector2 p2 = lua_read_vec2_args(L, 6);
+    lua_pushboolean(L, leo_CheckCollisionCircleLine(center, radius, p1, p2));
+    return 1;
+}
+
+static int l_leo_check_collision_point_rec(lua_State *L)
+{
+    leo_Vector2 point = lua_read_vec2_args(L, 1);
+    leo_Rectangle rec = lua_read_rect_args(L, 3);
+    lua_pushboolean(L, leo_CheckCollisionPointRec(point, rec));
+    return 1;
+}
+
+static int l_leo_check_collision_point_circle(lua_State *L)
+{
+    leo_Vector2 point = lua_read_vec2_args(L, 1);
+    leo_Vector2 center = lua_read_vec2_args(L, 3);
+    float radius = (float)luaL_checknumber(L, 5);
+    lua_pushboolean(L, leo_CheckCollisionPointCircle(point, center, radius));
+    return 1;
+}
+
+static int l_leo_check_collision_point_triangle(lua_State *L)
+{
+    leo_Vector2 point = lua_read_vec2_args(L, 1);
+    leo_Vector2 p1 = lua_read_vec2_args(L, 3);
+    leo_Vector2 p2 = lua_read_vec2_args(L, 5);
+    leo_Vector2 p3 = lua_read_vec2_args(L, 7);
+    lua_pushboolean(L, leo_CheckCollisionPointTriangle(point, p1, p2, p3));
+    return 1;
+}
+
+static int l_leo_check_collision_point_line(lua_State *L)
+{
+    leo_Vector2 point = lua_read_vec2_args(L, 1);
+    leo_Vector2 p1 = lua_read_vec2_args(L, 3);
+    leo_Vector2 p2 = lua_read_vec2_args(L, 5);
+    float threshold = (float)luaL_checknumber(L, 7);
+    lua_pushboolean(L, leo_CheckCollisionPointLine(point, p1, p2, threshold));
+    return 1;
+}
+
+static int l_leo_check_collision_lines(lua_State *L)
+{
+    leo_Vector2 start1 = lua_read_vec2_args(L, 1);
+    leo_Vector2 end1 = lua_read_vec2_args(L, 3);
+    leo_Vector2 start2 = lua_read_vec2_args(L, 5);
+    leo_Vector2 end2 = lua_read_vec2_args(L, 7);
+    leo_Vector2 point;
+    bool hit = leo_CheckCollisionLines(start1, end1, start2, end2, &point);
+    lua_pushboolean(L, hit);
+    if (hit)
+    {
+        lua_createtable(L, 0, 2);
+        lua_pushnumber(L, point.x);
+        lua_setfield(L, -2, "x");
+        lua_pushnumber(L, point.y);
+        lua_setfield(L, -2, "y");
+    }
+    else
+    {
+        lua_pushnil(L);
+    }
+    return 2;
+}
+
+static int l_leo_get_collision_rec(lua_State *L)
+{
+    leo_Rectangle a = lua_read_rect_args(L, 1);
+    leo_Rectangle b = lua_read_rect_args(L, 5);
+    leo_Rectangle result = leo_GetCollisionRec(a, b);
+    lua_push_rectangle_table(L, result);
+    return 1;
+}
+
+// -----------------------------------------------------------------------------
+// Base64 bindings
+// -----------------------------------------------------------------------------
+static const char *lua_b64_result_string(leo_b64_result res)
+{
+    switch (res)
+    {
+    case LEO_B64_OK:
+        return "ok";
+    case LEO_B64_E_ARG:
+        return "invalid arguments";
+    case LEO_B64_E_NOSPACE:
+        return "buffer too small";
+    case LEO_B64_E_FORMAT:
+        return "invalid format";
+    default:
+        return "unknown";
+    }
+}
+
+static int l_leo_base64_encoded_len(lua_State *L)
+{
+    size_t n = (size_t)luaL_checkinteger(L, 1);
+    lua_pushinteger(L, (lua_Integer)leo_base64_encoded_len(n));
+    return 1;
+}
+
+static int l_leo_base64_decoded_cap(lua_State *L)
+{
+    size_t n = (size_t)luaL_checkinteger(L, 1);
+    lua_pushinteger(L, (lua_Integer)leo_base64_decoded_cap(n));
+    return 1;
+}
+
+static int l_leo_base64_encode(lua_State *L)
+{
+    size_t len = 0;
+    const char *src = luaL_checklstring(L, 1, &len);
+    char *out = NULL;
+    size_t out_len = 0;
+    leo_b64_result res = leo_base64_encode_alloc(src, len, &out, &out_len);
+    if (res != LEO_B64_OK)
+    {
+        lua_pushnil(L);
+        lua_pushstring(L, lua_b64_result_string(res));
+        return 2;
+    }
+    lua_pushlstring(L, out, out_len);
+    free(out);
+    return 1;
+}
+
+static int l_leo_base64_decode(lua_State *L)
+{
+    size_t len = 0;
+    const char *src = luaL_checklstring(L, 1, &len);
+    unsigned char *out = NULL;
+    size_t out_len = 0;
+    leo_b64_result res = leo_base64_decode_alloc(src, len, &out, &out_len);
+    if (res != LEO_B64_OK)
+    {
+        lua_pushnil(L);
+        lua_pushstring(L, lua_b64_result_string(res));
+        return 2;
+    }
+    lua_pushlstring(L, (const char *)out, out_len);
+    free(out);
+    return 1;
+}
+
+// -----------------------------------------------------------------------------
 // Animation bindings
 // -----------------------------------------------------------------------------
 static int l_leo_load_animation(lua_State *L)
@@ -3037,6 +3320,60 @@ static int l_leo_set_sound_pan(lua_State *L)
     float pan = (float)luaL_checknumber(L, 2);
     leo_SetSoundPan(&ud->sound, pan);
     return 0;
+}
+
+// -----------------------------------------------------------------------------
+// Transition bindings
+// -----------------------------------------------------------------------------
+static int l_leo_start_fade_in(lua_State *L)
+{
+    float duration = (float)luaL_checknumber(L, 1);
+    leo_Color color = lua_check_color_param(L, 2, NULL);
+    lua_transition_clear_callback();
+    leo_StartFadeIn(duration, color);
+    return 0;
+}
+
+static int l_leo_start_fade_out(lua_State *L)
+{
+    float duration = (float)luaL_checknumber(L, 1);
+    int next_idx = 0;
+    leo_Color color = lua_check_color_param(L, 2, &next_idx);
+    lua_transition_set_callback(L, next_idx);
+    leo_StartFadeOut(duration, color, (g_transition_callback.ref == LUA_NOREF) ? NULL : leo__lua_transition_on_complete);
+    return 0;
+}
+
+static int l_leo_start_transition(lua_State *L)
+{
+    int type = (int)luaL_checkinteger(L, 1);
+    float duration = (float)luaL_checknumber(L, 2);
+    int next_idx = 0;
+    leo_Color color = lua_check_color_param(L, 3, &next_idx);
+    lua_transition_set_callback(L, next_idx);
+    leo_StartTransition((leo_TransitionType)type, duration, color,
+                        (g_transition_callback.ref == LUA_NOREF) ? NULL : leo__lua_transition_on_complete);
+    return 0;
+}
+
+static int l_leo_update_transitions(lua_State *L)
+{
+    float dt = (float)luaL_checknumber(L, 1);
+    leo_UpdateTransitions(dt);
+    return 0;
+}
+
+static int l_leo_render_transitions(lua_State *L)
+{
+    (void)L;
+    leo_RenderTransitions();
+    return 0;
+}
+
+static int l_leo_is_transitioning(lua_State *L)
+{
+    lua_pushboolean(L, leo_IsTransitioning());
+    return 1;
 }
 
 // -----------------------------------------------------------------------------
@@ -3248,6 +3585,20 @@ int leo_LuaOpenBindings(void *vL)
         {"leo_tiled_map_get_tileset", l_leo_tiled_map_get_tileset},
         {"leo_tiled_gid_info", l_leo_tiled_gid_info},
         {"leo_tiled_resolve_gid", l_leo_tiled_resolve_gid},
+        {"leo_check_collision_recs", l_leo_check_collision_recs},
+        {"leo_check_collision_circles", l_leo_check_collision_circles},
+        {"leo_check_collision_circle_rec", l_leo_check_collision_circle_rec},
+        {"leo_check_collision_circle_line", l_leo_check_collision_circle_line},
+        {"leo_check_collision_point_rec", l_leo_check_collision_point_rec},
+        {"leo_check_collision_point_circle", l_leo_check_collision_point_circle},
+        {"leo_check_collision_point_triangle", l_leo_check_collision_point_triangle},
+        {"leo_check_collision_point_line", l_leo_check_collision_point_line},
+        {"leo_check_collision_lines", l_leo_check_collision_lines},
+        {"leo_get_collision_rec", l_leo_get_collision_rec},
+        {"leo_base64_encoded_len", l_leo_base64_encoded_len},
+        {"leo_base64_decoded_cap", l_leo_base64_decoded_cap},
+        {"leo_base64_encode", l_leo_base64_encode},
+        {"leo_base64_decode", l_leo_base64_decode},
         {"leo_load_animation", l_leo_load_animation},
         {"leo_unload_animation", l_leo_unload_animation},
         {"leo_create_animation_player", l_leo_create_animation_player},
@@ -3269,6 +3620,12 @@ int leo_LuaOpenBindings(void *vL)
         {"leo_set_sound_volume", l_leo_set_sound_volume},
         {"leo_set_sound_pitch", l_leo_set_sound_pitch},
         {"leo_set_sound_pan", l_leo_set_sound_pan},
+        {"leo_start_fade_in", l_leo_start_fade_in},
+        {"leo_start_fade_out", l_leo_start_fade_out},
+        {"leo_start_transition", l_leo_start_transition},
+        {"leo_update_transitions", l_leo_update_transitions},
+        {"leo_render_transitions", l_leo_render_transitions},
+        {"leo_is_transitioning", l_leo_is_transitioning},
         {"leo_set_logical_resolution", l_leo_set_logical_resolution},
         {NULL, NULL}
     };
@@ -3307,6 +3664,18 @@ int leo_LuaOpenBindings(void *vL)
     lua_pushinteger(L, (lua_Integer)LEO_TILED_FLIP_V); lua_setglobal(L, "leo_TILED_FLIP_V");
     lua_pushinteger(L, (lua_Integer)LEO_TILED_FLIP_D); lua_setglobal(L, "leo_TILED_FLIP_D");
     lua_pushinteger(L, (lua_Integer)LEO_TILED_GID_MASK); lua_setglobal(L, "leo_TILED_GID_MASK");
+
+    // Base64 result codes
+    lua_pushinteger(L, LEO_B64_OK); lua_setglobal(L, "leo_B64_OK");
+    lua_pushinteger(L, LEO_B64_E_ARG); lua_setglobal(L, "leo_B64_E_ARG");
+    lua_pushinteger(L, LEO_B64_E_NOSPACE); lua_setglobal(L, "leo_B64_E_NOSPACE");
+    lua_pushinteger(L, LEO_B64_E_FORMAT); lua_setglobal(L, "leo_B64_E_FORMAT");
+
+    // Transition types
+    lua_pushinteger(L, LEO_TRANSITION_FADE_IN); lua_setglobal(L, "leo_TRANSITION_FADE_IN");
+    lua_pushinteger(L, LEO_TRANSITION_FADE_OUT); lua_setglobal(L, "leo_TRANSITION_FADE_OUT");
+    lua_pushinteger(L, LEO_TRANSITION_CIRCLE_IN); lua_setglobal(L, "leo_TRANSITION_CIRCLE_IN");
+    lua_pushinteger(L, LEO_TRANSITION_CIRCLE_OUT); lua_setglobal(L, "leo_TRANSITION_CIRCLE_OUT");
 
     // Touch/gesture constants
     lua_pushinteger(L, LEO_GESTURE_NONE); lua_setglobal(L, "leo_GESTURE_NONE");
