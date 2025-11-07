@@ -544,6 +544,12 @@ int leo_LuaGameRun(const leo_LuaGameConfig *cfg, const leo_LuaGameCallbacks *cb)
         return 2;
     }
 
+    /* Set window mode */
+    if (!leo_SetWindowMode(cfg->window_mode))
+    {
+        fprintf(stderr, "leo_LuaGameRun: leo_SetWindowMode failed; continuing in windowed mode\n");
+    }
+
     // Mount resources directory for VFS access
     if (!leo_MountDirectory("resources", 0))
     {

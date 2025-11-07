@@ -31,6 +31,7 @@ extern "C"
         const char *window_title;
         int window_width;
         int window_height;
+        leo_WindowMode window_mode; // window display mode
         int target_fps;
         leo_Color clear_color;
         const char *script_path; // Path to Lua script (via VFS)
