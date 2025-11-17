@@ -8,10 +8,9 @@
 #include "leo/io.h"
 
 #include <SDL3/SDL.h>
+#include <SDL3/SDL_stdinc.h>
 #include <stdbool.h>
 #include <stdint.h>
-#include <stdlib.h>
-#include <string.h>
 
 // stb_image (single TU)
 #define STB_IMAGE_IMPLEMENTATION
@@ -117,7 +116,7 @@ static stbi_uc *_stbi_load_from_vfs_rgba(const char *logicalName, int *w, int *h
     if (need == 0)
         return NULL; // not found in mounts
 
-    unsigned char *buf = (unsigned char *)malloc(need);
+    unsigned char *buf = (unsigned char *)SDL_malloc(need);
     if (!buf)
     {
         leo_SetError("leo_LoadTexture: OOM reading '%s' from VFS", logicalName);
@@ -126,11 +125,11 @@ static stbi_uc *_stbi_load_from_vfs_rgba(const char *logicalName, int *w, int *h
     size_t got = leo_ReadAsset(logicalName, buf, need, NULL);
     if (got != need)
     {
-        free(buf);
+        SDL_free(buf);
         return NULL;
     }
     stbi_uc *px = stbi_load_from_memory((const stbi_uc *)buf, (int)need, w, h, comp, 4);
-    free(buf);
+    SDL_free(buf);
     return px;
 }
 // -------------------------------
@@ -331,7 +330,7 @@ leo_Texture2D leo_LoadTextureFromPixels(const void *pixels, int width, int heigh
     // Expand to RGBA8
     const size_t dst_pitch = (size_t)width * 4;
     const size_t dst_size = (size_t)height * dst_pitch;
-    uint8_t *dst = (uint8_t *)malloc(dst_size);
+    uint8_t *dst = (uint8_t *)SDL_malloc(dst_size);
     if (!dst)
     {
         leo_SetError("leo_LoadTextureFromPixels: OOM");
@@ -387,13 +386,13 @@ leo_Texture2D leo_LoadTextureFromPixels(const void *pixels, int width, int heigh
         break;
 
         default:
-            free(dst);
+            SDL_free(dst);
             leo_SetError("leo_LoadTextureFromPixels: unhandled format");
             return _zero_tex();
         }
     }
 
     leo_Texture2D tex = _upload_rgba(r, dst, width, height, (int)dst_pitch);
-    free(dst);
+    SDL_free(dst);
     return tex;
 }

@@ -1,6 +1,5 @@
 #include "leo/macos_path_helper.h"
-#include <stdlib.h>
-#include <string.h>
+#include <SDL3/SDL_stdinc.h>
 
 #ifdef __APPLE__
 #include <CoreFoundation/CoreFoundation.h>
@@ -25,7 +24,7 @@ char *leo_GetResourceBasePath(void)
             if (CFURLGetFileSystemRepresentation(resourcesURL, true, (UInt8 *)path, PATH_MAX))
             {
                 CFRelease(resourcesURL);
-                return strdup(path);
+                return SDL_strdup(path);
             }
             CFRelease(resourcesURL);
         }

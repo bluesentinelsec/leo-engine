@@ -3,7 +3,7 @@
 #include "leo/mouse.h"
 #include "leo/engine.h"
 #include <SDL3/SDL.h>
-#include <string.h> /* memset, memcpy */
+#include <SDL3/SDL_stdinc.h> /* SDL_memset, SDL_memcpy */
 
 /* configurable max — we only use indices 1..5 (L, M, R, X1, X2) */
 #ifndef LEO_MAX_MOUSE_BUTTONS
@@ -63,7 +63,7 @@ static void apply_offset_scale(float inX, float inY, float *outX, float *outY)
 
 void leo_InitMouse(void)
 {
-    memset(&g_ms, 0, sizeof(g_ms));
+    SDL_memset(&g_ms, 0, sizeof(g_ms));
     g_ms.connected = SDL_HasMouse() ? 1 : 0;
     g_ms.scaleX = 1.0f;
     g_ms.scaleY = 1.0f;
@@ -80,7 +80,7 @@ void leo_InitMouse(void)
 
 void leo_ShutdownMouse(void)
 {
-    memset(&g_ms, 0, sizeof(g_ms));
+    SDL_memset(&g_ms, 0, sizeof(g_ms));
 }
 
 /* engine should forward raw SDL_Event* here */
@@ -98,8 +98,8 @@ void leo_HandleMouseEvent(void *sdl_evt)
 
     case SDL_EVENT_MOUSE_REMOVED:
         g_ms.connected = 0;
-        memset(g_ms.curr, 0, sizeof(g_ms.curr));
-        memset(g_ms.prev, 0, sizeof(g_ms.prev));
+        SDL_memset(g_ms.curr, 0, sizeof(g_ms.curr));
+        SDL_memset(g_ms.prev, 0, sizeof(g_ms.prev));
         break;
 
     case SDL_EVENT_MOUSE_WHEEL:
@@ -136,7 +136,7 @@ void leo_HandleMouseEvent(void *sdl_evt)
 void leo_UpdateMouse(void)
 {
     /* carry previous button state into prev for edge detection */
-    memcpy(g_ms.prev, g_ms.curr, sizeof(g_ms.curr));
+    SDL_memcpy(g_ms.prev, g_ms.curr, sizeof(g_ms.curr));
 
     /* refresh connection & absolute position (fallback in case no motion events arrived) */
     g_ms.connected = SDL_HasMouse() ? 1 : 0;

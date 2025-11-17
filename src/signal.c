@@ -1,7 +1,6 @@
 #include "leo/signal.h"
 #include <SDL3/SDL.h> /* only here, not exposed in header */
-#include <stdlib.h>
-#include <string.h>
+#include <SDL3/SDL_stdinc.h>
 
 /* -------------------------------- Helpers -------------------------------- */
 
@@ -12,10 +11,10 @@ static char *leo__strdup(const char *s)
 #if defined(_MSC_VER)
     return _strdup(s);
 #else
-    size_t n = strlen(s) + 1;
-    char *p = (char *)malloc(n);
+    size_t n = SDL_strlen(s) + 1;
+    char *p = (char *)SDL_malloc(n);
     if (p)
-        memcpy(p, s, n);
+        SDL_memcpy(p, s, n);
     return p;
 #endif
 }
@@ -36,7 +35,7 @@ static leo_Signal *leo__signal_find(leo_SignalEmitter *se, const char *name)
     if (!se || !name)
         return NULL;
     for (leo_Signal *s = se->signals; s; s = s->next)
-        if (strcmp(s->name, name) == 0)
+        if (SDL_strcmp(s->name, name) == 0)
             return s;
     return NULL;
 }
@@ -49,13 +48,13 @@ static leo_Signal *leo__signal_find_or_create(leo_SignalEmitter *se, const char 
     if (s)
         return s;
 
-    s = (leo_Signal *)malloc(sizeof *s);
+    s = (leo_Signal *)SDL_malloc(sizeof *s);
     if (!s)
         return NULL;
     s->name = leo__strdup(name);
     if (!s->name)
     {
-        free(s);
+        SDL_free(s);
         return NULL;
     }
 
@@ -90,11 +89,11 @@ void leo_signal_emitter_free(leo_SignalEmitter *se)
         while (cb)
         {
             leo_Callback *next_cb = cb->next;
-            free(cb);
+            SDL_free(cb);
             cb = next_cb;
         }
-        free(sig->name);
-        free(sig);
+        SDL_free(sig->name);
+        SDL_free(sig);
         sig = next_sig;
     }
     se->signals = NULL;
@@ -139,7 +138,7 @@ void leo_signal_connect(leo_SignalEmitter *se, const char *signal_name, leo_Sign
     leo_Signal *sig = leo__signal_find_or_create(se, signal_name);
     if (sig)
     {
-        leo_Callback *node = (leo_Callback *)malloc(sizeof *node);
+        leo_Callback *node = (leo_Callback *)SDL_malloc(sizeof *node);
         if (node)
         {
             node->fn = callback;
@@ -166,7 +165,7 @@ void leo_signal_disconnect(leo_SignalEmitter *se, const char *signal_name, leo_S
             if (cb->fn == callback && cb->user_data == user_data)
             {
                 *prev = cb->next;
-                free(cb);
+                SDL_free(cb);
                 break;
             }
             prev = &cb->next;
@@ -188,7 +187,7 @@ void leo_signal_disconnect_all(leo_SignalEmitter *se, const char *signal_name)
         while (cb)
         {
             leo_Callback *next = cb->next;
-            free(cb);
+            SDL_free(cb);
             cb = next;
         }
         sig->callbacks = NULL;

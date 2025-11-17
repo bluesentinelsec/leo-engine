@@ -4,9 +4,9 @@
 #include "leo/error.h"
 
 #include <SDL3/SDL.h>
+#include <SDL3/SDL_stdinc.h>
 #include <math.h>
 #include <stdbool.h>
-#include <string.h>
 
 #ifndef LEO_MAX_GAMEPADS
 #define LEO_MAX_GAMEPADS 8
@@ -145,7 +145,7 @@ static inline float s_apply_deadzone(float x)
 // ==============================
 static inline void s_clear_slot(LeoGamepadSlot *s)
 {
-    memset(s, 0, sizeof(*s));
+    SDL_memset(s, 0, sizeof(*s));
     s->jid = 0;
 }
 
@@ -191,10 +191,10 @@ static void s_open_pad_for_slot(int slot, SDL_JoystickID jid)
     gpads[slot].name = SDL_GetGamepadName(pad);
 
     gpads[slot].curr_buttons = gpads[slot].prev_buttons = 0;
-    memset(gpads[slot].stick_down, 0, sizeof(gpads[slot].stick_down));
-    memset(gpads[slot].stick_prev, 0, sizeof(gpads[slot].stick_prev));
-    memset(gpads[slot].stick_pressed, 0, sizeof(gpads[slot].stick_pressed));
-    memset(gpads[slot].stick_released, 0, sizeof(gpads[slot].stick_released));
+    SDL_memset(gpads[slot].stick_down, 0, sizeof(gpads[slot].stick_down));
+    SDL_memset(gpads[slot].stick_prev, 0, sizeof(gpads[slot].stick_prev));
+    SDL_memset(gpads[slot].stick_pressed, 0, sizeof(gpads[slot].stick_pressed));
+    SDL_memset(gpads[slot].stick_released, 0, sizeof(gpads[slot].stick_released));
 }
 #endif
 
@@ -352,7 +352,7 @@ static void s_eval_stick_hysteresis_for_slot(int i)
 // ==============================
 void leo_InitGamepads(void)
 {
-    memset(gpads, 0, sizeof(gpads));
+    SDL_memset(gpads, 0, sizeof(gpads));
     s_last_button_pressed = -1;
 
 #ifndef LEO_TEST_BACKEND
@@ -651,7 +651,7 @@ int leo__test_attach_pad(const char *name)
         gpads[slot].test_name[0] = '\0';
     }
     // start neutral
-    memset(gpads[slot].test_axes, 0, sizeof(gpads[slot].test_axes));
+    SDL_memset(gpads[slot].test_axes, 0, sizeof(gpads[slot].test_axes));
     gpads[slot].test_buttons = 0;
     return slot;
 }

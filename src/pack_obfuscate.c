@@ -2,7 +2,7 @@
 #include "leo/pack_util.h"
 #include <stddef.h>
 #include <stdint.h>
-#include <string.h>
+#include <SDL3/SDL_stdinc.h>
 
 /* Derive a 32-bit stream seed from password and pack_salt. */
 uint32_t leo_xor_seed_from_password(const char *password, uint64_t pack_salt)
@@ -12,7 +12,7 @@ uint32_t leo_xor_seed_from_password(const char *password, uint64_t pack_salt)
     /* Mix salt in front and back to avoid trivial collisions */
     uint64_t parts[2];
     parts[0] = pack_salt;
-    parts[1] = leo_fnv1a64(password, (size_t)strlen(password));
+    parts[1] = leo_fnv1a64(password, (size_t)SDL_strlen(password));
     uint64_t mix = leo_fnv1a64(parts, sizeof(parts));
     uint32_t seed = (uint32_t)(mix ^ (mix >> 32));
     if (seed == 0)

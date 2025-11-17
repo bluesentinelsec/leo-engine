@@ -8,8 +8,8 @@
 #include "leo/mouse.h"
 
 #include <SDL3/SDL.h>
+#include <SDL3/SDL_stdinc.h>
 #include <math.h>
-#include <string.h>
 
 SDL_Window *globalWindow = NULL;
 SDL_Renderer *globalRenderer = NULL;
@@ -750,7 +750,7 @@ leo_Vector2 leo_GetScreenToWorld2D(leo_Vector2 p, leo_Camera2D cam)
 leo_RenderTexture2D leo_LoadRenderTexture(int width, int height)
 {
     leo_RenderTexture2D rt;
-    memset(&rt, 0, sizeof(rt));
+    SDL_memset(&rt, 0, sizeof(rt));
     if (!globalRenderer || width <= 0 || height <= 0)
         return rt;
 

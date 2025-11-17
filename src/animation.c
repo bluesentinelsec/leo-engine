@@ -1,6 +1,6 @@
 #include "leo/animation.h"
 #include "leo/graphics.h"
-#include <string.h>
+#include <SDL3/SDL_stdinc.h>
 
 leo_Animation leo_LoadAnimation(const char *filename, int frameWidth, int frameHeight, int frameCount, float frameTime,
                                 bool loop)
@@ -111,6 +111,6 @@ void leo_UnloadAnimation(leo_Animation *animation)
     if (animation)
     {
         leo_UnloadTexture(&animation->texture);
-        memset(animation, 0, sizeof(leo_Animation));
+        SDL_memset(animation, 0, sizeof(leo_Animation));
     }
 }

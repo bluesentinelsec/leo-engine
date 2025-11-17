@@ -1,8 +1,7 @@
 // keyboard.c — robust keyboard input implementation using SDL3
 
 #include <stdbool.h>
-#include <stdlib.h>
-#include <string.h>
+#include <SDL3/SDL_stdinc.h>
 
 #include "leo/keyboard.h"
 #include <SDL3/SDL.h>
@@ -46,22 +45,22 @@ static void leo_InitKeyboard(void)
         s_numKeys = 512; // safety fallback
     }
 
-    s_currentKeys = (bool *)malloc((size_t)s_numKeys * sizeof(bool));
-    s_prevKeys = (bool *)malloc((size_t)s_numKeys * sizeof(bool));
+    s_currentKeys = (bool *)SDL_malloc((size_t)s_numKeys * sizeof(bool));
+    s_prevKeys = (bool *)SDL_malloc((size_t)s_numKeys * sizeof(bool));
 
     if (!s_currentKeys || !s_prevKeys)
     {
         // Best-effort: avoid UB if allocation fails
-        free(s_currentKeys);
+        SDL_free(s_currentKeys);
         s_currentKeys = NULL;
-        free(s_prevKeys);
+        SDL_free(s_prevKeys);
         s_prevKeys = NULL;
         s_numKeys = 0;
         return;
     }
 
-    memset(s_currentKeys, 0, (size_t)s_numKeys * sizeof(bool));
-    memset(s_prevKeys, 0, (size_t)s_numKeys * sizeof(bool));
+    SDL_memset(s_currentKeys, 0, (size_t)s_numKeys * sizeof(bool));
+    SDL_memset(s_prevKeys, 0, (size_t)s_numKeys * sizeof(bool));
     s_keyboardInitialized = true;
 }
 
@@ -73,7 +72,7 @@ void leo_UpdateKeyboard(void)
         return;
 
     // Roll previous
-    memcpy(s_prevKeys, s_currentKeys, (size_t)s_numKeys * sizeof(bool));
+    SDL_memcpy(s_prevKeys, s_currentKeys, (size_t)s_numKeys * sizeof(bool));
 
 #ifdef TESTING
     if (!s_testMode)
@@ -212,9 +211,9 @@ bool leo_IsExitKeyPressed(void)
 
 void leo_CleanupKeyboard(void)
 {
-    free(s_currentKeys);
+    SDL_free(s_currentKeys);
     s_currentKeys = NULL;
-    free(s_prevKeys);
+    SDL_free(s_prevKeys);
     s_prevKeys = NULL;
     s_numKeys = 0;
     s_keyboardInitialized = false;

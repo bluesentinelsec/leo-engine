@@ -1,7 +1,5 @@
 #include "leo/csv.h"
-#include <ctype.h>
-#include <stdlib.h>
-#include <string.h>
+#include <SDL3/SDL_stdinc.h>
 
 static leo_csv_opts default_opts(void)
 {
@@ -60,7 +58,7 @@ leo_csv_result leo_csv_parse(const char *data, size_t len, const leo_csv_opts *o
 
     /* Scratch buffer for unescaping quoted fields; grow-on-demand. */
     size_t cap = 256;
-    char *buf = (char *)malloc(cap);
+    char *buf = (char *)SDL_malloc(cap);
     if (!buf)
         return LEO_CSV_E_OOM;
 
@@ -84,10 +82,10 @@ leo_csv_result leo_csv_parse(const char *data, size_t len, const leo_csv_opts *o
                         if (out_len + 1 > cap)
                         {
                             size_t ncap = cap * 2;
-                            char *nbuf = (char *)realloc(buf, ncap);
+                            char *nbuf = (char *)SDL_realloc(buf, ncap);
                             if (!nbuf)
                             {
-                                free(buf);
+                                SDL_free(buf);
                                 return LEO_CSV_E_OOM;
                             }
                             buf = nbuf;
@@ -103,10 +101,10 @@ leo_csv_result leo_csv_parse(const char *data, size_t len, const leo_csv_opts *o
                 if (out_len + 1 > cap)
                 {
                     size_t ncap = cap * 2;
-                    char *nbuf = (char *)realloc(buf, ncap);
+                    char *nbuf = (char *)SDL_realloc(buf, ncap);
                     if (!nbuf)
                     {
-                        free(buf);
+                        SDL_free(buf);
                         return LEO_CSV_E_OOM;
                     }
                     buf = nbuf;
@@ -135,7 +133,7 @@ leo_csv_result leo_csv_parse(const char *data, size_t len, const leo_csv_opts *o
             }
             else
             {
-                free(buf);
+                SDL_free(buf);
                 return LEO_CSV_E_FORMAT;
             }
 
@@ -189,13 +187,13 @@ leo_csv_result leo_csv_parse(const char *data, size_t len, const leo_csv_opts *o
             col = 0;
             if (abort_after_row)
             {
-                free(buf);
+                SDL_free(buf);
                 return LEO_CSV_OK;
             }
         }
     }
 
-    free(buf);
+    SDL_free(buf);
     return LEO_CSV_OK;
 }
 
@@ -300,7 +298,7 @@ static int on_cell_u32(void *u, const char *cell, size_t len, size_t row, size_t
     if (a->count == a->cap)
     {
         size_t ncap = a->cap ? a->cap * 2 : 256;
-        uint32_t *n = (uint32_t *)realloc(a->out, ncap * sizeof(uint32_t));
+        uint32_t *n = (uint32_t *)SDL_realloc(a->out, ncap * sizeof(uint32_t));
         if (!n)
             return 1; /* abort on OOM */
         a->out = n;
@@ -328,7 +326,7 @@ leo_csv_result leo_csv_parse_uint32_alloc(const char *data, size_t len, uint32_t
     leo_csv_result r = leo_csv_parse(data, len, &opt, on_cell_u32, &acc);
     if (r != LEO_CSV_OK)
     {
-        free(acc.out);
+        SDL_free(acc.out);
         return r;
     }
 

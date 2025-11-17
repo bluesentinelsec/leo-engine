@@ -5,8 +5,7 @@
 #include "leo/error.h"
 #include "leo/io.h"
 
-#include <stdlib.h>
-#include <string.h>
+#include <SDL3/SDL_stdinc.h>
 
 // ---------------------------------------------
 // Global engine (lazy init)
@@ -116,7 +115,7 @@ leo_Sound leo_LoadSound(const char *filePath)
     }
 
     /* Wrapper holds snd + optional decoder + owned encoded bytes. */
-    _LeoSoundImpl *impl = (_LeoSoundImpl *)calloc(1, sizeof(*impl));
+    _LeoSoundImpl *impl = (_LeoSoundImpl *)SDL_calloc(1, sizeof(*impl));
     if (!impl)
     {
         leo_SetError("leo_LoadSound: OOM");
@@ -147,7 +146,7 @@ leo_Sound leo_LoadSound(const char *filePath)
         if (impl->hasDecoder == 0)
         {
             /* VFS path failed: free the encoded buffer and fall back to file. */
-            free(encData);
+            SDL_free(encData);
         }
     }
 
@@ -157,7 +156,7 @@ leo_Sound leo_LoadSound(const char *filePath)
         ma_result r = ma_sound_init_from_file(&g_engine, filePath, MA_SOUND_FLAG_STREAM, NULL, NULL, &impl->snd);
         if (r != MA_SUCCESS)
         {
-            free(impl);
+            SDL_free(impl);
             leo_SetError("miniaudio: ma_sound_init_from_file failed (%d)", (int)r);
             return _zero_sound();
         }
@@ -183,9 +182,9 @@ void leo_UnloadSound(leo_Sound *sound)
         }
         if (impl->encoded)
         {
-            free(impl->encoded);
+            SDL_free(impl->encoded);
         }
-        free(impl);
+        SDL_free(impl);
     }
     sound->_handle = NULL;
     sound->channels = 0;
