@@ -60,7 +60,7 @@ int leo_GameRun(const leo_GameConfig *cfg, const leo_GameCallbacks *cb)
 {
     if (!cfg || !cb || !cb->on_setup)
     {
-        fprintf(stderr, "leo_GameRun: invalid arguments (cfg/cb/null or missing on_setup)\n");
+        SDL_LogError(SDL_LOG_CATEGORY_APPLICATION, "leo_GameRun: invalid arguments (cfg/cb/null or missing on_setup)");
         return 1;
     }
 
@@ -79,14 +79,14 @@ int leo_GameRun(const leo_GameConfig *cfg, const leo_GameCallbacks *cb)
 
     if (!leo_InitWindow(win_w, win_h, title))
     {
-        fprintf(stderr, "leo_GameRun: leo_InitWindow(%d,%d,\"%s\") failed\n", win_w, win_h, title);
+        SDL_LogError(SDL_LOG_CATEGORY_APPLICATION, "leo_GameRun: leo_InitWindow(%d,%d,\"%s\") failed", win_w, win_h, title);
         return 2;
     }
 
     /* Set window mode */
     if (!leo_SetWindowMode(cfg->window_mode))
     {
-        fprintf(stderr, "leo_GameRun: leo_SetWindowMode failed; continuing in windowed mode\n");
+        SDL_LogError(SDL_LOG_CATEGORY_APPLICATION, "leo_GameRun: leo_SetWindowMode failed; continuing in windowed mode");
     }
 
     if (cfg->target_fps > 0)
@@ -99,7 +99,7 @@ int leo_GameRun(const leo_GameConfig *cfg, const leo_GameCallbacks *cb)
         if (!leo_SetLogicalResolution(cfg->logical_width, cfg->logical_height, cfg->presentation, cfg->scale_mode))
         {
             /* Non-fatal: keep running without logical scaling */
-            fprintf(stderr, "leo_GameRun: leo_SetLogicalResolution failed; continuing without logical scaling\n");
+            SDL_LogError(SDL_LOG_CATEGORY_APPLICATION, "leo_GameRun: leo_SetLogicalResolution failed; continuing without logical scaling");
         }
     }
 
@@ -107,7 +107,7 @@ int leo_GameRun(const leo_GameConfig *cfg, const leo_GameCallbacks *cb)
     leo_ActorSystem *actors = leo_actor_system_create();
     if (!actors)
     {
-        fprintf(stderr, "leo_GameRun: leo_actor_system_create failed\n");
+        SDL_LogError(SDL_LOG_CATEGORY_APPLICATION, "leo_GameRun: leo_actor_system_create failed");
         leo_CloseWindow();
         return 3;
     }
@@ -145,7 +145,7 @@ int leo_GameRun(const leo_GameConfig *cfg, const leo_GameCallbacks *cb)
     leo__GameLoopData *data = malloc(sizeof(leo__GameLoopData));
     if (!data)
     {
-        fprintf(stderr, "leo_GameRun: malloc failed\n");
+        SDL_LogError(SDL_LOG_CATEGORY_APPLICATION, "leo_GameRun: malloc failed");
         leo_actor_system_destroy(actors);
         leo_CloseWindow();
         return 5;

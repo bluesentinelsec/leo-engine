@@ -343,7 +343,7 @@ static void leo__lua_actor_enum_invoke(leo__LuaActorEnumCtx *ctx, leo_Actor *act
         lua_pushnil(L);
     if (lua_pcall(L, 2, 0, 0) != LUA_OK)
     {
-        fprintf(stderr, "leo_actor callback error: %s\n", lua_tostring(L, -1));
+        SDL_LogError(SDL_LOG_CATEGORY_APPLICATION, "leo_actor callback error: %s", lua_tostring(L, -1));
         lua_pop(L, 1);
     }
 }
@@ -379,7 +379,7 @@ static void leo__lua_transition_on_complete(void)
     lua_transition_clear_callback();
     if (lua_pcall(L, 0, 0, 0) != LUA_OK)
     {
-        fprintf(stderr, "leo_transition callback error: %s\n", lua_tostring(L, -1));
+        SDL_LogError(SDL_LOG_CATEGORY_APPLICATION, "leo_transition callback error: %s", lua_tostring(L, -1));
         lua_pop(L, 1);
     }
 }
@@ -2601,7 +2601,7 @@ static bool leo__lua_actor_on_init(leo_Actor *self)
     lua_pushlightuserdata(L, self);
     if (lua_pcall(L, 1, 1, 0) != LUA_OK)
     {
-        fprintf(stderr, "leo_actor on_init error: %s\n", lua_tostring(L, -1));
+        SDL_LogError(SDL_LOG_CATEGORY_APPLICATION, "leo_actor on_init error: %s", lua_tostring(L, -1));
         lua_pop(L, 1);
         return true;
     }
@@ -2622,7 +2622,7 @@ static void leo__lua_actor_on_update(leo_Actor *self, float dt)
     lua_pushnumber(L, dt);
     if (lua_pcall(L, 2, 0, 0) != LUA_OK)
     {
-        fprintf(stderr, "leo_actor on_update error: %s\n", lua_tostring(L, -1));
+        SDL_LogError(SDL_LOG_CATEGORY_APPLICATION, "leo_actor on_update error: %s", lua_tostring(L, -1));
         lua_pop(L, 1);
     }
 }
@@ -2638,7 +2638,7 @@ static void leo__lua_actor_on_render(leo_Actor *self)
     lua_pushlightuserdata(L, self);
     if (lua_pcall(L, 1, 0, 0) != LUA_OK)
     {
-        fprintf(stderr, "leo_actor on_render error: %s\n", lua_tostring(L, -1));
+        SDL_LogError(SDL_LOG_CATEGORY_APPLICATION, "leo_actor on_render error: %s", lua_tostring(L, -1));
         lua_pop(L, 1);
     }
 }
@@ -2654,7 +2654,7 @@ static void leo__lua_actor_on_exit(leo_Actor *self)
         lua_pushlightuserdata(L, self);
         if (lua_pcall(L, 1, 0, 0) != LUA_OK)
         {
-            fprintf(stderr, "leo_actor on_exit error: %s\n", lua_tostring(L, -1));
+            SDL_LogError(SDL_LOG_CATEGORY_APPLICATION, "leo_actor on_exit error: %s", lua_tostring(L, -1));
             lua_pop(L, 1);
         }
     }

@@ -39,14 +39,14 @@ static bool _load_lua_script(lua_State *L, const char *script_path, char **out_c
     char *content = (char *)leo_LoadAsset(script_path, &size);
     if (!content)
     {
-        fprintf(stderr, "Failed to load Lua script: %s\n", script_path);
+        SDL_LogError(SDL_LOG_CATEGORY_APPLICATION, "Failed to load Lua script: %s", script_path);
         return false;
     }
 
     int result = luaL_loadbuffer(L, content, size, script_path);
     if (result != LUA_OK)
     {
-        fprintf(stderr, "Lua compile error: %s\n", lua_tostring(L, -1));
+        SDL_LogError(SDL_LOG_CATEGORY_APPLICATION, "Lua compile error: %s", lua_tostring(L, -1));
         free(content);
         return false;
     }
@@ -56,7 +56,7 @@ static bool _load_lua_script(lua_State *L, const char *script_path, char **out_c
     result = lua_pcall(L, 0, 0, 0);
     if (result != LUA_OK)
     {
-        fprintf(stderr, "Lua execution error: %s\n", lua_tostring(L, -1));
+        SDL_LogError(SDL_LOG_CATEGORY_APPLICATION, "Lua execution error: %s", lua_tostring(L, -1));
         free(content);
         return false;
     }
@@ -83,7 +83,7 @@ static bool _call_lua_function(lua_State *L, const char *func_name)
     int result = lua_pcall(L, 0, 1, 0);
     if (result != LUA_OK)
     {
-        fprintf(stderr, "Lua error in %s: %s\n", func_name, lua_tostring(L, -1));
+        SDL_LogError(SDL_LOG_CATEGORY_APPLICATION, "Lua error in %s: %s", func_name, lua_tostring(L, -1));
         lua_pop(L, 1);
         return false;
     }
@@ -458,7 +458,7 @@ static void _call_lua_update(lua_State *L, float dt)
     int result = lua_pcall(L, 1, 0, 0);
     if (result != LUA_OK)
     {
-        fprintf(stderr, "Lua error in leo_update: %s\n", lua_tostring(L, -1));
+        SDL_LogError(SDL_LOG_CATEGORY_APPLICATION, "Lua error in leo_update: %s", lua_tostring(L, -1));
         lua_pop(L, 1);
     }
 }
@@ -486,10 +486,10 @@ static void leo__LuaGameFrame(void *arg)
     // Hot reload on Delete key press (debug builds only)
     if (leo_IsKeyPressed(KEY_DELETE))
     {
-        printf("Hot reloading Lua script...\n");
+        SDL_LogInfo(SDL_LOG_CATEGORY_APPLICATION, "Hot reloading Lua script...");
         if (_load_lua_script(L, cfg->script_path, NULL, NULL))
         {
-            printf("Script reloaded successfully!\n");
+            SDL_LogInfo(SDL_LOG_CATEGORY_APPLICATION, "Script reloaded successfully!");
         }
     }
 #endif
@@ -513,7 +513,7 @@ int leo_LuaGameRun(const leo_LuaGameConfig *cfg, const leo_LuaGameCallbacks *cb)
 {
     if (!cfg)
     {
-        fprintf(stderr, "leo_LuaGameRun: invalid config\n");
+        SDL_LogError(SDL_LOG_CATEGORY_APPLICATION, "leo_LuaGameRun: invalid config");
         return 1;
     }
 
@@ -521,7 +521,7 @@ int leo_LuaGameRun(const leo_LuaGameConfig *cfg, const leo_LuaGameCallbacks *cb)
     lua_State *L = luaL_newstate();
     if (!L)
     {
-        fprintf(stderr, "leo_LuaGameRun: failed to create Lua state\n");
+        SDL_LogError(SDL_LOG_CATEGORY_APPLICATION, "leo_LuaGameRun: failed to create Lua state");
         return 1;
     }
     luaL_openlibs(L);
@@ -539,7 +539,7 @@ int leo_LuaGameRun(const leo_LuaGameConfig *cfg, const leo_LuaGameCallbacks *cb)
 
     if (!leo_InitWindow(win_w, win_h, title))
     {
-        fprintf(stderr, "leo_LuaGameRun: leo_InitWindow failed\n");
+        SDL_LogError(SDL_LOG_CATEGORY_APPLICATION, "leo_LuaGameRun: leo_InitWindow failed");
         lua_close(L);
         return 2;
     }
@@ -547,7 +547,7 @@ int leo_LuaGameRun(const leo_LuaGameConfig *cfg, const leo_LuaGameCallbacks *cb)
     /* Set window mode */
     if (!leo_SetWindowMode(cfg->window_mode))
     {
-        fprintf(stderr, "leo_LuaGameRun: leo_SetWindowMode failed; continuing in windowed mode\n");
+        SDL_LogError(SDL_LOG_CATEGORY_APPLICATION, "leo_LuaGameRun: leo_SetWindowMode failed; continuing in windowed mode");
     }
 
     if (cfg->logical_width > 0 && cfg->logical_height > 0)
@@ -555,14 +555,14 @@ int leo_LuaGameRun(const leo_LuaGameConfig *cfg, const leo_LuaGameCallbacks *cb)
         if (!leo_SetLogicalResolution(cfg->logical_width, cfg->logical_height, cfg->presentation, cfg->scale_mode))
         {
             /* Non-fatal: keep running without logical scaling */
-            fprintf(stderr, "leo_LuaGameRun: leo_SetLogicalResolution failed; continuing without logical scaling\n");
+            SDL_LogError(SDL_LOG_CATEGORY_APPLICATION, "leo_LuaGameRun: leo_SetLogicalResolution failed; continuing without logical scaling");
         }
     }
 
     // Mount resources directory for VFS access
     if (!leo_MountDirectory("resources", 0))
     {
-        fprintf(stderr, "leo_LuaGameRun: failed to mount resources directory\n");
+        SDL_LogError(SDL_LOG_CATEGORY_APPLICATION, "leo_LuaGameRun: failed to mount resources directory");
         // Continue anyway - maybe script is elsewhere
     }
 
@@ -595,7 +595,7 @@ int leo_LuaGameRun(const leo_LuaGameConfig *cfg, const leo_LuaGameCallbacks *cb)
     // Call Lua init function
     if (!_call_lua_function(L, "leo_init"))
     {
-        fprintf(stderr, "leo_LuaGameRun: leo_init failed or returned false\n");
+        SDL_LogError(SDL_LOG_CATEGORY_APPLICATION, "leo_LuaGameRun: leo_init failed or returned false");
         lua_close(L);
         leo_CloseWindow();
         return 3;
@@ -605,7 +605,7 @@ int leo_LuaGameRun(const leo_LuaGameConfig *cfg, const leo_LuaGameCallbacks *cb)
     leo__LuaGameLoopData *data = malloc(sizeof(leo__LuaGameLoopData));
     if (!data)
     {
-        fprintf(stderr, "leo_LuaGameRun: malloc failed\n");
+        SDL_LogError(SDL_LOG_CATEGORY_APPLICATION, "leo_LuaGameRun: malloc failed");
         lua_close(L);
         leo_CloseWindow();
         return 4;
@@ -631,10 +631,10 @@ int leo_LuaGameRun(const leo_LuaGameConfig *cfg, const leo_LuaGameCallbacks *cb)
         // Hot reload on Delete key press (debug builds only)
         if (leo_IsKeyPressed(KEY_DELETE))
         {
-            printf("Hot reloading Lua script...\n");
+            SDL_LogInfo(SDL_LOG_CATEGORY_APPLICATION, "Hot reloading Lua script...");
             if (_load_lua_script(L, cfg->script_path, NULL, NULL))
             {
-                printf("Script reloaded successfully!\n");
+                SDL_LogInfo(SDL_LOG_CATEGORY_APPLICATION, "Script reloaded successfully!");
             }
         }
 #endif
