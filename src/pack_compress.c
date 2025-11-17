@@ -2,7 +2,7 @@
 #include "leo/pack_errors.h"
 
 #include <limits.h>
-#include <string.h>
+#include <SDL3/SDL_stdinc.h>
 
 /* Pull in the single-header implementations exactly once here. */
 #define SDEFL_IMPLEMENTATION
@@ -44,7 +44,7 @@ leo_pack_result leo_compress_deflate(const void *in, size_t in_sz, void *out, si
         return LEO_PACK_E_NOSPACE;
 
     struct sdefl ctx;
-    memset(&ctx, 0, sizeof(ctx));
+    SDL_memset(&ctx, 0, sizeof(ctx));
     int wrote = zsdeflate(&ctx, out, in, (int)in_sz, lvl);
     if (wrote <= 0)
         return LEO_PACK_E_COMPRESS;

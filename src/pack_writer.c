@@ -17,16 +17,15 @@
 
 #include <stddef.h>
 #include <stdio.h>
-#include <stdlib.h>
-#include <string.h>
+#include <SDL3/SDL_stdinc.h>
 #include <sys/types.h>
 #include <time.h>
 
 /* ---- Local helpers ------------------------------------------------------- */
 
 #ifndef LEO_PACK_LOCAL_ALLOC
-#define LEO_PACK_LOCAL_ALLOC(sz) malloc(sz)
-#define LEO_PACK_LOCAL_FREE(p) free(p)
+#define LEO_PACK_LOCAL_ALLOC(sz) SDL_malloc(sz)
+#define LEO_PACK_LOCAL_FREE(p) SDL_free(p)
 #endif
 
 #ifndef LEO_PACK_MIN
@@ -77,7 +76,7 @@ static leo_pack_result ensure_capacity(leo_pack_writer *w, int extra)
     int nc = w->capacity ? w->capacity * 2 : 16;
     while (nc < w->count + extra)
         nc *= 2;
-    writer_entry *ne = (writer_entry *)realloc(w->entries, (size_t)nc * sizeof(writer_entry));
+    writer_entry *ne = (writer_entry *)SDL_realloc(w->entries, (size_t)nc * sizeof(writer_entry));
     if (!ne)
         return LEO_PACK_E_OOM;
     w->entries = ne;
@@ -113,7 +112,7 @@ leo_pack_result leo_pack_writer_begin(leo_pack_writer **out, const char *out_pat
     if (!out || !out_path)
         return LEO_PACK_E_ARG;
 
-    leo_pack_writer *w = (leo_pack_writer *)calloc(1, sizeof(*w));
+    leo_pack_writer *w = (leo_pack_writer *)SDL_calloc(1, sizeof(*w));
     if (!w)
         return LEO_PACK_E_OOM;
 
@@ -123,7 +122,7 @@ leo_pack_result leo_pack_writer_begin(leo_pack_writer **out, const char *out_pat
     }
     else
     {
-        memset(&w->opt, 0, sizeof(w->opt));
+        SDL_memset(&w->opt, 0, sizeof(w->opt));
     }
     if (w->opt.align == 0)
         w->opt.align = 1;
@@ -131,14 +130,14 @@ leo_pack_result leo_pack_writer_begin(leo_pack_writer **out, const char *out_pat
     w->f = fopen(out_path, "wb+");
     if (!w->f)
     {
-        free(w);
+        SDL_free(w);
         return LEO_PACK_E_IO;
     }
 
     /* Reserve header space (write a zeroed header now; fill it at end). */
     leo_pack_header_v1 hdr;
-    memset(&hdr, 0, sizeof(hdr));
-    memcpy(hdr.magic, LEO_PACK_MAGIC, 8);
+    SDL_memset(&hdr, 0, sizeof(hdr));
+    SDL_memcpy(hdr.magic, LEO_PACK_MAGIC, 8);
     hdr.version = LEO_PACK_V1;
     hdr.pack_salt = gen_salt64();
     /* pack_flags, toc_offset/size, data_offset set later */
@@ -147,7 +146,7 @@ leo_pack_result leo_pack_writer_begin(leo_pack_writer **out, const char *out_pat
     if (fwrite(&hdr, 1, sizeof(hdr), w->f) != sizeof(hdr))
     {
         fclose(w->f);
-        free(w);
+        SDL_free(w);
         return LEO_PACK_E_IO;
     }
 
@@ -180,7 +179,7 @@ leo_pack_result leo_pack_writer_add(leo_pack_writer *w, const char *logical_name
     /* Normalize logical name: convert '\\' -> '/', strip leading './' */
     char stack_norm[512];
     const char *name = logical_name;
-    size_t name_len = strlen(logical_name);
+    size_t name_len = SDL_strlen(logical_name);
     char *heap_norm = NULL;
     if (name_len + 1 <= sizeof(stack_norm))
     {
@@ -216,7 +215,7 @@ leo_pack_result leo_pack_writer_add(leo_pack_writer *w, const char *logical_name
     /* Reject duplicates (case-sensitive; keep it simple) */
     for (int i = 0; i < w->count; ++i)
     {
-        if (strcmp(w->entries[i].name, name) == 0)
+        if (SDL_strcmp(w->entries[i].name, name) == 0)
         {
             if (heap_norm)
                 LEO_PACK_LOCAL_FREE(heap_norm);
@@ -236,7 +235,7 @@ leo_pack_result leo_pack_writer_add(leo_pack_writer *w, const char *logical_name
         }
 
         writer_entry *e = &w->entries[w->count++];
-        size_t norm_len = strlen(name);
+        size_t norm_len = SDL_strlen(name);
         e->name = (char *)LEO_PACK_LOCAL_ALLOC(norm_len + 1);
         if (!e->name)
         {
@@ -244,9 +243,9 @@ leo_pack_result leo_pack_writer_add(leo_pack_writer *w, const char *logical_name
                 LEO_PACK_LOCAL_FREE(heap_norm);
             return LEO_PACK_E_OOM;
         }
-        memcpy(e->name, name, norm_len + 1);
+        SDL_memcpy(e->name, name, norm_len + 1);
 
-        memset(&e->meta, 0, sizeof(e->meta));
+        SDL_memset(&e->meta, 0, sizeof(e->meta));
         e->meta.flags = 0;
         if (obfuscate)
         {
@@ -316,7 +315,7 @@ leo_pack_result leo_pack_writer_add(leo_pack_writer *w, const char *logical_name
                 LEO_PACK_LOCAL_FREE(comp_buf);
             return LEO_PACK_E_OOM;
         }
-        memcpy(mut, in, in_sz);
+        SDL_memcpy(mut, in, in_sz);
         leo_xor_stream_apply(w->xor_seed, mut, in_sz);
         in = mut; /* switch to obfuscated bytes */
         w->any_obfuscation = 1;
@@ -358,7 +357,7 @@ leo_pack_result leo_pack_writer_add(leo_pack_writer *w, const char *logical_name
 
     /* Record entry */
     writer_entry *e = &w->entries[w->count++];
-    size_t norm_len = strlen(name);
+    size_t norm_len = SDL_strlen(name);
     e->name = (char *)LEO_PACK_LOCAL_ALLOC(norm_len + 1);
     if (!e->name)
     {
@@ -370,9 +369,9 @@ leo_pack_result leo_pack_writer_add(leo_pack_writer *w, const char *logical_name
             LEO_PACK_LOCAL_FREE(comp_buf);
         return LEO_PACK_E_OOM;
     }
-    memcpy(e->name, name, norm_len + 1);
+    SDL_memcpy(e->name, name, norm_len + 1);
 
-    memset(&e->meta, 0, sizeof(e->meta));
+    SDL_memset(&e->meta, 0, sizeof(e->meta));
     e->meta.flags = 0;
     if (use_compression)
         e->meta.flags |= LEO_PE_COMPRESSED;
@@ -409,7 +408,7 @@ static leo_pack_result write_toc_and_header(leo_pack_writer *w)
     {
         const writer_entry *e = &w->entries[i];
 
-        uint16_t nlen = (uint16_t)strlen(e->name);
+        uint16_t nlen = (uint16_t)SDL_strlen(e->name);
         if (fwrite(&nlen, 1, sizeof(nlen), w->f) != sizeof(nlen))
             return LEO_PACK_E_IO;
         toc_sz += sizeof(nlen);
@@ -428,8 +427,8 @@ static leo_pack_result write_toc_and_header(leo_pack_writer *w)
 
     /* Finalize header and write it at the start */
     leo_pack_header_v1 hdr;
-    memset(&hdr, 0, sizeof(hdr));
-    memcpy(hdr.magic, LEO_PACK_MAGIC, 8);
+    SDL_memset(&hdr, 0, sizeof(hdr));
+    SDL_memcpy(hdr.magic, LEO_PACK_MAGIC, 8);
     hdr.version = LEO_PACK_V1;
     hdr.pack_flags = (w->any_obfuscation ? LEO_PACK_FLAG_OBFUSCATED : 0);
     hdr.toc_offset = toc_off;
@@ -440,9 +439,9 @@ static leo_pack_result write_toc_and_header(leo_pack_writer *w)
 
     /* header_crc32 is computed over bytes [0..0x4F] (i.e., header minus the crc field) */
     uint8_t tmp[sizeof(hdr)];
-    memcpy(tmp, &hdr, sizeof(hdr));
+    SDL_memcpy(tmp, &hdr, sizeof(hdr));
     /* zero the crc field before computing */
-    memset(tmp + offsetof(leo_pack_header_v1, header_crc32), 0, sizeof(uint32_t));
+    SDL_memset(tmp + offsetof(leo_pack_header_v1, header_crc32), 0, sizeof(uint32_t));
     hdr.header_crc32 = leo_crc32_ieee(tmp, sizeof(hdr), 0);
 
     if (file_seek64(w->f, 0) != 0)
@@ -459,7 +458,7 @@ leo_pack_result leo_pack_writer_end(leo_pack_writer *w)
         return LEO_PACK_E_ARG;
     if (!w->f)
     {
-        free(w);
+        SDL_free(w);
         return LEO_PACK_E_STATE;
     }
 
@@ -467,14 +466,14 @@ leo_pack_result leo_pack_writer_end(leo_pack_writer *w)
     if (file_seek64(w->f, 0) != 0)
     {
         fclose(w->f);
-        free(w);
+        SDL_free(w);
         return LEO_PACK_E_IO;
     }
     leo_pack_header_v1 begin_hdr;
     if (fread(&begin_hdr, 1, sizeof(begin_hdr), w->f) != sizeof(begin_hdr))
     {
         fclose(w->f);
-        free(w);
+        SDL_free(w);
         return LEO_PACK_E_IO;
     }
     w->pack_salt = begin_hdr.pack_salt ? begin_hdr.pack_salt : gen_salt64();
@@ -487,12 +486,12 @@ leo_pack_result leo_pack_writer_end(leo_pack_writer *w)
     {
         LEO_PACK_LOCAL_FREE(w->entries[i].name);
     }
-    free(w->entries);
+    SDL_free(w->entries);
 
     int err = ferror(w->f);
     fclose(w->f);
 
-    free(w);
+    SDL_free(w);
     if (r != LEO_PACK_OK)
         return r;
     if (err)

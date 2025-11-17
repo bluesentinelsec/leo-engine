@@ -5,7 +5,7 @@
 #include "leo/pack_errors.h"
 
 #include <limits.h>
-#include <string.h>
+#include <SDL3/SDL_stdinc.h>
 
 /* Use mmx sdefl/sinfl "z" helpers (zlib-wrapped).
  * NOTE: Do NOT define SDEFL_IMPLEMENTATION/SINFL_IMPLEMENTATION here.
@@ -38,7 +38,7 @@ leo_pack_result leo_compress_zlib(const void *in, size_t in_sz, void *out, size_
         return LEO_PACK_E_NOSPACE;
 
     struct sdefl ctx;
-    memset(&ctx, 0, sizeof(ctx));
+    SDL_memset(&ctx, 0, sizeof(ctx));
 
     const int lvl = clamp_level(level);
     /* zsdeflate writes a zlib stream into 'out' and returns bytes written. */

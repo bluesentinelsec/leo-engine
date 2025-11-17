@@ -3,8 +3,7 @@
 #include "leo/io.h" /* for leo_ReadAsset(...) */
 #include <cJSON/cJSON.h>
 #include <stdbool.h>
-#include <stdlib.h>
-#include <string.h>
+#include <SDL3/SDL_stdinc.h>
 
 typedef struct
 {
@@ -58,7 +57,7 @@ leo_JsonDoc *leo_json_parse(const char *data, size_t len, const char **err_msg)
             *err_msg = cJSON_GetErrorPtr(); /* points into data */
         return NULL;
     }
-    Doc *d = (Doc *)malloc(sizeof(Doc));
+    Doc *d = (Doc *)SDL_malloc(sizeof(Doc));
     if (!d)
     {
         cJSON_Delete(r);
@@ -90,7 +89,7 @@ leo_JsonDoc *leo_json_load(const char *logicalName, const char **err_msg)
     }
 
     /* 2) Read into temporary buffer and NUL-terminate for cJSON */
-    unsigned char *buf = (unsigned char *)malloc(need + 1);
+    unsigned char *buf = (unsigned char *)SDL_malloc(need + 1);
     if (!buf)
     {
         if (err_msg)
@@ -100,7 +99,7 @@ leo_JsonDoc *leo_json_load(const char *logicalName, const char **err_msg)
     size_t got = leo_ReadAsset(logicalName, buf, need, NULL);
     if (got != need)
     {
-        free(buf);
+        SDL_free(buf);
         if (err_msg)
             *err_msg = "asset read failed";
         return NULL;
@@ -110,7 +109,7 @@ leo_JsonDoc *leo_json_load(const char *logicalName, const char **err_msg)
     /* 3) Parse */
     const char *perr = NULL;
     leo_JsonDoc *doc = leo_json_parse((const char *)buf, need, &perr);
-    free(buf);
+    SDL_free(buf);
 
     if (!doc)
     {
@@ -127,7 +126,7 @@ void leo_json_free(leo_JsonDoc *doc)
         return;
     Doc *d = (Doc *)doc;
     cJSON_Delete(d->root);
-    free(d);
+    SDL_free(d);
 }
 
 leo_JsonNode leo_json_root(const leo_JsonDoc *doc)

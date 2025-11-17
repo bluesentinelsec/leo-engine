@@ -16,8 +16,7 @@
 
 #include <stddef.h>
 #include <stdio.h>
-#include <stdlib.h>
-#include <string.h>
+#include <SDL3/SDL_stdinc.h>
 #include <sys/types.h>
 
 /* ---- Local types/state --------------------------------------------------- */
@@ -38,8 +37,8 @@ struct leo_pack
 };
 
 #ifndef LEO_PACK_LOCAL_ALLOC
-#define LEO_PACK_LOCAL_ALLOC(sz) malloc(sz)
-#define LEO_PACK_LOCAL_FREE(p) free(p)
+#define LEO_PACK_LOCAL_ALLOC(sz) SDL_malloc(sz)
+#define LEO_PACK_LOCAL_FREE(p) SDL_free(p)
 #endif
 
 static int file_seek64(FILE *f, uint64_t off)
@@ -69,9 +68,9 @@ static leo_pack_result read_and_validate_header(FILE *f, leo_pack_header_v1 *out
 
     /* Verify header CRC (over the entire struct with CRC field zeroed) */
     uint8_t tmp[sizeof(hdr)];
-    memcpy(tmp, &hdr, sizeof(hdr));
+    SDL_memcpy(tmp, &hdr, sizeof(hdr));
     uint32_t expect = hdr.header_crc32;
-    memset(tmp + offsetof(leo_pack_header_v1, header_crc32), 0, sizeof(uint32_t));
+    SDL_memset(tmp + offsetof(leo_pack_header_v1, header_crc32), 0, sizeof(uint32_t));
     uint32_t calc = leo_crc32_ieee(tmp, sizeof(hdr), 0);
     if (calc != expect)
         return LEO_PACK_E_FORMAT;
@@ -187,7 +186,7 @@ static leo_pack_result load_toc(FILE *f, const leo_pack_header_v1 *hdr, pack_ent
         if (cnt == cap)
         {
             int ncap = cap * 2;
-            pack_entry_rec *narr = (pack_entry_rec *)realloc(arr, (size_t)ncap * sizeof(pack_entry_rec));
+            pack_entry_rec *narr = (pack_entry_rec *)SDL_realloc(arr, (size_t)ncap * sizeof(pack_entry_rec));
             if (!narr)
             {
                 LEO_PACK_LOCAL_FREE(name);
@@ -289,7 +288,7 @@ leo_pack_result leo_pack_open_file(leo_pack **out, const char *path, const char 
     }
 
     /* Prepare pack object */
-    leo_pack *p = (leo_pack *)calloc(1, sizeof(*p));
+    leo_pack *p = (leo_pack *)SDL_calloc(1, sizeof(*p));
     if (!p)
     {
         fclose(f);
@@ -338,7 +337,7 @@ void leo_pack_close(leo_pack *p)
     }
     if (p->f)
         fclose(p->f);
-    free(p);
+    SDL_free(p);
 }
 
 int leo_pack_count(leo_pack *p)
@@ -366,7 +365,7 @@ leo_pack_result leo_pack_find(leo_pack *p, const char *name, int *out_index)
         return LEO_PACK_E_ARG;
     for (int i = 0; i < p->count; ++i)
     {
-        if (strcmp(p->entries[i].name, name) == 0)
+        if (SDL_strcmp(p->entries[i].name, name) == 0)
         {
             *out_index = i;
             return LEO_PACK_OK;
@@ -411,7 +410,7 @@ leo_pack_result leo_pack_extract_index(leo_pack *p, int index, void *dst, size_t
         LEO_PACK_LOCAL_FREE(tmp);
         return LEO_PACK_E_IO;
     }
-    memset(tmp + tmp_sz, 0, tmp_cap - tmp_sz);
+    SDL_memset(tmp + tmp_sz, 0, tmp_cap - tmp_sz);
 
     /* De-obfuscate if needed */
     if ((e->meta.flags & LEO_PE_OBFUSCATED) != 0)
@@ -463,7 +462,7 @@ leo_pack_result leo_pack_extract_index(leo_pack *p, int index, void *dst, size_t
             LEO_PACK_LOCAL_FREE(tmp);
             return LEO_PACK_E_NOSPACE;
         }
-        memcpy(dst, tmp, tmp_sz);
+        SDL_memcpy(dst, tmp, tmp_sz);
         produced = tmp_sz;
     }
 
