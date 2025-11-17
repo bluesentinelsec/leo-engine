@@ -99,12 +99,12 @@ static bool _call_lua_function(lua_State *L, const char *func_name)
 
 static int lua_draw_pixel(lua_State *L)
 {
-    int x = luaL_checkinteger(L, 1);
-    int y = luaL_checkinteger(L, 2);
-    int r = luaL_checkinteger(L, 3);
-    int g = luaL_checkinteger(L, 4);
-    int b = luaL_checkinteger(L, 5);
-    int a = luaL_optinteger(L, 6, 255);
+    int x = (int)luaL_checknumber(L, 1);
+    int y = (int)luaL_checknumber(L, 2);
+    int r = (int)luaL_checknumber(L, 3);
+    int g = (int)luaL_checknumber(L, 4);
+    int b = (int)luaL_checknumber(L, 5);
+    int a = (int)luaL_optnumber(L, 6, 255);
 
     leo_Color color = {(unsigned char)r, (unsigned char)g, (unsigned char)b, (unsigned char)a};
     leo_DrawPixel(x, y, color);
