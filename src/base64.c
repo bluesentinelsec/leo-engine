@@ -1,8 +1,6 @@
 #include "leo/base64.h"
-#include <ctype.h>
+#include <SDL3/SDL_stdinc.h>
 #include <stdint.h>
-#include <stdlib.h>
-#include <string.h>
 
 static const char B64[64] = "ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789+/";
 
@@ -173,14 +171,14 @@ leo_b64_result leo_base64_encode_alloc(const void *src, size_t src_len, char **o
     if (!out)
         return LEO_B64_E_ARG;
     size_t need = leo_base64_encoded_len(src_len);
-    char *buf = (char *)malloc(need + 1); // +1 for NUL
+    char *buf = (char *)SDL_malloc(need + 1); // +1 for NUL
     if (!buf)
         return LEO_B64_E_NOSPACE;
     size_t wrote = 0;
     leo_b64_result r = leo_base64_encode(src, src_len, buf, need, &wrote);
     if (r != LEO_B64_OK)
     {
-        free(buf);
+        SDL_free(buf);
         return r;
     }
     buf[wrote] = '\0';
@@ -197,7 +195,7 @@ leo_b64_result leo_base64_decode_alloc(const char *src, size_t src_len, unsigned
 
     // Over-allocate by safe cap, then shrink by out_len.
     size_t cap = leo_base64_decoded_cap(src_len);
-    unsigned char *buf = (unsigned char *)malloc(cap);
+    unsigned char *buf = (unsigned char *)SDL_malloc(cap);
     if (!buf)
         return LEO_B64_E_NOSPACE;
 
@@ -205,7 +203,7 @@ leo_b64_result leo_base64_decode_alloc(const char *src, size_t src_len, unsigned
     leo_b64_result r = leo_base64_decode(src, src_len, buf, cap, &wrote);
     if (r != LEO_B64_OK)
     {
-        free(buf);
+        SDL_free(buf);
         return r;
     }
 

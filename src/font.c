@@ -8,10 +8,8 @@
 #include "leo/io.h"
 
 #include <SDL3/SDL.h>
+#include <SDL3/SDL_stdinc.h>
 #include <math.h>
-#include <stdio.h>
-#include <stdlib.h>
-#include <string.h>
 
 #define STB_TRUETYPE_IMPLEMENTATION
 #define STB_RECT_PACK_IMPLEMENTATION
@@ -38,7 +36,7 @@ static inline SDL_Renderer *_ren(void)
 static inline leo_Font _zero(void)
 {
     leo_Font f;
-    memset(&f, 0, sizeof(f));
+    SDL_memset(&f, 0, sizeof(f));
     return f;
 }
 
@@ -81,16 +79,16 @@ static leo_Font _load_from_ttf_bytes(const unsigned char *ttf, int ttfSize, int 
     int attempt;
     for (attempt = 0; attempt < 3; ++attempt)
     {
-        free(bitmap);
-        free(baked);
-        bitmap = (unsigned char *)malloc((size_t)atlasW * atlasH);
-        baked = (stbtt_bakedchar *)malloc(sizeof(stbtt_bakedchar) * LEO_FONT_DEFAULT_COUNT);
+        SDL_free(bitmap);
+        SDL_free(baked);
+        bitmap = (unsigned char *)SDL_malloc((size_t)atlasW * atlasH);
+        baked = (stbtt_bakedchar *)SDL_malloc(sizeof(stbtt_bakedchar) * LEO_FONT_DEFAULT_COUNT);
         if (!bitmap || !baked)
         {
             leo_SetError("leo_LoadFont: OOM");
             goto fail;
         }
-        memset(bitmap, 0, (size_t)atlasW * atlasH);
+        SDL_memset(bitmap, 0, (size_t)atlasW * atlasH);
 
         bakeRes = stbtt_BakeFontBitmap(ttf, 0, (float)pixelSize, bitmap, atlasW, atlasH, LEO_FONT_FIRST_CODEPOINT,
                                        LEO_FONT_DEFAULT_COUNT, baked);
@@ -117,7 +115,7 @@ static leo_Font _load_from_ttf_bytes(const unsigned char *ttf, int ttfSize, int 
     const float vscale = stbtt_ScaleForPixelHeight(&finfo, (float)pixelSize);
 
     // Expand grayscale -> RGBA (white text with alpha)
-    unsigned char *rgba = (unsigned char *)malloc((size_t)atlasW * atlasH * 4);
+    unsigned char *rgba = (unsigned char *)SDL_malloc((size_t)atlasW * atlasH * 4);
     if (!rgba)
     {
         leo_SetError("leo_LoadFont: OOM (rgba)");
@@ -137,7 +135,7 @@ static leo_Font _load_from_ttf_bytes(const unsigned char *ttf, int ttfSize, int 
     if (!tex)
     {
         leo_SetError("SDL_CreateTexture failed");
-        free(rgba);
+        SDL_free(rgba);
         goto fail;
     }
     SDL_SetTextureScaleMode(tex, SDL_SCALEMODE_NEAREST);
@@ -147,14 +145,14 @@ static leo_Font _load_from_ttf_bytes(const unsigned char *ttf, int ttfSize, int 
     {
         leo_SetError("SDL_UpdateTexture failed");
         SDL_DestroyTexture(tex);
-        free(rgba);
+        SDL_free(rgba);
         goto fail;
     }
-    free(rgba);
-    free(bitmap);
+    SDL_free(rgba);
+    SDL_free(bitmap);
     bitmap = NULL;
 
-    _GlyphTable *tbl = (_GlyphTable *)malloc(sizeof(_GlyphTable));
+    _GlyphTable *tbl = (_GlyphTable *)SDL_malloc(sizeof(_GlyphTable));
     if (!tbl)
     {
         leo_SetError("leo_LoadFont: OOM (_GlyphTable)");
@@ -176,8 +174,8 @@ static leo_Font _load_from_ttf_bytes(const unsigned char *ttf, int ttfSize, int 
     return out;
 
 fail:
-    free(bitmap);
-    free(baked);
+    SDL_free(bitmap);
+    SDL_free(baked);
     return _zero();
 }
 
@@ -195,7 +193,7 @@ leo_Font leo_LoadFont(const char *fileName, int pixelSize)
     if (buf && sz > 0)
     {
         leo_Font font = _load_from_ttf_bytes(buf, (int)sz, pixelSize);
-        free(buf);
+        SDL_free(buf);
         return font;
     }
 
@@ -229,7 +227,7 @@ leo_Font leo_LoadFont(const char *fileName, int pixelSize)
     fclose(f);
 
     leo_Font font = _load_from_ttf_bytes(fbuf, (int)fsz, pixelSize);
-    free(fbuf);
+    SDL_free(fbuf);
     return font;
 }
 
@@ -252,8 +250,8 @@ void leo_UnloadFont(leo_Font *font)
     if (font->_glyphs)
     {
         _GlyphTable *tbl = (_GlyphTable *)font->_glyphs;
-        free(tbl->baked);
-        free(tbl);
+        SDL_free(tbl->baked);
+        SDL_free(tbl);
     }
     *font = _zero();
 }

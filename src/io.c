@@ -9,10 +9,7 @@
 #include "leo/pack_reader.h"
 
 #include <SDL3/SDL.h>
-
-#include <stdio.h>
-#include <stdlib.h>
-#include <string.h>
+#include <SDL3/SDL_stdinc.h>
 
 /* -----------------------------
    Internal mount table
@@ -59,7 +56,7 @@ static void _free_mount(_MountRec *m)
     {
         if (m->impl)
         {
-            free(m->impl); /* baseDir string */
+            SDL_free(m->impl); /* baseDir string */
             m->impl = NULL;
         }
     }
@@ -72,7 +69,7 @@ static void _reserve(int need)
     int ncap = s_cap ? s_cap * 2 : 8;
     if (ncap < need)
         ncap = need;
-    _MountRec *n = (_MountRec *)realloc(s_mounts, (size_t)ncap * sizeof(_MountRec));
+    _MountRec *n = (_MountRec *)SDL_realloc(s_mounts, (size_t)ncap * sizeof(_MountRec));
     if (!n)
         return; /* best-effort; callers should check after push */
     s_mounts = n;
@@ -122,17 +119,17 @@ static int _join_path(char *out, size_t outcap, const char *base, const char *re
 {
     if (!out || outcap == 0 || !base || !rel)
         return 0;
-    size_t bl = strlen(base);
-    size_t rl = strlen(rel);
+    size_t bl = SDL_strlen(base);
+    size_t rl = SDL_strlen(rel);
     int need_slash = (bl > 0 && base[bl - 1] != '/');
     size_t need = bl + (need_slash ? 1 : 0) + rl + 1;
     if (need > outcap)
         return 0;
-    memcpy(out, base, bl);
+    SDL_memcpy(out, base, bl);
     size_t pos = bl;
     if (need_slash)
         out[pos++] = '/';
-    memcpy(out + pos, rel, rl);
+    SDL_memcpy(out + pos, rel, rl);
     pos += rl;
     out[pos] = '\0';
     return 1;
@@ -171,7 +168,7 @@ void leo_ClearMounts(void)
         /* Best-effort fallback: perform single-threaded clear if no lock. */
         for (int i = 0; i < s_count; ++i)
             _free_mount(&s_mounts[i]);
-        free(s_mounts);
+        SDL_free(s_mounts);
         s_mounts = NULL;
         s_count = 0;
         s_cap = 0;
@@ -181,7 +178,7 @@ void leo_ClearMounts(void)
     SDL_LockRWLockForWriting(lk);
     for (int i = 0; i < s_count; ++i)
         _free_mount(&s_mounts[i]);
-    free(s_mounts);
+    SDL_free(s_mounts);
     s_mounts = NULL;
     s_count = 0;
     s_cap = 0;
@@ -207,7 +204,7 @@ bool leo_MountResourcePack(const char *packPath, const char *password, int prior
         }
 
         int ret = snprintf(fullPackPath, sizeof(fullPackPath), "%s/%s", basePath, packPath);
-        free(basePath);
+        SDL_free(basePath);
 
         if (ret >= sizeof(fullPackPath))
         {
@@ -290,7 +287,7 @@ bool leo_MountResourcePack(const char *packPath, const char *password, int prior
         {
             char fallbackDirPath[4096] = {0};
             int ret = snprintf(fallbackDirPath, sizeof(fallbackDirPath), "%s/resources", basePath);
-            free(basePath);
+            SDL_free(basePath);
 
             if (ret < sizeof(fallbackDirPath))
             {
@@ -322,7 +319,7 @@ bool leo_MountDirectory(const char *baseDir, int priority)
         }
 
         int ret = snprintf(fullDirPath, sizeof(fullDirPath), "%s/%s", basePath, baseDir);
-        free(basePath);
+        SDL_free(basePath);
 
         if (ret >= sizeof(fullDirPath))
         {
@@ -348,16 +345,16 @@ bool leo_MountDirectory(const char *baseDir, int priority)
 #endif
 
     /* Prepare dup WITHOUT holding the write lock. */
-    size_t n = strlen(fullDirPath);
-    char *dup = (char *)malloc(n + 1);
+    size_t n = SDL_strlen(fullDirPath);
+    char *dup = (char *)SDL_malloc(n + 1);
     if (!dup)
         return false;
-    memcpy(dup, fullDirPath, n + 1);
+    SDL_memcpy(dup, fullDirPath, n + 1);
 
     SDL_RWLock *lk = _mount_lock();
     if (!lk)
     {
-        free(dup);
+        SDL_free(dup);
         return false;
     }
 
@@ -368,7 +365,7 @@ bool leo_MountDirectory(const char *baseDir, int priority)
     if (s_count >= s_cap)
     {
         SDL_UnlockRWLock(lk);
-        free(dup);
+        SDL_free(dup);
         return false;
     }
     s_mounts[s_count].type = LEO_MOUNT_DIR;
@@ -528,13 +525,13 @@ void *leo_LoadAsset(const char *logicalName, size_t *out_size)
     size_t need = 0;
     if (leo_ReadAsset(logicalName, NULL, 0, &need) == 0 && need > 0)
     {
-        void *mem = malloc(need);
+        void *mem = SDL_malloc(need);
         if (!mem)
             return NULL;
         size_t got = leo_ReadAsset(logicalName, mem, need, NULL);
         if (got != need)
         {
-            free(mem);
+            SDL_free(mem);
             return NULL;
         }
         if (out_size)
@@ -607,7 +604,7 @@ leo_AssetStream *leo_OpenAsset(const char *logicalName, leo_AssetInfo *info)
 
             size_t need = (size_t)st.size_uncompressed; /* allow zero-sized */
 
-            leo_AssetStream *s = (leo_AssetStream *)calloc(1, sizeof(*s));
+            leo_AssetStream *s = (leo_AssetStream *)SDL_calloc(1, sizeof(*s));
             if (!s)
             {
                 SDL_UnlockRWLock(lk);
@@ -617,10 +614,10 @@ leo_AssetStream *leo_OpenAsset(const char *logicalName, leo_AssetInfo *info)
             s->size = need;
             if (need > 0)
             {
-                s->mem = (unsigned char *)malloc(need);
+                s->mem = (unsigned char *)SDL_malloc(need);
                 if (!s->mem)
                 {
-                    free(s);
+                    SDL_free(s);
                     SDL_UnlockRWLock(lk);
                     return NULL;
                 }
@@ -628,8 +625,8 @@ leo_AssetStream *leo_OpenAsset(const char *logicalName, leo_AssetInfo *info)
                 if (leo_pack_extract_index((leo_pack *)m->impl, idx, s->mem, need, &outsz) != LEO_PACK_OK ||
                     outsz != need)
                 {
-                    free(s->mem);
-                    free(s);
+                    SDL_free(s->mem);
+                    SDL_free(s);
                     SDL_UnlockRWLock(lk);
                     return NULL;
                 }
@@ -652,7 +649,7 @@ leo_AssetStream *leo_OpenAsset(const char *logicalName, leo_AssetInfo *info)
             if (!f)
                 continue;
 
-            leo_AssetStream *s = (leo_AssetStream *)calloc(1, sizeof(*s));
+            leo_AssetStream *s = (leo_AssetStream *)SDL_calloc(1, sizeof(*s));
             if (!s)
             {
                 fclose(f);
@@ -757,13 +754,13 @@ void leo_CloseAsset(leo_AssetStream *s)
         return;
     if (s->from_pack)
     {
-        free(s->mem);
+        SDL_free(s->mem);
     }
     else if (s->f)
     {
         fclose(s->f);
     }
-    free(s);
+    SDL_free(s);
 }
 
 char *leo_LoadTextAsset(const char *logicalName, size_t *out_size_without_nul)
@@ -776,19 +773,19 @@ char *leo_LoadTextAsset(const char *logicalName, size_t *out_size_without_nul)
             *out_size_without_nul = 0;
         return NULL;
     }
-    char *s = (char *)malloc(n + 1);
+    char *s = (char *)SDL_malloc(n + 1);
     if (!s)
     {
-        free(p);
+        SDL_free(p);
         if (out_size_without_nul)
             *out_size_without_nul = 0;
         return NULL;
     }
-    memcpy(s, p, n);
+    SDL_memcpy(s, p, n);
     s[n] = '\0';
     if (out_size_without_nul)
         *out_size_without_nul = n;
-    free(p);
+    SDL_free(p);
     return s;
 }
 
@@ -814,15 +811,14 @@ static bool _create_directories_for_file(const char *filepath)
 
     // Create a copy of the directory path
     size_t dir_len = last_sep - filepath;
-    char *dir_path = (char *)malloc(dir_len + 1);
+    char *dir_path = (char *)SDL_malloc(dir_len + 1);
     if (!dir_path)
         return false;
 
-    strncpy(dir_path, filepath, dir_len);
-    dir_path[dir_len] = '\0';
+    SDL_strlcpy(dir_path, filepath, dir_len + 1);
 
     bool result = SDL_CreateDirectory(dir_path);
-    free(dir_path);
+    SDL_free(dir_path);
     return result;
 }
 
@@ -837,16 +833,16 @@ bool leo_WriteFile(const char *relativePath, const void *data, size_t size)
         return false;
 
     // Build full path
-    size_t full_path_len = strlen(write_dir) + strlen(relativePath) + 1;
-    char *full_path = (char *)malloc(full_path_len);
+    size_t full_path_len = SDL_strlen(write_dir) + SDL_strlen(relativePath) + 1;
+    char *full_path = (char *)SDL_malloc(full_path_len);
     if (!full_path)
     {
-        free(write_dir);
+        SDL_free(write_dir);
         return false;
     }
 
-    strcpy(full_path, write_dir);
-    strcat(full_path, relativePath);
+    SDL_strlcpy(full_path, write_dir, full_path_len);
+    SDL_strlcat(full_path, relativePath, full_path_len);
 
     // Create directories if needed
     if (!_create_directories_for_file(full_path))
@@ -867,8 +863,8 @@ bool leo_WriteFile(const char *relativePath, const void *data, size_t size)
         fclose(file);
     }
 
-    free(full_path);
-    free(write_dir);
+    SDL_free(full_path);
+    SDL_free(write_dir);
     return success;
 }
 
@@ -886,16 +882,16 @@ void *leo_ReadFile(const char *relativePath, size_t *out_size)
         return NULL;
 
     // Build full path
-    size_t full_path_len = strlen(write_dir) + strlen(relativePath) + 1;
-    char *full_path = (char *)malloc(full_path_len);
+    size_t full_path_len = SDL_strlen(write_dir) + SDL_strlen(relativePath) + 1;
+    char *full_path = (char *)SDL_malloc(full_path_len);
     if (!full_path)
     {
-        free(write_dir);
+        SDL_free(write_dir);
         return NULL;
     }
 
-    strcpy(full_path, write_dir);
-    strcat(full_path, relativePath);
+    SDL_strlcpy(full_path, write_dir, full_path_len);
+    SDL_strlcat(full_path, relativePath, full_path_len);
 
     // Open and read file
     FILE *file = fopen(full_path, "rb");
@@ -910,7 +906,7 @@ void *leo_ReadFile(const char *relativePath, size_t *out_size)
 
         if (file_size >= 0)
         {
-            data = malloc((size_t)file_size);
+            data = SDL_malloc((size_t)file_size);
             if (data)
             {
                 size_t bytes_read = fread(data, 1, (size_t)file_size, file);
@@ -922,7 +918,7 @@ void *leo_ReadFile(const char *relativePath, size_t *out_size)
                 else
                 {
                     // Read failed
-                    free(data);
+                    SDL_free(data);
                     data = NULL;
                 }
             }
@@ -930,8 +926,8 @@ void *leo_ReadFile(const char *relativePath, size_t *out_size)
         fclose(file);
     }
 
-    free(full_path);
-    free(write_dir);
+    SDL_free(full_path);
+    SDL_free(write_dir);
     return data;
 }
 
@@ -946,19 +942,19 @@ char *leo_ReadTextFile(const char *relativePath, size_t *out_size_without_nul)
         return NULL;
 
     // Add null terminator
-    char *text = (char *)malloc(size + 1);
+    char *text = (char *)SDL_malloc(size + 1);
     if (!text)
     {
-        free(data);
+        SDL_free(data);
         return NULL;
     }
 
-    memcpy(text, data, size);
+    SDL_memcpy(text, data, size);
     text[size] = '\0';
 
     if (out_size_without_nul)
         *out_size_without_nul = size;
 
-    free(data);
+    SDL_free(data);
     return text;
 }
