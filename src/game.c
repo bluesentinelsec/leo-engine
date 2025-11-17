@@ -79,14 +79,16 @@ int leo_GameRun(const leo_GameConfig *cfg, const leo_GameCallbacks *cb)
 
     if (!leo_InitWindow(win_w, win_h, title))
     {
-        SDL_LogError(SDL_LOG_CATEGORY_APPLICATION, "leo_GameRun: leo_InitWindow(%d,%d,\"%s\") failed", win_w, win_h, title);
+        SDL_LogError(SDL_LOG_CATEGORY_APPLICATION, "leo_GameRun: leo_InitWindow(%d,%d,\"%s\") failed", win_w, win_h,
+                     title);
         return 2;
     }
 
     /* Set window mode */
     if (!leo_SetWindowMode(cfg->window_mode))
     {
-        SDL_LogError(SDL_LOG_CATEGORY_APPLICATION, "leo_GameRun: leo_SetWindowMode failed; continuing in windowed mode");
+        SDL_LogError(SDL_LOG_CATEGORY_APPLICATION,
+                     "leo_GameRun: leo_SetWindowMode failed; continuing in windowed mode");
     }
 
     if (cfg->target_fps > 0)
@@ -99,7 +101,8 @@ int leo_GameRun(const leo_GameConfig *cfg, const leo_GameCallbacks *cb)
         if (!leo_SetLogicalResolution(cfg->logical_width, cfg->logical_height, cfg->presentation, cfg->scale_mode))
         {
             /* Non-fatal: keep running without logical scaling */
-            SDL_LogError(SDL_LOG_CATEGORY_APPLICATION, "leo_GameRun: leo_SetLogicalResolution failed; continuing without logical scaling");
+            SDL_LogError(SDL_LOG_CATEGORY_APPLICATION,
+                         "leo_GameRun: leo_SetLogicalResolution failed; continuing without logical scaling");
         }
     }
 

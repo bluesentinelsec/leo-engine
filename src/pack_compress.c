@@ -1,8 +1,8 @@
 #include "leo/pack_compress.h"
 #include "leo/pack_errors.h"
 
-#include <limits.h>
 #include <SDL3/SDL_stdinc.h>
+#include <limits.h>
 
 /* Pull in the single-header implementations exactly once here. */
 #define SDEFL_IMPLEMENTATION

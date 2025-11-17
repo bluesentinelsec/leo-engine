@@ -163,6 +163,8 @@ static int _file_size(FILE *f, size_t *out)
 ----------------------------- */
 void leo_ClearMounts(void)
 {
+    SDL_LogInfo(SDL_LOG_CATEGORY_APPLICATION, "Clearing all VFS mounts");
+
     SDL_RWLock *lk = _mount_lock();
     if (!lk)
     {
@@ -188,6 +190,9 @@ void leo_ClearMounts(void)
 
 bool leo_MountResourcePack(const char *packPath, const char *password, int priority)
 {
+    SDL_LogInfo(SDL_LOG_CATEGORY_APPLICATION, "Mounting resource pack: %s (priority: %d)",
+                packPath ? packPath : "(null)", priority);
+
     if (!packPath || !*packPath)
         return false;
 
@@ -303,6 +308,9 @@ bool leo_MountResourcePack(const char *packPath, const char *password, int prior
 
 bool leo_MountDirectory(const char *baseDir, int priority)
 {
+    SDL_LogInfo(SDL_LOG_CATEGORY_APPLICATION, "Mounting directory: %s (priority: %d)", baseDir ? baseDir : "(null)",
+                priority);
+
     if (!baseDir || !*baseDir)
         return false;
 

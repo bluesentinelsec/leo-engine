@@ -15,11 +15,11 @@
 #include "leo/io.h"
 #include "leo/keyboard.h"
 #include "leo/keys.h"
+#include "leo/lua_bindings.h"
 #include "leo/mouse.h"
 #include <lauxlib.h>
 #include <lua.h>
 #include <lualib.h>
-#include "leo/lua_bindings.h"
 
 typedef struct
 {
@@ -547,7 +547,8 @@ int leo_LuaGameRun(const leo_LuaGameConfig *cfg, const leo_LuaGameCallbacks *cb)
     /* Set window mode */
     if (!leo_SetWindowMode(cfg->window_mode))
     {
-        SDL_LogError(SDL_LOG_CATEGORY_APPLICATION, "leo_LuaGameRun: leo_SetWindowMode failed; continuing in windowed mode");
+        SDL_LogError(SDL_LOG_CATEGORY_APPLICATION,
+                     "leo_LuaGameRun: leo_SetWindowMode failed; continuing in windowed mode");
     }
 
     if (cfg->logical_width > 0 && cfg->logical_height > 0)
@@ -555,7 +556,8 @@ int leo_LuaGameRun(const leo_LuaGameConfig *cfg, const leo_LuaGameCallbacks *cb)
         if (!leo_SetLogicalResolution(cfg->logical_width, cfg->logical_height, cfg->presentation, cfg->scale_mode))
         {
             /* Non-fatal: keep running without logical scaling */
-            SDL_LogError(SDL_LOG_CATEGORY_APPLICATION, "leo_LuaGameRun: leo_SetLogicalResolution failed; continuing without logical scaling");
+            SDL_LogError(SDL_LOG_CATEGORY_APPLICATION,
+                         "leo_LuaGameRun: leo_SetLogicalResolution failed; continuing without logical scaling");
         }
     }
 

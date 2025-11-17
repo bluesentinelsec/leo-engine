@@ -174,6 +174,8 @@ void leo_UnloadTexture(leo_Texture2D *texture)
 // Load from file (PNG/JPG/etc.)
 leo_Texture2D leo_LoadTexture(const char *fileName)
 {
+    SDL_LogInfo(SDL_LOG_CATEGORY_APPLICATION, "Loading texture: %s", fileName ? fileName : "(null)");
+
     if (!fileName || !*fileName)
     {
         leo_SetError("leo_LoadTexture: invalid fileName");

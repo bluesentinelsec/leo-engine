@@ -4,8 +4,8 @@
 #include "leo/pack_zlib.h"
 #include "leo/pack_errors.h"
 
-#include <limits.h>
 #include <SDL3/SDL_stdinc.h>
+#include <limits.h>
 
 /* Use mmx sdefl/sinfl "z" helpers (zlib-wrapped).
  * NOTE: Do NOT define SDEFL_IMPLEMENTATION/SINFL_IMPLEMENTATION here.

@@ -1,7 +1,7 @@
 // keyboard.c — robust keyboard input implementation using SDL3
 
-#include <stdbool.h>
 #include <SDL3/SDL_stdinc.h>
+#include <stdbool.h>
 
 #include "leo/keyboard.h"
 #include <SDL3/SDL.h>

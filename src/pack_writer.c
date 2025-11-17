@@ -15,9 +15,9 @@
 #include "leo/pack_obfuscate.h"
 #include "leo/pack_util.h"
 
+#include <SDL3/SDL_stdinc.h>
 #include <stddef.h>
 #include <stdio.h>
-#include <SDL3/SDL_stdinc.h>
 #include <sys/types.h>
 #include <time.h>
 

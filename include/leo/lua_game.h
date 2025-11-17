@@ -33,13 +33,13 @@ extern "C"
         int window_height;
         leo_WindowMode window_mode; // window display mode
         int target_fps;
-        
+
         /* Optional logical resolution */
         int logical_width;                    /* <=0 disables logical scaling */
         int logical_height;                   /* <=0 disables logical scaling */
         leo_LogicalPresentation presentation; /* stretch/letterbox/overscan/disabled */
         leo_ScaleMode scale_mode;             /* nearest/linear/pixelart */
-        
+
         leo_Color clear_color;
         const char *script_path; // Path to Lua script (via VFS)
         void *user_data;

@@ -182,6 +182,8 @@ fail:
 
 leo_Font leo_LoadFont(const char *fileName, int pixelSize)
 {
+    SDL_LogInfo(SDL_LOG_CATEGORY_APPLICATION, "Loading font: %s (size: %d)", fileName ? fileName : "(null)", pixelSize);
+
     if (!fileName || !*fileName || pixelSize <= 0)
     {
         leo_SetError("leo_LoadFont: invalid args");

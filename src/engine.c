@@ -176,6 +176,8 @@ static SDL_Texture *_rtPop(void)
 // Window & loop
 bool leo_InitWindow(int width, int height, const char *title)
 {
+    SDL_LogInfo(SDL_LOG_CATEGORY_APPLICATION, "Initializing window: %dx%d '%s'", width, height, title);
+
     if (width <= 0 || height <= 0)
     {
         leo_SetError("Invalid window dimensions: width=%d, height=%d", width, height);
@@ -248,11 +250,14 @@ bool leo_InitWindow(int width, int height, const char *title)
     leo_InitMouse();
     leo_InitGamepads();
 
+    SDL_LogInfo(SDL_LOG_CATEGORY_APPLICATION, "Window initialization complete");
     return true;
 }
 
 void leo_CloseWindow()
 {
+    SDL_LogInfo(SDL_LOG_CATEGORY_APPLICATION, "Shutting down window and renderer");
+
     if (globalRenderer)
     {
         SDL_DestroyRenderer(globalRenderer);
@@ -337,6 +342,10 @@ bool leo_SetFullscreen(bool enabled)
 
 bool leo_SetWindowMode(leo_WindowMode mode)
 {
+    const char *mode_names[] = {"windowed", "fullscreen", "borderless"};
+    SDL_LogInfo(SDL_LOG_CATEGORY_APPLICATION, "Setting window mode: %s",
+                (mode >= 0 && mode < 3) ? mode_names[mode] : "unknown");
+
     if (!globalWindow)
     {
         leo_SetError("leo_SetWindowMode called before leo_InitWindow");
@@ -365,13 +374,13 @@ bool leo_SetWindowMode(leo_WindowMode mode)
             leo_SetError("%s", SDL_GetError());
             return false;
         }
-        
+
         // For borderless fullscreen, we need to:
         // 1. Make window borderless
         // 2. Set it to desktop size
         // 3. Position it at (0,0)
         SDL_SetWindowBordered(globalWindow, false);
-        
+
         // Get desktop display mode for sizing
         SDL_DisplayID displayID = SDL_GetDisplayForWindow(globalWindow);
         if (displayID == 0)
@@ -379,18 +388,18 @@ bool leo_SetWindowMode(leo_WindowMode mode)
             leo_SetError("Failed to get display for window: %s", SDL_GetError());
             return false;
         }
-        
+
         const SDL_DisplayMode *desktopMode = SDL_GetDesktopDisplayMode(displayID);
         if (!desktopMode)
         {
             leo_SetError("Failed to get desktop display mode: %s", SDL_GetError());
             return false;
         }
-        
+
         // Set window size to desktop size and position at (0,0)
         SDL_SetWindowSize(globalWindow, desktopMode->w, desktopMode->h);
         SDL_SetWindowPosition(globalWindow, 0, 0);
-        
+
         // Raise window to top
         SDL_RaiseWindow(globalWindow);
         break;
@@ -614,6 +623,15 @@ static SDL_ScaleMode _to_sdl_scale(leo_ScaleMode m)
 
 bool leo_SetLogicalResolution(int width, int height, leo_LogicalPresentation presentation, leo_ScaleMode scale)
 {
+    if (width <= 0 || height <= 0)
+    {
+        SDL_LogInfo(SDL_LOG_CATEGORY_APPLICATION, "Disabling logical resolution");
+    }
+    else
+    {
+        SDL_LogInfo(SDL_LOG_CATEGORY_APPLICATION, "Setting logical resolution: %dx%d", width, height);
+    }
+
     if (!globalRenderer)
     {
         leo_SetError("leo_SetLogicalResolution called before leo_InitWindow");

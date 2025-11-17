@@ -18,6 +18,8 @@ static bool _audio_init_if_needed(void)
     if (g_engineInited)
         return true;
 
+    SDL_LogInfo(SDL_LOG_CATEGORY_APPLICATION, "Initializing audio engine");
+
     ma_result r = ma_engine_init(NULL, &g_engine);
     if (r != MA_SUCCESS)
     {
@@ -26,6 +28,7 @@ static bool _audio_init_if_needed(void)
         return false;
     }
     g_engineInited = true;
+    SDL_LogInfo(SDL_LOG_CATEGORY_APPLICATION, "Audio engine initialized successfully");
     return true;
 }
 
@@ -38,6 +41,7 @@ void leo_ShutdownAudio(void)
 {
     if (g_engineInited)
     {
+        SDL_LogInfo(SDL_LOG_CATEGORY_APPLICATION, "Shutting down audio engine");
         ma_engine_uninit(&g_engine);
         g_engineInited = false;
     }
@@ -104,6 +108,8 @@ static void _fill_advisory_fields(leo_Sound *out, const ma_sound *snd)
 // ---------------------------------------------
 leo_Sound leo_LoadSound(const char *filePath)
 {
+    SDL_LogInfo(SDL_LOG_CATEGORY_APPLICATION, "Loading sound: %s", filePath ? filePath : "(null)");
+
     if (!filePath || !*filePath)
     {
         leo_SetError("leo_LoadSound: invalid file path");

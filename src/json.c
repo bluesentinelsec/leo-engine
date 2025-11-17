@@ -1,9 +1,9 @@
 #include "leo/json.h"
 #include "leo/error.h"
 #include "leo/io.h" /* for leo_ReadAsset(...) */
+#include <SDL3/SDL_stdinc.h>
 #include <cJSON/cJSON.h>
 #include <stdbool.h>
-#include <SDL3/SDL_stdinc.h>
 
 typedef struct
 {

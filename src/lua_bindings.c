@@ -412,8 +412,7 @@ static leo__LuaAnimation *check_animation_ud(lua_State *L, int idx)
 
 static leo__LuaAnimationPlayer *push_animation_player(lua_State *L, leo_AnimationPlayer player)
 {
-    leo__LuaAnimationPlayer *ud =
-        (leo__LuaAnimationPlayer *)lua_newuserdata(L, sizeof(leo__LuaAnimationPlayer));
+    leo__LuaAnimationPlayer *ud = (leo__LuaAnimationPlayer *)lua_newuserdata(L, sizeof(leo__LuaAnimationPlayer));
     ud->player = player;
     luaL_getmetatable(L, LEO_ANIMATION_PLAYER_META);
     lua_setmetatable(L, -2);
@@ -450,8 +449,7 @@ static leo_TiledMap *lua_check_tiled_map(lua_State *L, int idx)
 static leo__LuaTiledTileLayer *push_tiled_tile_layer(lua_State *L, leo__LuaTiledMap *map_ud,
                                                      const leo_TiledTileLayer *layer, int map_index)
 {
-    leo__LuaTiledTileLayer *ud =
-        (leo__LuaTiledTileLayer *)lua_newuserdata(L, sizeof(leo__LuaTiledTileLayer));
+    leo__LuaTiledTileLayer *ud = (leo__LuaTiledTileLayer *)lua_newuserdata(L, sizeof(leo__LuaTiledTileLayer));
     ud->map_ud = map_ud;
     ud->layer = layer;
     luaL_getmetatable(L, LEO_TILED_TILE_LAYER_META);
@@ -464,8 +462,7 @@ static leo__LuaTiledTileLayer *push_tiled_tile_layer(lua_State *L, leo__LuaTiled
 static leo__LuaTiledObjectLayer *push_tiled_object_layer(lua_State *L, leo__LuaTiledMap *map_ud,
                                                          const leo_TiledObjectLayer *layer, int map_index)
 {
-    leo__LuaTiledObjectLayer *ud =
-        (leo__LuaTiledObjectLayer *)lua_newuserdata(L, sizeof(leo__LuaTiledObjectLayer));
+    leo__LuaTiledObjectLayer *ud = (leo__LuaTiledObjectLayer *)lua_newuserdata(L, sizeof(leo__LuaTiledObjectLayer));
     ud->map_ud = map_ud;
     ud->layer = layer;
     luaL_getmetatable(L, LEO_TILED_OBJECT_LAYER_META);
@@ -2111,7 +2108,6 @@ static int l_leo_json_as_bool(lua_State *L)
     return 1;
 }
 
-
 // -----------------------------------------------------------------------------
 // Actor bindings
 // -----------------------------------------------------------------------------
@@ -2263,8 +2259,8 @@ static int l_leo_actor_spawn(lua_State *L)
     if (external_vtable && has_name)
         return luaL_error(L, "leo_actor_spawn: cannot set Lua string name when supplying custom vtable");
 
-    int needs_binding = (!external_vtable) && (has_on_init || has_on_update || has_on_render ||
-                                               has_on_exit || has_user_value || has_name);
+    int needs_binding = (!external_vtable) &&
+                        (has_on_init || has_on_update || has_on_render || has_on_exit || has_user_value || has_name);
     leo__LuaActorBinding *binding = NULL;
 
     if (needs_binding)
@@ -2666,7 +2662,6 @@ static void leo__lua_actor_on_exit(leo_Actor *self)
         free(binding);
     leo_actor_set_userdata(self, NULL);
 }
-
 
 // -----------------------------------------------------------------------------
 // Tiled bindings
@@ -3340,7 +3335,8 @@ static int l_leo_start_fade_out(lua_State *L)
     int next_idx = 0;
     leo_Color color = lua_check_color_param(L, 2, &next_idx);
     lua_transition_set_callback(L, next_idx);
-    leo_StartFadeOut(duration, color, (g_transition_callback.ref == LUA_NOREF) ? NULL : leo__lua_transition_on_complete);
+    leo_StartFadeOut(duration, color,
+                     (g_transition_callback.ref == LUA_NOREF) ? NULL : leo__lua_transition_on_complete);
     return 0;
 }
 
@@ -3385,9 +3381,8 @@ static int l_leo_set_logical_resolution(lua_State *L)
     int height = (int)luaL_checkinteger(L, 2);
     int presentation = (int)luaL_checkinteger(L, 3);
     int scale = (int)luaL_checkinteger(L, 4);
-    lua_pushboolean(L, leo_SetLogicalResolution(width, height,
-                                                (leo_LogicalPresentation)presentation,
-                                                (leo_ScaleMode)scale));
+    lua_pushboolean(
+        L, leo_SetLogicalResolution(width, height, (leo_LogicalPresentation)presentation, (leo_ScaleMode)scale));
     return 1;
 }
 
@@ -3408,227 +3403,225 @@ int leo_LuaOpenBindings(void *vL)
     register_animation_player_mt(L);
     register_sound_mt(L);
 
-    static const luaL_Reg leo_funcs[] = {
-        {"leo_init_window", l_leo_init_window},
-        {"leo_close_window", l_leo_close_window},
-        {"leo_get_window", l_leo_get_window},
-        {"leo_get_renderer", l_leo_get_renderer},
-        {"leo_set_fullscreen", l_leo_set_fullscreen},
-        {"leo_set_window_mode", l_leo_set_window_mode},
-        {"leo_get_window_mode", l_leo_get_window_mode},
-        {"leo_window_should_close", l_leo_window_should_close},
-        {"leo_begin_drawing", l_leo_begin_drawing},
-        {"leo_end_drawing", l_leo_end_drawing},
-        {"leo_clear_background", l_leo_clear_background},
-        {"leo_set_target_fps", l_leo_set_target_fps},
-        {"leo_get_frame_time", l_leo_get_frame_time},
-        {"leo_get_time", l_leo_get_time},
-        {"leo_get_fps", l_leo_get_fps},
-        {"leo_get_screen_width", l_leo_get_screen_width},
-        {"leo_get_screen_height", l_leo_get_screen_height},
-        {"leo_is_key_pressed", l_leo_is_key_pressed},
-        {"leo_is_key_pressed_repeat", l_leo_is_key_pressed_repeat},
-        {"leo_is_key_down", l_leo_is_key_down},
-        {"leo_is_key_released", l_leo_is_key_released},
-        {"leo_is_key_up", l_leo_is_key_up},
-        {"leo_get_key_pressed", l_leo_get_key_pressed},
-        {"leo_get_char_pressed", l_leo_get_char_pressed},
-        {"leo_set_exit_key", l_leo_set_exit_key},
-        {"leo_update_keyboard", l_leo_update_keyboard},
-        {"leo_is_exit_key_pressed", l_leo_is_exit_key_pressed},
-        {"leo_cleanup_keyboard", l_leo_cleanup_keyboard},
-        {"leo_actor_system_create", l_leo_actor_system_create},
-        {"leo_actor_system_destroy", l_leo_actor_system_destroy},
-        {"leo_actor_system_update", l_leo_actor_system_update},
-        {"leo_actor_system_render", l_leo_actor_system_render},
-        {"leo_actor_system_set_paused", l_leo_actor_system_set_paused},
-        {"leo_actor_system_is_paused", l_leo_actor_system_is_paused},
-        {"leo_actor_system_root", l_leo_actor_system_root},
-        {"leo_actor_spawn", l_leo_actor_spawn},
-        {"leo_actor_kill", l_leo_actor_kill},
-        {"leo_actor_uid", l_leo_actor_uid},
-        {"leo_actor_name", l_leo_actor_name},
-        {"leo_actor_parent", l_leo_actor_parent},
-        {"leo_actor_find_child_by_name", l_leo_actor_find_child_by_name},
-        {"leo_actor_find_recursive_by_name", l_leo_actor_find_recursive_by_name},
-        {"leo_actor_find_by_uid", l_leo_actor_find_by_uid},
-        {"leo_actor_group_get_or_create", l_leo_actor_group_get_or_create},
-        {"leo_actor_group_find", l_leo_actor_group_find},
-        {"leo_actor_add_to_group", l_leo_actor_add_to_group},
-        {"leo_actor_remove_from_group", l_leo_actor_remove_from_group},
-        {"leo_actor_in_group", l_leo_actor_in_group},
-        {"leo_actor_groups", l_leo_actor_groups},
-        {"leo_actor_for_each_in_group", l_leo_actor_for_each_in_group},
-        {"leo_actor_set_paused", l_leo_actor_set_paused},
-        {"leo_actor_is_paused", l_leo_actor_is_paused},
-        {"leo_actor_is_effectively_paused", l_leo_actor_is_effectively_paused},
-        {"leo_actor_emitter", l_leo_actor_emitter},
-        {"leo_actor_emitter_const", l_leo_actor_emitter_const},
-        {"leo_actor_userdata", l_leo_actor_userdata},
-        {"leo_actor_set_userdata", l_leo_actor_set_userdata},
-        {"leo_actor_for_each_child", l_leo_actor_for_each_child},
-        {"leo_actor_set_z", l_leo_actor_set_z},
-        {"leo_actor_get_z", l_leo_actor_get_z},
-        {"leo_is_touch_down", l_leo_is_touch_down},
-        {"leo_is_touch_pressed", l_leo_is_touch_pressed},
-        {"leo_is_touch_released", l_leo_is_touch_released},
-        {"leo_get_touch_position", l_leo_get_touch_position},
-        {"leo_get_touch_x", l_leo_get_touch_x},
-        {"leo_get_touch_y", l_leo_get_touch_y},
-        {"leo_get_touch_point_count", l_leo_get_touch_point_count},
-        {"leo_get_touch_point_id", l_leo_get_touch_point_id},
-        {"leo_is_gesture_detected", l_leo_is_gesture_detected},
-        {"leo_get_gesture_detected", l_leo_get_gesture_detected},
-        {"leo_get_gesture_hold_duration", l_leo_get_gesture_hold_duration},
-        {"leo_get_gesture_drag_vector", l_leo_get_gesture_drag_vector},
-        {"leo_get_gesture_drag_angle", l_leo_get_gesture_drag_angle},
-        {"leo_get_gesture_pinch_vector", l_leo_get_gesture_pinch_vector},
-        {"leo_get_gesture_pinch_angle", l_leo_get_gesture_pinch_angle},
-        {"leo_set_gestures_enabled", l_leo_set_gestures_enabled},
-        {"leo_init_gamepads", l_leo_init_gamepads},
-        {"leo_update_gamepads", l_leo_update_gamepads},
-        {"leo_handle_gamepad_event", l_leo_handle_gamepad_event},
-        {"leo_shutdown_gamepads", l_leo_shutdown_gamepads},
-        {"leo_is_gamepad_available", l_leo_is_gamepad_available},
-        {"leo_get_gamepad_name", l_leo_get_gamepad_name},
-        {"leo_is_gamepad_button_pressed", l_leo_is_gamepad_button_pressed},
-        {"leo_is_gamepad_button_down", l_leo_is_gamepad_button_down},
-        {"leo_is_gamepad_button_released", l_leo_is_gamepad_button_released},
-        {"leo_is_gamepad_button_up", l_leo_is_gamepad_button_up},
-        {"leo_get_gamepad_button_pressed", l_leo_get_gamepad_button_pressed},
-        {"leo_get_gamepad_axis_count", l_leo_get_gamepad_axis_count},
-        {"leo_get_gamepad_axis_movement", l_leo_get_gamepad_axis_movement},
-        {"leo_set_gamepad_vibration", l_leo_set_gamepad_vibration},
-        {"leo_set_gamepad_axis_deadzone", l_leo_set_gamepad_axis_deadzone},
-        {"leo_set_gamepad_stick_threshold", l_leo_set_gamepad_stick_threshold},
-        {"leo_get_gamepad_stick", l_leo_get_gamepad_stick},
-        {"leo_is_gamepad_stick_pressed", l_leo_is_gamepad_stick_pressed},
-        {"leo_is_gamepad_stick_down", l_leo_is_gamepad_stick_down},
-        {"leo_is_gamepad_stick_released", l_leo_is_gamepad_stick_released},
-        {"leo_is_gamepad_stick_up", l_leo_is_gamepad_stick_up},
-        {"leo_begin_mode2d", l_leo_begin_mode2d},
-        {"leo_end_mode2d", l_leo_end_mode2d},
-        {"leo_is_camera_active", l_leo_is_camera_active},
-        {"leo_get_world_to_screen2d", l_leo_get_world_to_screen2d},
-        {"leo_get_screen_to_world2d", l_leo_get_screen_to_world2d},
-        {"leo_get_current_camera2d", l_leo_get_current_camera2d},
-        {"leo_load_render_texture", l_leo_load_render_texture},
-        {"leo_unload_render_texture", l_leo_unload_render_texture},
-        {"leo_begin_texture_mode", l_leo_begin_texture_mode},
-        {"leo_end_texture_mode", l_leo_end_texture_mode},
-        {"leo_render_texture_get_texture", l_leo_render_texture_get_texture},
-        {"leo_render_texture_get_size", l_leo_render_texture_get_size},
-        {"leo_image_load", l_image_load},
-        {"leo_image_load_from_memory", l_image_load_from_memory},
-        {"leo_image_load_from_texture", l_image_load_from_texture},
-        {"leo_image_load_from_pixels", l_image_load_from_pixels},
-        {"leo_image_is_ready", l_image_is_ready},
-        {"leo_image_unload", l_image_unload},
-        {"leo_image_bytes_per_pixel", l_image_bytes_per_pixel},
-        {"leo_texture_get_size", l_leo_texture_get_size},
-        {"leo_draw_texture_rec", l_leo_draw_texture_rec},
-        {"leo_draw_texture_pro", l_leo_draw_texture_pro},
-        {"leo_load_font", l_leo_load_font},
-        {"leo_load_font_from_memory", l_leo_load_font_from_memory},
-        {"leo_unload_font", l_leo_unload_font},
-        {"leo_is_font_ready", l_leo_is_font_ready},
-        {"leo_set_default_font", l_leo_set_default_font},
-        {"leo_get_default_font", l_leo_get_default_font},
-        {"leo_draw_fps", l_leo_draw_fps},
-        {"leo_draw_text", l_leo_draw_text},
-        {"leo_draw_text_ex", l_leo_draw_text_ex},
-        {"leo_draw_text_pro", l_leo_draw_text_pro},
-        {"leo_measure_text_ex", l_leo_measure_text_ex},
-        {"leo_measure_text", l_leo_measure_text},
-        {"leo_get_font_line_height", l_leo_get_font_line_height},
-        {"leo_get_font_base_size", l_leo_get_font_base_size},
-        {"leo_json_parse", l_leo_json_parse},
-        {"leo_json_load", l_leo_json_load},
-        {"leo_json_free", l_leo_json_free},
-        {"leo_json_root", l_leo_json_root},
-        {"leo_json_is_null", l_leo_json_is_null},
-        {"leo_json_is_object", l_leo_json_is_object},
-        {"leo_json_is_array", l_leo_json_is_array},
-        {"leo_json_is_string", l_leo_json_is_string},
-        {"leo_json_is_number", l_leo_json_is_number},
-        {"leo_json_is_bool", l_leo_json_is_bool},
-        {"leo_json_obj_get", l_leo_json_obj_get},
-        {"leo_json_arr_size", l_leo_json_arr_size},
-        {"leo_json_arr_get", l_leo_json_arr_get},
-        {"leo_json_get_string", l_leo_json_get_string},
-        {"leo_json_get_int", l_leo_json_get_int},
-        {"leo_json_get_double", l_leo_json_get_double},
-        {"leo_json_get_bool", l_leo_json_get_bool},
-        {"leo_json_as_string", l_leo_json_as_string},
-        {"leo_json_as_int", l_leo_json_as_int},
-        {"leo_json_as_double", l_leo_json_as_double},
-        {"leo_json_as_bool", l_leo_json_as_bool},
-        {"leo_tiled_load", l_leo_tiled_load},
-        {"leo_tiled_free", l_leo_tiled_free},
-        {"leo_tiled_map_get_size", l_leo_tiled_map_get_size},
-        {"leo_tiled_map_get_tile_size", l_leo_tiled_map_get_tile_size},
-        {"leo_tiled_map_get_metadata", l_leo_tiled_map_get_metadata},
-        {"leo_tiled_map_get_properties", l_leo_tiled_map_get_properties},
-        {"leo_tiled_map_tile_layer_count", l_leo_tiled_map_tile_layer_count},
-        {"leo_tiled_map_object_layer_count", l_leo_tiled_map_object_layer_count},
-        {"leo_tiled_map_get_tile_layer", l_leo_tiled_map_get_tile_layer},
-        {"leo_tiled_map_get_object_layer", l_leo_tiled_map_get_object_layer},
-        {"leo_tiled_find_tile_layer", l_leo_tiled_find_tile_layer},
-        {"leo_tiled_find_object_layer", l_leo_tiled_find_object_layer},
-        {"leo_tiled_tile_layer_get_name", l_leo_tiled_tile_layer_get_name},
-        {"leo_tiled_tile_layer_get_size", l_leo_tiled_tile_layer_get_size},
-        {"leo_tiled_get_gid", l_leo_tiled_get_gid},
-        {"leo_tiled_object_layer_get_name", l_leo_tiled_object_layer_get_name},
-        {"leo_tiled_object_layer_get_count", l_leo_tiled_object_layer_get_count},
-        {"leo_tiled_object_layer_get_object", l_leo_tiled_object_layer_get_object},
-        {"leo_tiled_tileset_count", l_leo_tiled_tileset_count},
-        {"leo_tiled_map_get_tileset", l_leo_tiled_map_get_tileset},
-        {"leo_tiled_gid_info", l_leo_tiled_gid_info},
-        {"leo_tiled_resolve_gid", l_leo_tiled_resolve_gid},
-        {"leo_check_collision_recs", l_leo_check_collision_recs},
-        {"leo_check_collision_circles", l_leo_check_collision_circles},
-        {"leo_check_collision_circle_rec", l_leo_check_collision_circle_rec},
-        {"leo_check_collision_circle_line", l_leo_check_collision_circle_line},
-        {"leo_check_collision_point_rec", l_leo_check_collision_point_rec},
-        {"leo_check_collision_point_circle", l_leo_check_collision_point_circle},
-        {"leo_check_collision_point_triangle", l_leo_check_collision_point_triangle},
-        {"leo_check_collision_point_line", l_leo_check_collision_point_line},
-        {"leo_check_collision_lines", l_leo_check_collision_lines},
-        {"leo_get_collision_rec", l_leo_get_collision_rec},
-        {"leo_base64_encoded_len", l_leo_base64_encoded_len},
-        {"leo_base64_decoded_cap", l_leo_base64_decoded_cap},
-        {"leo_base64_encode", l_leo_base64_encode},
-        {"leo_base64_decode", l_leo_base64_decode},
-        {"leo_load_animation", l_leo_load_animation},
-        {"leo_unload_animation", l_leo_unload_animation},
-        {"leo_create_animation_player", l_leo_create_animation_player},
-        {"leo_update_animation", l_leo_update_animation},
-        {"leo_draw_animation", l_leo_draw_animation},
-        {"leo_play_animation", l_leo_play_animation},
-        {"leo_pause_animation", l_leo_pause_animation},
-        {"leo_reset_animation", l_leo_reset_animation},
-        {"leo_init_audio", l_leo_init_audio},
-        {"leo_shutdown_audio", l_leo_shutdown_audio},
-        {"leo_load_sound", l_leo_load_sound},
-        {"leo_unload_sound", l_leo_unload_sound},
-        {"leo_is_sound_ready", l_leo_is_sound_ready},
-        {"leo_play_sound", l_leo_play_sound},
-        {"leo_stop_sound", l_leo_stop_sound},
-        {"leo_pause_sound", l_leo_pause_sound},
-        {"leo_resume_sound", l_leo_resume_sound},
-        {"leo_is_sound_playing", l_leo_is_sound_playing},
-        {"leo_set_sound_volume", l_leo_set_sound_volume},
-        {"leo_set_sound_pitch", l_leo_set_sound_pitch},
-        {"leo_set_sound_pan", l_leo_set_sound_pan},
-        {"leo_start_fade_in", l_leo_start_fade_in},
-        {"leo_start_fade_out", l_leo_start_fade_out},
-        {"leo_start_transition", l_leo_start_transition},
-        {"leo_update_transitions", l_leo_update_transitions},
-        {"leo_render_transitions", l_leo_render_transitions},
-        {"leo_is_transitioning", l_leo_is_transitioning},
-        {"leo_set_logical_resolution", l_leo_set_logical_resolution},
-        {NULL, NULL}
-    };
+    static const luaL_Reg leo_funcs[] = {{"leo_init_window", l_leo_init_window},
+                                         {"leo_close_window", l_leo_close_window},
+                                         {"leo_get_window", l_leo_get_window},
+                                         {"leo_get_renderer", l_leo_get_renderer},
+                                         {"leo_set_fullscreen", l_leo_set_fullscreen},
+                                         {"leo_set_window_mode", l_leo_set_window_mode},
+                                         {"leo_get_window_mode", l_leo_get_window_mode},
+                                         {"leo_window_should_close", l_leo_window_should_close},
+                                         {"leo_begin_drawing", l_leo_begin_drawing},
+                                         {"leo_end_drawing", l_leo_end_drawing},
+                                         {"leo_clear_background", l_leo_clear_background},
+                                         {"leo_set_target_fps", l_leo_set_target_fps},
+                                         {"leo_get_frame_time", l_leo_get_frame_time},
+                                         {"leo_get_time", l_leo_get_time},
+                                         {"leo_get_fps", l_leo_get_fps},
+                                         {"leo_get_screen_width", l_leo_get_screen_width},
+                                         {"leo_get_screen_height", l_leo_get_screen_height},
+                                         {"leo_is_key_pressed", l_leo_is_key_pressed},
+                                         {"leo_is_key_pressed_repeat", l_leo_is_key_pressed_repeat},
+                                         {"leo_is_key_down", l_leo_is_key_down},
+                                         {"leo_is_key_released", l_leo_is_key_released},
+                                         {"leo_is_key_up", l_leo_is_key_up},
+                                         {"leo_get_key_pressed", l_leo_get_key_pressed},
+                                         {"leo_get_char_pressed", l_leo_get_char_pressed},
+                                         {"leo_set_exit_key", l_leo_set_exit_key},
+                                         {"leo_update_keyboard", l_leo_update_keyboard},
+                                         {"leo_is_exit_key_pressed", l_leo_is_exit_key_pressed},
+                                         {"leo_cleanup_keyboard", l_leo_cleanup_keyboard},
+                                         {"leo_actor_system_create", l_leo_actor_system_create},
+                                         {"leo_actor_system_destroy", l_leo_actor_system_destroy},
+                                         {"leo_actor_system_update", l_leo_actor_system_update},
+                                         {"leo_actor_system_render", l_leo_actor_system_render},
+                                         {"leo_actor_system_set_paused", l_leo_actor_system_set_paused},
+                                         {"leo_actor_system_is_paused", l_leo_actor_system_is_paused},
+                                         {"leo_actor_system_root", l_leo_actor_system_root},
+                                         {"leo_actor_spawn", l_leo_actor_spawn},
+                                         {"leo_actor_kill", l_leo_actor_kill},
+                                         {"leo_actor_uid", l_leo_actor_uid},
+                                         {"leo_actor_name", l_leo_actor_name},
+                                         {"leo_actor_parent", l_leo_actor_parent},
+                                         {"leo_actor_find_child_by_name", l_leo_actor_find_child_by_name},
+                                         {"leo_actor_find_recursive_by_name", l_leo_actor_find_recursive_by_name},
+                                         {"leo_actor_find_by_uid", l_leo_actor_find_by_uid},
+                                         {"leo_actor_group_get_or_create", l_leo_actor_group_get_or_create},
+                                         {"leo_actor_group_find", l_leo_actor_group_find},
+                                         {"leo_actor_add_to_group", l_leo_actor_add_to_group},
+                                         {"leo_actor_remove_from_group", l_leo_actor_remove_from_group},
+                                         {"leo_actor_in_group", l_leo_actor_in_group},
+                                         {"leo_actor_groups", l_leo_actor_groups},
+                                         {"leo_actor_for_each_in_group", l_leo_actor_for_each_in_group},
+                                         {"leo_actor_set_paused", l_leo_actor_set_paused},
+                                         {"leo_actor_is_paused", l_leo_actor_is_paused},
+                                         {"leo_actor_is_effectively_paused", l_leo_actor_is_effectively_paused},
+                                         {"leo_actor_emitter", l_leo_actor_emitter},
+                                         {"leo_actor_emitter_const", l_leo_actor_emitter_const},
+                                         {"leo_actor_userdata", l_leo_actor_userdata},
+                                         {"leo_actor_set_userdata", l_leo_actor_set_userdata},
+                                         {"leo_actor_for_each_child", l_leo_actor_for_each_child},
+                                         {"leo_actor_set_z", l_leo_actor_set_z},
+                                         {"leo_actor_get_z", l_leo_actor_get_z},
+                                         {"leo_is_touch_down", l_leo_is_touch_down},
+                                         {"leo_is_touch_pressed", l_leo_is_touch_pressed},
+                                         {"leo_is_touch_released", l_leo_is_touch_released},
+                                         {"leo_get_touch_position", l_leo_get_touch_position},
+                                         {"leo_get_touch_x", l_leo_get_touch_x},
+                                         {"leo_get_touch_y", l_leo_get_touch_y},
+                                         {"leo_get_touch_point_count", l_leo_get_touch_point_count},
+                                         {"leo_get_touch_point_id", l_leo_get_touch_point_id},
+                                         {"leo_is_gesture_detected", l_leo_is_gesture_detected},
+                                         {"leo_get_gesture_detected", l_leo_get_gesture_detected},
+                                         {"leo_get_gesture_hold_duration", l_leo_get_gesture_hold_duration},
+                                         {"leo_get_gesture_drag_vector", l_leo_get_gesture_drag_vector},
+                                         {"leo_get_gesture_drag_angle", l_leo_get_gesture_drag_angle},
+                                         {"leo_get_gesture_pinch_vector", l_leo_get_gesture_pinch_vector},
+                                         {"leo_get_gesture_pinch_angle", l_leo_get_gesture_pinch_angle},
+                                         {"leo_set_gestures_enabled", l_leo_set_gestures_enabled},
+                                         {"leo_init_gamepads", l_leo_init_gamepads},
+                                         {"leo_update_gamepads", l_leo_update_gamepads},
+                                         {"leo_handle_gamepad_event", l_leo_handle_gamepad_event},
+                                         {"leo_shutdown_gamepads", l_leo_shutdown_gamepads},
+                                         {"leo_is_gamepad_available", l_leo_is_gamepad_available},
+                                         {"leo_get_gamepad_name", l_leo_get_gamepad_name},
+                                         {"leo_is_gamepad_button_pressed", l_leo_is_gamepad_button_pressed},
+                                         {"leo_is_gamepad_button_down", l_leo_is_gamepad_button_down},
+                                         {"leo_is_gamepad_button_released", l_leo_is_gamepad_button_released},
+                                         {"leo_is_gamepad_button_up", l_leo_is_gamepad_button_up},
+                                         {"leo_get_gamepad_button_pressed", l_leo_get_gamepad_button_pressed},
+                                         {"leo_get_gamepad_axis_count", l_leo_get_gamepad_axis_count},
+                                         {"leo_get_gamepad_axis_movement", l_leo_get_gamepad_axis_movement},
+                                         {"leo_set_gamepad_vibration", l_leo_set_gamepad_vibration},
+                                         {"leo_set_gamepad_axis_deadzone", l_leo_set_gamepad_axis_deadzone},
+                                         {"leo_set_gamepad_stick_threshold", l_leo_set_gamepad_stick_threshold},
+                                         {"leo_get_gamepad_stick", l_leo_get_gamepad_stick},
+                                         {"leo_is_gamepad_stick_pressed", l_leo_is_gamepad_stick_pressed},
+                                         {"leo_is_gamepad_stick_down", l_leo_is_gamepad_stick_down},
+                                         {"leo_is_gamepad_stick_released", l_leo_is_gamepad_stick_released},
+                                         {"leo_is_gamepad_stick_up", l_leo_is_gamepad_stick_up},
+                                         {"leo_begin_mode2d", l_leo_begin_mode2d},
+                                         {"leo_end_mode2d", l_leo_end_mode2d},
+                                         {"leo_is_camera_active", l_leo_is_camera_active},
+                                         {"leo_get_world_to_screen2d", l_leo_get_world_to_screen2d},
+                                         {"leo_get_screen_to_world2d", l_leo_get_screen_to_world2d},
+                                         {"leo_get_current_camera2d", l_leo_get_current_camera2d},
+                                         {"leo_load_render_texture", l_leo_load_render_texture},
+                                         {"leo_unload_render_texture", l_leo_unload_render_texture},
+                                         {"leo_begin_texture_mode", l_leo_begin_texture_mode},
+                                         {"leo_end_texture_mode", l_leo_end_texture_mode},
+                                         {"leo_render_texture_get_texture", l_leo_render_texture_get_texture},
+                                         {"leo_render_texture_get_size", l_leo_render_texture_get_size},
+                                         {"leo_image_load", l_image_load},
+                                         {"leo_image_load_from_memory", l_image_load_from_memory},
+                                         {"leo_image_load_from_texture", l_image_load_from_texture},
+                                         {"leo_image_load_from_pixels", l_image_load_from_pixels},
+                                         {"leo_image_is_ready", l_image_is_ready},
+                                         {"leo_image_unload", l_image_unload},
+                                         {"leo_image_bytes_per_pixel", l_image_bytes_per_pixel},
+                                         {"leo_texture_get_size", l_leo_texture_get_size},
+                                         {"leo_draw_texture_rec", l_leo_draw_texture_rec},
+                                         {"leo_draw_texture_pro", l_leo_draw_texture_pro},
+                                         {"leo_load_font", l_leo_load_font},
+                                         {"leo_load_font_from_memory", l_leo_load_font_from_memory},
+                                         {"leo_unload_font", l_leo_unload_font},
+                                         {"leo_is_font_ready", l_leo_is_font_ready},
+                                         {"leo_set_default_font", l_leo_set_default_font},
+                                         {"leo_get_default_font", l_leo_get_default_font},
+                                         {"leo_draw_fps", l_leo_draw_fps},
+                                         {"leo_draw_text", l_leo_draw_text},
+                                         {"leo_draw_text_ex", l_leo_draw_text_ex},
+                                         {"leo_draw_text_pro", l_leo_draw_text_pro},
+                                         {"leo_measure_text_ex", l_leo_measure_text_ex},
+                                         {"leo_measure_text", l_leo_measure_text},
+                                         {"leo_get_font_line_height", l_leo_get_font_line_height},
+                                         {"leo_get_font_base_size", l_leo_get_font_base_size},
+                                         {"leo_json_parse", l_leo_json_parse},
+                                         {"leo_json_load", l_leo_json_load},
+                                         {"leo_json_free", l_leo_json_free},
+                                         {"leo_json_root", l_leo_json_root},
+                                         {"leo_json_is_null", l_leo_json_is_null},
+                                         {"leo_json_is_object", l_leo_json_is_object},
+                                         {"leo_json_is_array", l_leo_json_is_array},
+                                         {"leo_json_is_string", l_leo_json_is_string},
+                                         {"leo_json_is_number", l_leo_json_is_number},
+                                         {"leo_json_is_bool", l_leo_json_is_bool},
+                                         {"leo_json_obj_get", l_leo_json_obj_get},
+                                         {"leo_json_arr_size", l_leo_json_arr_size},
+                                         {"leo_json_arr_get", l_leo_json_arr_get},
+                                         {"leo_json_get_string", l_leo_json_get_string},
+                                         {"leo_json_get_int", l_leo_json_get_int},
+                                         {"leo_json_get_double", l_leo_json_get_double},
+                                         {"leo_json_get_bool", l_leo_json_get_bool},
+                                         {"leo_json_as_string", l_leo_json_as_string},
+                                         {"leo_json_as_int", l_leo_json_as_int},
+                                         {"leo_json_as_double", l_leo_json_as_double},
+                                         {"leo_json_as_bool", l_leo_json_as_bool},
+                                         {"leo_tiled_load", l_leo_tiled_load},
+                                         {"leo_tiled_free", l_leo_tiled_free},
+                                         {"leo_tiled_map_get_size", l_leo_tiled_map_get_size},
+                                         {"leo_tiled_map_get_tile_size", l_leo_tiled_map_get_tile_size},
+                                         {"leo_tiled_map_get_metadata", l_leo_tiled_map_get_metadata},
+                                         {"leo_tiled_map_get_properties", l_leo_tiled_map_get_properties},
+                                         {"leo_tiled_map_tile_layer_count", l_leo_tiled_map_tile_layer_count},
+                                         {"leo_tiled_map_object_layer_count", l_leo_tiled_map_object_layer_count},
+                                         {"leo_tiled_map_get_tile_layer", l_leo_tiled_map_get_tile_layer},
+                                         {"leo_tiled_map_get_object_layer", l_leo_tiled_map_get_object_layer},
+                                         {"leo_tiled_find_tile_layer", l_leo_tiled_find_tile_layer},
+                                         {"leo_tiled_find_object_layer", l_leo_tiled_find_object_layer},
+                                         {"leo_tiled_tile_layer_get_name", l_leo_tiled_tile_layer_get_name},
+                                         {"leo_tiled_tile_layer_get_size", l_leo_tiled_tile_layer_get_size},
+                                         {"leo_tiled_get_gid", l_leo_tiled_get_gid},
+                                         {"leo_tiled_object_layer_get_name", l_leo_tiled_object_layer_get_name},
+                                         {"leo_tiled_object_layer_get_count", l_leo_tiled_object_layer_get_count},
+                                         {"leo_tiled_object_layer_get_object", l_leo_tiled_object_layer_get_object},
+                                         {"leo_tiled_tileset_count", l_leo_tiled_tileset_count},
+                                         {"leo_tiled_map_get_tileset", l_leo_tiled_map_get_tileset},
+                                         {"leo_tiled_gid_info", l_leo_tiled_gid_info},
+                                         {"leo_tiled_resolve_gid", l_leo_tiled_resolve_gid},
+                                         {"leo_check_collision_recs", l_leo_check_collision_recs},
+                                         {"leo_check_collision_circles", l_leo_check_collision_circles},
+                                         {"leo_check_collision_circle_rec", l_leo_check_collision_circle_rec},
+                                         {"leo_check_collision_circle_line", l_leo_check_collision_circle_line},
+                                         {"leo_check_collision_point_rec", l_leo_check_collision_point_rec},
+                                         {"leo_check_collision_point_circle", l_leo_check_collision_point_circle},
+                                         {"leo_check_collision_point_triangle", l_leo_check_collision_point_triangle},
+                                         {"leo_check_collision_point_line", l_leo_check_collision_point_line},
+                                         {"leo_check_collision_lines", l_leo_check_collision_lines},
+                                         {"leo_get_collision_rec", l_leo_get_collision_rec},
+                                         {"leo_base64_encoded_len", l_leo_base64_encoded_len},
+                                         {"leo_base64_decoded_cap", l_leo_base64_decoded_cap},
+                                         {"leo_base64_encode", l_leo_base64_encode},
+                                         {"leo_base64_decode", l_leo_base64_decode},
+                                         {"leo_load_animation", l_leo_load_animation},
+                                         {"leo_unload_animation", l_leo_unload_animation},
+                                         {"leo_create_animation_player", l_leo_create_animation_player},
+                                         {"leo_update_animation", l_leo_update_animation},
+                                         {"leo_draw_animation", l_leo_draw_animation},
+                                         {"leo_play_animation", l_leo_play_animation},
+                                         {"leo_pause_animation", l_leo_pause_animation},
+                                         {"leo_reset_animation", l_leo_reset_animation},
+                                         {"leo_init_audio", l_leo_init_audio},
+                                         {"leo_shutdown_audio", l_leo_shutdown_audio},
+                                         {"leo_load_sound", l_leo_load_sound},
+                                         {"leo_unload_sound", l_leo_unload_sound},
+                                         {"leo_is_sound_ready", l_leo_is_sound_ready},
+                                         {"leo_play_sound", l_leo_play_sound},
+                                         {"leo_stop_sound", l_leo_stop_sound},
+                                         {"leo_pause_sound", l_leo_pause_sound},
+                                         {"leo_resume_sound", l_leo_resume_sound},
+                                         {"leo_is_sound_playing", l_leo_is_sound_playing},
+                                         {"leo_set_sound_volume", l_leo_set_sound_volume},
+                                         {"leo_set_sound_pitch", l_leo_set_sound_pitch},
+                                         {"leo_set_sound_pan", l_leo_set_sound_pan},
+                                         {"leo_start_fade_in", l_leo_start_fade_in},
+                                         {"leo_start_fade_out", l_leo_start_fade_out},
+                                         {"leo_start_transition", l_leo_start_transition},
+                                         {"leo_update_transitions", l_leo_update_transitions},
+                                         {"leo_render_transitions", l_leo_render_transitions},
+                                         {"leo_is_transitioning", l_leo_is_transitioning},
+                                         {"leo_set_logical_resolution", l_leo_set_logical_resolution},
+                                         {NULL, NULL}};
 
     for (const luaL_Reg *reg = leo_funcs; reg->name; ++reg)
     {
@@ -3637,64 +3630,102 @@ int leo_LuaOpenBindings(void *vL)
     }
 
     // Constants for texture formats
-    lua_pushinteger(L, LEO_TEXFORMAT_UNDEFINED); lua_setglobal(L, "leo_TEXFORMAT_UNDEFINED");
-    lua_pushinteger(L, LEO_TEXFORMAT_R8G8B8A8); lua_setglobal(L, "leo_TEXFORMAT_R8G8B8A8");
-    lua_pushinteger(L, LEO_TEXFORMAT_R8G8B8); lua_setglobal(L, "leo_TEXFORMAT_R8G8B8");
-    lua_pushinteger(L, LEO_TEXFORMAT_GRAY8); lua_setglobal(L, "leo_TEXFORMAT_GRAY8");
-    lua_pushinteger(L, LEO_TEXFORMAT_GRAY8_ALPHA); lua_setglobal(L, "leo_TEXFORMAT_GRAY8_ALPHA");
+    lua_pushinteger(L, LEO_TEXFORMAT_UNDEFINED);
+    lua_setglobal(L, "leo_TEXFORMAT_UNDEFINED");
+    lua_pushinteger(L, LEO_TEXFORMAT_R8G8B8A8);
+    lua_setglobal(L, "leo_TEXFORMAT_R8G8B8A8");
+    lua_pushinteger(L, LEO_TEXFORMAT_R8G8B8);
+    lua_setglobal(L, "leo_TEXFORMAT_R8G8B8");
+    lua_pushinteger(L, LEO_TEXFORMAT_GRAY8);
+    lua_setglobal(L, "leo_TEXFORMAT_GRAY8");
+    lua_pushinteger(L, LEO_TEXFORMAT_GRAY8_ALPHA);
+    lua_setglobal(L, "leo_TEXFORMAT_GRAY8_ALPHA");
 
     // Window mode constants
-    lua_pushinteger(L, LEO_WINDOW_MODE_WINDOWED); lua_setglobal(L, "leo_WINDOW_MODE_WINDOWED");
-    lua_pushinteger(L, LEO_WINDOW_MODE_BORDERLESS_FULLSCREEN); lua_setglobal(L, "leo_WINDOW_MODE_BORDERLESS_FULLSCREEN");
-    lua_pushinteger(L, LEO_WINDOW_MODE_FULLSCREEN_EXCLUSIVE); lua_setglobal(L, "leo_WINDOW_MODE_FULLSCREEN_EXCLUSIVE");
+    lua_pushinteger(L, LEO_WINDOW_MODE_WINDOWED);
+    lua_setglobal(L, "leo_WINDOW_MODE_WINDOWED");
+    lua_pushinteger(L, LEO_WINDOW_MODE_BORDERLESS_FULLSCREEN);
+    lua_setglobal(L, "leo_WINDOW_MODE_BORDERLESS_FULLSCREEN");
+    lua_pushinteger(L, LEO_WINDOW_MODE_FULLSCREEN_EXCLUSIVE);
+    lua_setglobal(L, "leo_WINDOW_MODE_FULLSCREEN_EXCLUSIVE");
 
     // Logical presentation constants
-    lua_pushinteger(L, LEO_LOGICAL_PRESENTATION_DISABLED); lua_setglobal(L, "leo_LOGICAL_PRESENTATION_DISABLED");
-    lua_pushinteger(L, LEO_LOGICAL_PRESENTATION_STRETCH); lua_setglobal(L, "leo_LOGICAL_PRESENTATION_STRETCH");
-    lua_pushinteger(L, LEO_LOGICAL_PRESENTATION_LETTERBOX); lua_setglobal(L, "leo_LOGICAL_PRESENTATION_LETTERBOX");
-    lua_pushinteger(L, LEO_LOGICAL_PRESENTATION_OVERSCAN); lua_setglobal(L, "leo_LOGICAL_PRESENTATION_OVERSCAN");
+    lua_pushinteger(L, LEO_LOGICAL_PRESENTATION_DISABLED);
+    lua_setglobal(L, "leo_LOGICAL_PRESENTATION_DISABLED");
+    lua_pushinteger(L, LEO_LOGICAL_PRESENTATION_STRETCH);
+    lua_setglobal(L, "leo_LOGICAL_PRESENTATION_STRETCH");
+    lua_pushinteger(L, LEO_LOGICAL_PRESENTATION_LETTERBOX);
+    lua_setglobal(L, "leo_LOGICAL_PRESENTATION_LETTERBOX");
+    lua_pushinteger(L, LEO_LOGICAL_PRESENTATION_OVERSCAN);
+    lua_setglobal(L, "leo_LOGICAL_PRESENTATION_OVERSCAN");
 
     // Scale mode constants
-    lua_pushinteger(L, LEO_SCALE_NEAREST); lua_setglobal(L, "leo_SCALE_NEAREST");
-    lua_pushinteger(L, LEO_SCALE_LINEAR); lua_setglobal(L, "leo_SCALE_LINEAR");
-    lua_pushinteger(L, LEO_SCALE_PIXELART); lua_setglobal(L, "leo_SCALE_PIXELART");
+    lua_pushinteger(L, LEO_SCALE_NEAREST);
+    lua_setglobal(L, "leo_SCALE_NEAREST");
+    lua_pushinteger(L, LEO_SCALE_LINEAR);
+    lua_setglobal(L, "leo_SCALE_LINEAR");
+    lua_pushinteger(L, LEO_SCALE_PIXELART);
+    lua_setglobal(L, "leo_SCALE_PIXELART");
 
     // Tiled GID flags
-    lua_pushinteger(L, (lua_Integer)LEO_TILED_FLIP_H); lua_setglobal(L, "leo_TILED_FLIP_H");
-    lua_pushinteger(L, (lua_Integer)LEO_TILED_FLIP_V); lua_setglobal(L, "leo_TILED_FLIP_V");
-    lua_pushinteger(L, (lua_Integer)LEO_TILED_FLIP_D); lua_setglobal(L, "leo_TILED_FLIP_D");
-    lua_pushinteger(L, (lua_Integer)LEO_TILED_GID_MASK); lua_setglobal(L, "leo_TILED_GID_MASK");
+    lua_pushinteger(L, (lua_Integer)LEO_TILED_FLIP_H);
+    lua_setglobal(L, "leo_TILED_FLIP_H");
+    lua_pushinteger(L, (lua_Integer)LEO_TILED_FLIP_V);
+    lua_setglobal(L, "leo_TILED_FLIP_V");
+    lua_pushinteger(L, (lua_Integer)LEO_TILED_FLIP_D);
+    lua_setglobal(L, "leo_TILED_FLIP_D");
+    lua_pushinteger(L, (lua_Integer)LEO_TILED_GID_MASK);
+    lua_setglobal(L, "leo_TILED_GID_MASK");
 
     // Base64 result codes
-    lua_pushinteger(L, LEO_B64_OK); lua_setglobal(L, "leo_B64_OK");
-    lua_pushinteger(L, LEO_B64_E_ARG); lua_setglobal(L, "leo_B64_E_ARG");
-    lua_pushinteger(L, LEO_B64_E_NOSPACE); lua_setglobal(L, "leo_B64_E_NOSPACE");
-    lua_pushinteger(L, LEO_B64_E_FORMAT); lua_setglobal(L, "leo_B64_E_FORMAT");
+    lua_pushinteger(L, LEO_B64_OK);
+    lua_setglobal(L, "leo_B64_OK");
+    lua_pushinteger(L, LEO_B64_E_ARG);
+    lua_setglobal(L, "leo_B64_E_ARG");
+    lua_pushinteger(L, LEO_B64_E_NOSPACE);
+    lua_setglobal(L, "leo_B64_E_NOSPACE");
+    lua_pushinteger(L, LEO_B64_E_FORMAT);
+    lua_setglobal(L, "leo_B64_E_FORMAT");
 
     // Transition types
-    lua_pushinteger(L, LEO_TRANSITION_FADE_IN); lua_setglobal(L, "leo_TRANSITION_FADE_IN");
-    lua_pushinteger(L, LEO_TRANSITION_FADE_OUT); lua_setglobal(L, "leo_TRANSITION_FADE_OUT");
-    lua_pushinteger(L, LEO_TRANSITION_CIRCLE_IN); lua_setglobal(L, "leo_TRANSITION_CIRCLE_IN");
-    lua_pushinteger(L, LEO_TRANSITION_CIRCLE_OUT); lua_setglobal(L, "leo_TRANSITION_CIRCLE_OUT");
+    lua_pushinteger(L, LEO_TRANSITION_FADE_IN);
+    lua_setglobal(L, "leo_TRANSITION_FADE_IN");
+    lua_pushinteger(L, LEO_TRANSITION_FADE_OUT);
+    lua_setglobal(L, "leo_TRANSITION_FADE_OUT");
+    lua_pushinteger(L, LEO_TRANSITION_CIRCLE_IN);
+    lua_setglobal(L, "leo_TRANSITION_CIRCLE_IN");
+    lua_pushinteger(L, LEO_TRANSITION_CIRCLE_OUT);
+    lua_setglobal(L, "leo_TRANSITION_CIRCLE_OUT");
 
     // Touch/gesture constants
-    lua_pushinteger(L, LEO_GESTURE_NONE); lua_setglobal(L, "leo_GESTURE_NONE");
-    lua_pushinteger(L, LEO_GESTURE_TAP); lua_setglobal(L, "leo_GESTURE_TAP");
-    lua_pushinteger(L, LEO_GESTURE_DOUBLETAP); lua_setglobal(L, "leo_GESTURE_DOUBLETAP");
-    lua_pushinteger(L, LEO_GESTURE_HOLD); lua_setglobal(L, "leo_GESTURE_HOLD");
-    lua_pushinteger(L, LEO_GESTURE_DRAG); lua_setglobal(L, "leo_GESTURE_DRAG");
-    lua_pushinteger(L, LEO_GESTURE_SWIPE_RIGHT); lua_setglobal(L, "leo_GESTURE_SWIPE_RIGHT");
-    lua_pushinteger(L, LEO_GESTURE_SWIPE_LEFT); lua_setglobal(L, "leo_GESTURE_SWIPE_LEFT");
-    lua_pushinteger(L, LEO_GESTURE_SWIPE_UP); lua_setglobal(L, "leo_GESTURE_SWIPE_UP");
-    lua_pushinteger(L, LEO_GESTURE_SWIPE_DOWN); lua_setglobal(L, "leo_GESTURE_SWIPE_DOWN");
-    lua_pushinteger(L, LEO_GESTURE_PINCH_IN); lua_setglobal(L, "leo_GESTURE_PINCH_IN");
-    lua_pushinteger(L, LEO_GESTURE_PINCH_OUT); lua_setglobal(L, "leo_GESTURE_PINCH_OUT");
+    lua_pushinteger(L, LEO_GESTURE_NONE);
+    lua_setglobal(L, "leo_GESTURE_NONE");
+    lua_pushinteger(L, LEO_GESTURE_TAP);
+    lua_setglobal(L, "leo_GESTURE_TAP");
+    lua_pushinteger(L, LEO_GESTURE_DOUBLETAP);
+    lua_setglobal(L, "leo_GESTURE_DOUBLETAP");
+    lua_pushinteger(L, LEO_GESTURE_HOLD);
+    lua_setglobal(L, "leo_GESTURE_HOLD");
+    lua_pushinteger(L, LEO_GESTURE_DRAG);
+    lua_setglobal(L, "leo_GESTURE_DRAG");
+    lua_pushinteger(L, LEO_GESTURE_SWIPE_RIGHT);
+    lua_setglobal(L, "leo_GESTURE_SWIPE_RIGHT");
+    lua_pushinteger(L, LEO_GESTURE_SWIPE_LEFT);
+    lua_setglobal(L, "leo_GESTURE_SWIPE_LEFT");
+    lua_pushinteger(L, LEO_GESTURE_SWIPE_UP);
+    lua_setglobal(L, "leo_GESTURE_SWIPE_UP");
+    lua_pushinteger(L, LEO_GESTURE_SWIPE_DOWN);
+    lua_setglobal(L, "leo_GESTURE_SWIPE_DOWN");
+    lua_pushinteger(L, LEO_GESTURE_PINCH_IN);
+    lua_setglobal(L, "leo_GESTURE_PINCH_IN");
+    lua_pushinteger(L, LEO_GESTURE_PINCH_OUT);
+    lua_setglobal(L, "leo_GESTURE_PINCH_OUT");
 
-#define LEO_SET_KEY_CONST(name)            \
-    do                                     \
-    {                                      \
-        lua_pushinteger(L, name);          \
-        lua_setglobal(L, "leo_" #name);    \
+#define LEO_SET_KEY_CONST(name)                                                                                        \
+    do                                                                                                                 \
+    {                                                                                                                  \
+        lua_pushinteger(L, name);                                                                                      \
+        lua_setglobal(L, "leo_" #name);                                                                                \
     } while (0)
 
     // Keyboard key constants
@@ -3851,11 +3882,11 @@ int leo_LuaOpenBindings(void *vL)
 
 #undef LEO_SET_KEY_CONST
 
-#define LEO_SET_GAMEPAD_CONST(value, label)    \
-    do                                         \
-    {                                          \
-        lua_pushinteger(L, value);             \
-        lua_setglobal(L, "leo_" label);        \
+#define LEO_SET_GAMEPAD_CONST(value, label)                                                                            \
+    do                                                                                                                 \
+    {                                                                                                                  \
+        lua_pushinteger(L, value);                                                                                     \
+        lua_setglobal(L, "leo_" label);                                                                                \
     } while (0)
 
     // Gamepad limits

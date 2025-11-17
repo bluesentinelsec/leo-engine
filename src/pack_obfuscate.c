@@ -1,8 +1,8 @@
 #include "leo/pack_obfuscate.h"
 #include "leo/pack_util.h"
+#include <SDL3/SDL_stdinc.h>
 #include <stddef.h>
 #include <stdint.h>
-#include <SDL3/SDL_stdinc.h>
 
 /* Derive a 32-bit stream seed from password and pack_salt. */
 uint32_t leo_xor_seed_from_password(const char *password, uint64_t pack_salt)
