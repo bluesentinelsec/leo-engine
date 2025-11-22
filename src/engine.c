@@ -9,59 +9,75 @@
 
 #include <SDL3/SDL.h>
 #include <SDL3/SDL_stdinc.h>
-#include <math.h>
 
+/** @brief Global SDL window handle - created in leo_InitWindow(), used throughout engine for window operations */
 SDL_Window *globalWindow = NULL;
+
+/** @brief Global SDL renderer handle - created in leo_InitWindow(), used for all rendering operations */
 SDL_Renderer *globalRenderer = NULL;
 
-#define LEO_RT_STACK_MAX 8
 #ifndef LEO_RT_STACK_MAX
 #define LEO_RT_STACK_MAX 8
 #endif
 
-// Consolidated internal engine state.
+/** @brief Consolidated internal engine state - tracks frame loop, timing, camera, and rendering state */
 typedef struct EngineState
 {
-    /* frame/loop */
-    int inFrame;                          /* are we between Begin/EndDrawing? */
-    int quit;                             /* latched quit flag */
-    Uint8 clearR, clearG, clearB, clearA; /* last clear color */
+    /** @brief Frame loop state - true when between BeginDrawing/EndDrawing calls */
+    int inFrame;
+    /** @brief Quit flag - latched when window close or exit key is pressed */
+    int quit;
+    /** @brief Last clear color components - cached for potential reuse */
+    Uint8 clearR, clearG, clearB, clearA;
 
-    /* timing */
+    /** @brief Target FPS setting - 0 means no frame rate limiting */
     int targetFPS;
+    /** @brief Target frame duration in seconds - calculated from targetFPS */
     double targetFrameSecs;
 
+    /** @brief SDL performance counter frequency - for timing calculations */
     Uint64 perfFreq;
-    Uint64 startCounter;      /* when InitWindow succeeded */
-    Uint64 frameStartCounter; /* set in BeginDrawing */
+    /** @brief Performance counter value when InitWindow succeeded */
+    Uint64 startCounter;
+    /** @brief Performance counter value at start of current frame */
+    Uint64 frameStartCounter;
 
-    float lastFrameTime;   /* seconds */
-    int fpsCounter;        /* frames counted in the current 1s window */
-    int currentFPS;        /* last computed FPS value */
-    Uint64 fpsWindowStart; /* start counter for FPS window */
+    /** @brief Duration of last frame in seconds */
+    float lastFrameTime;
+    /** @brief Frame counter for current 1-second FPS measurement window */
+    int fpsCounter;
+    /** @brief Last computed FPS value */
+    int currentFPS;
+    /** @brief Start counter for current FPS measurement window */
+    Uint64 fpsWindowStart;
 
-    /* camera */
+    /** @brief Camera stack for nested 2D camera transforms */
     leo_Camera2D camStack[8];
+    /** @brief Current top index of camera stack (-1 when empty) */
     int camTop;
-    bool cameraActive; /* true when inside BeginMode2D/EndMode2D */
+    /** @brief True when inside BeginMode2D/EndMode2D block */
+    bool cameraActive;
 
-    /* Current affine: screen <- world (row-major 2x3) */
+    /** @brief Current world-to-screen transform matrix components (row-major 2x3) */
     float m11, m12, tx;
     float m21, m22, ty;
 
-    /* logical resolution */
+    /** @brief True when logical resolution is enabled */
     int hasLogical;
+    /** @brief Logical resolution width in pixels */
     int logicalW;
+    /** @brief Logical resolution height in pixels */
     int logicalH;
 
-    /* default per-texture scale mode (applied on creation) */
+    /** @brief Default scale mode applied to newly created textures */
     SDL_ScaleMode defaultScaleMode;
 
-    /* render-target stack */
+    /** @brief Render target stack for nested offscreen rendering */
     SDL_Texture *rtStack[LEO_RT_STACK_MAX];
+    /** @brief Current top index of render target stack (-1 when empty) */
     int rtTop;
 
-    /* window mode tracking */
+    /** @brief Current window mode (windowed, fullscreen, borderless) */
     leo_WindowMode currentWindowMode;
 } EngineState;
 
@@ -116,7 +132,7 @@ static void _rebuildCameraMatrix(const leo_Camera2D *c)
     }
     const float z = (c->zoom <= 0.0f) ? 1.0f : c->zoom;
     const float rad = _deg2rad(c->rotation);
-    const float cr = cosf(rad), sr = sinf(rad);
+    const float cr = SDL_cosf(rad), sr = SDL_sinf(rad);
 
     const float a = z * cr;    // m11
     const float b = z * sr;    // m12
@@ -138,7 +154,7 @@ static void _buildCam3x2(const leo_Camera2D *c, float *m11, float *m12, float *m
 {
     const float z = (c->zoom <= 0.0f) ? 1.0f : c->zoom;
     const float rad = _deg2rad(c->rotation);
-    const float cr = cosf(rad), sr = sinf(rad);
+    const float cr = SDL_cosf(rad), sr = SDL_sinf(rad);
     const float a = z * cr, b = z * sr, c21 = -z * sr, d = z * cr;
     const float Txx = c->offset.x - (a * c->target.x + b * c->target.y);
     const float Tyy = c->offset.y - (c21 * c->target.x + d * c->target.y);
@@ -909,7 +925,7 @@ void leo_DrawTexturePro(leo_Texture2D tex, leo_Rectangle src, leo_Rectangle dest
 
     // ---- Rotate around pivot (rotation is in degrees, counterclockwise) ----
     const float rad = rotation * 0.01745329251994329577f; // deg -> rad
-    const float cr = cosf(rad), sr = sinf(rad);
+    const float cr = SDL_cosf(rad), sr = SDL_sinf(rad);
 
     for (int i = 0; i < 4; ++i)
     {
