@@ -6,6 +6,7 @@
 #endif
 
 #include <SDL3/SDL.h>
+#include <SDL3/SDL_stdinc.h>
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
@@ -47,7 +48,7 @@ static bool _load_lua_script(lua_State *L, const char *script_path, char **out_c
     if (result != LUA_OK)
     {
         SDL_LogError(SDL_LOG_CATEGORY_APPLICATION, "Lua compile error: %s", lua_tostring(L, -1));
-        free(content);
+        SDL_free(content);
         return false;
     }
 
@@ -57,14 +58,14 @@ static bool _load_lua_script(lua_State *L, const char *script_path, char **out_c
     if (result != LUA_OK)
     {
         SDL_LogError(SDL_LOG_CATEGORY_APPLICATION, "Lua execution error: %s", lua_tostring(L, -1));
-        free(content);
+        SDL_free(content);
         return false;
     }
 
     if (out_content)
         *out_content = content;
     else
-        free(content);
+        SDL_free(content);
     if (out_size)
         *out_size = size;
 
@@ -578,7 +579,7 @@ int leo_LuaGameRun(const leo_LuaGameConfig *cfg, const leo_LuaGameCallbacks *cb)
 
     // Initialize context
     leo_LuaGameContext ctx;
-    memset(&ctx, 0, sizeof(ctx));
+    SDL_memset(&ctx, 0, sizeof(ctx));
     ctx.user_data = cfg->user_data;
     ctx.dt = 0.0f;
     ctx.time_sec = 0.0;
@@ -604,7 +605,7 @@ int leo_LuaGameRun(const leo_LuaGameConfig *cfg, const leo_LuaGameCallbacks *cb)
     }
 
 #ifdef __EMSCRIPTEN__
-    leo__LuaGameLoopData *data = malloc(sizeof(leo__LuaGameLoopData));
+    leo__LuaGameLoopData *data = SDL_malloc(sizeof(leo__LuaGameLoopData));
     if (!data)
     {
         SDL_LogError(SDL_LOG_CATEGORY_APPLICATION, "leo_LuaGameRun: malloc failed");

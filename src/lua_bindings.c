@@ -17,6 +17,7 @@
 #include "leo/touch.h"
 #include "leo/transitions.h"
 
+#include <SDL3/SDL_stdinc.h>
 #include <lauxlib.h>
 #include <lua.h>
 #include <lualib.h>
@@ -323,11 +324,11 @@ static void lua_actor_binding_release(lua_State *L, leo__LuaActorBinding *bindin
     }
     if (binding->name_owned)
     {
-        free(binding->name_owned);
+        SDL_free(binding->name_owned);
         binding->name_owned = NULL;
     }
     binding->magic = 0;
-    free(binding);
+    SDL_free(binding);
 }
 
 static void leo__lua_actor_enum_invoke(leo__LuaActorEnumCtx *ctx, leo_Actor *actor)
@@ -2198,7 +2199,7 @@ static int l_leo_actor_spawn(lua_State *L)
 
     const int desc_index = 3;
     leo_ActorDesc desc;
-    memset(&desc, 0, sizeof(desc));
+    SDL_memset(&desc, 0, sizeof(desc));
 
     lua_getfield(L, desc_index, "name");
     int has_name = !lua_isnil(L, -1);
@@ -2265,7 +2266,7 @@ static int l_leo_actor_spawn(lua_State *L)
 
     if (needs_binding)
     {
-        binding = (leo__LuaActorBinding *)calloc(1, sizeof(*binding));
+        binding = (leo__LuaActorBinding *)SDL_calloc(1, sizeof(*binding));
         if (!binding)
             return luaL_error(L, "leo_actor_spawn: OOM allocating binding");
         binding->magic = 0;
@@ -2305,7 +2306,7 @@ static int l_leo_actor_spawn(lua_State *L)
 
         if (has_name && name_str)
         {
-            binding->name_owned = strdup(name_str);
+            binding->name_owned = SDL_strdup(name_str);
             if (!binding->name_owned)
             {
                 lua_actor_binding_release(L, binding);
@@ -2659,7 +2660,7 @@ static void leo__lua_actor_on_exit(leo_Actor *self)
     if (L)
         lua_actor_binding_release(L, binding);
     else
-        free(binding);
+        SDL_free(binding);
     leo_actor_set_userdata(self, NULL);
 }
 
@@ -2674,7 +2675,7 @@ static int l_leo_tiled_load(lua_State *L)
     if (!lua_isnoneornil(L, 2))
     {
         luaL_checktype(L, 2, LUA_TTABLE);
-        memset(&opt, 0, sizeof(opt));
+        SDL_memset(&opt, 0, sizeof(opt));
         opt.allow_compression = 1;
         lua_getfield(L, 2, "image_base");
         if (!lua_isnil(L, -1))
@@ -3099,7 +3100,7 @@ static int l_leo_base64_encode(lua_State *L)
         return 2;
     }
     lua_pushlstring(L, out, out_len);
-    free(out);
+    SDL_free(out);
     return 1;
 }
 
@@ -3117,7 +3118,7 @@ static int l_leo_base64_decode(lua_State *L)
         return 2;
     }
     lua_pushlstring(L, (const char *)out, out_len);
-    free(out);
+    SDL_free(out);
     return 1;
 }
 
