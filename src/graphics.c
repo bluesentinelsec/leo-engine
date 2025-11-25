@@ -118,6 +118,7 @@ void leo_DrawCircle(int centerX, int centerY, float radius, leo_Color color)
     if (!r)
         return;
 
+    _gfxEnableBlending(r);
     _gfxSetColor(r, color);
 
     // Transform center; scale radius by camera zoom (rotation does not affect radius)
@@ -225,6 +226,7 @@ void leo_DrawCircleFilled(int centerX, int centerY, float radius, leo_Color colo
     if (!_prepare_circle(centerX, centerY, radius, &r, &cx, &cy, &rpx))
         return;
 
+    _gfxEnableBlending(r);
     _gfxSetColor(r, color);
 
     // Optimized scan line fill
