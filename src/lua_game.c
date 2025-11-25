@@ -159,10 +159,10 @@ static int lua_draw_circle(lua_State *L)
     int x = luaL_checkinteger(L, 1);
     int y = luaL_checkinteger(L, 2);
     float radius = (float)luaL_checknumber(L, 3);
-    int r = luaL_checkinteger(L, 4);
-    int g = luaL_checkinteger(L, 5);
-    int b = luaL_checkinteger(L, 6);
-    int a = luaL_optinteger(L, 7, 255);
+    int r = (int)luaL_checknumber(L, 4);
+    int g = (int)luaL_checknumber(L, 5);
+    int b = (int)luaL_checknumber(L, 6);
+    int a = (int)luaL_optnumber(L, 7, 255);
 
     leo_Color color = {(unsigned char)r, (unsigned char)g, (unsigned char)b, (unsigned char)a};
     leo_DrawCircle(x, y, radius, color);
@@ -174,10 +174,10 @@ static int lua_draw_circle_filled(lua_State *L)
     int x = luaL_checkinteger(L, 1);
     int y = luaL_checkinteger(L, 2);
     float radius = (float)luaL_checknumber(L, 3);
-    int r = luaL_checkinteger(L, 4);
-    int g = luaL_checkinteger(L, 5);
-    int b = luaL_checkinteger(L, 6);
-    int a = luaL_optinteger(L, 7, 255);
+    int r = (int)luaL_checknumber(L, 4);
+    int g = (int)luaL_checknumber(L, 5);
+    int b = (int)luaL_checknumber(L, 6);
+    int a = (int)luaL_optnumber(L, 7, 255);
 
     leo_Color color = {(unsigned char)r, (unsigned char)g, (unsigned char)b, (unsigned char)a};
     leo_DrawCircleFilled(x, y, radius, color);
