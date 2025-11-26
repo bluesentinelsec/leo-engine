@@ -61,7 +61,7 @@ static leo_pack_result read_and_validate_header(FILE *f, leo_pack_header_v1 *out
     if (fread(&hdr, 1, sizeof(hdr), f) != sizeof(hdr))
         return LEO_PACK_E_IO;
 
-    if (memcmp(hdr.magic, LEO_PACK_MAGIC, 8) != 0)
+    if (SDL_memcmp(hdr.magic, LEO_PACK_MAGIC, 8) != 0)
         return LEO_PACK_E_FORMAT;
     if (hdr.version != LEO_PACK_V1)
         return LEO_PACK_E_FORMAT;
