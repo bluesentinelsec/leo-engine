@@ -114,14 +114,14 @@ static int lua_draw_pixel(lua_State *L)
 
 static int lua_draw_rectangle(lua_State *L)
 {
-    int x = luaL_checkinteger(L, 1);
-    int y = luaL_checkinteger(L, 2);
-    int width = luaL_checkinteger(L, 3);
-    int height = luaL_checkinteger(L, 4);
-    int r = luaL_checkinteger(L, 5);
-    int g = luaL_checkinteger(L, 6);
-    int b = luaL_checkinteger(L, 7);
-    int a = luaL_optinteger(L, 8, 255);
+    int x = (int)luaL_checknumber(L, 1);
+    int y = (int)luaL_checknumber(L, 2);
+    int width = (int)luaL_checknumber(L, 3);
+    int height = (int)luaL_checknumber(L, 4);
+    int r = (int)luaL_checknumber(L, 5);
+    int g = (int)luaL_checknumber(L, 6);
+    int b = (int)luaL_checknumber(L, 7);
+    int a = (int)luaL_optnumber(L, 8, 255);
 
     leo_Color color = {(unsigned char)r, (unsigned char)g, (unsigned char)b, (unsigned char)a};
     leo_DrawRectangle(x, y, width, height, color);
@@ -141,14 +141,14 @@ static int lua_clear_background(lua_State *L)
 
 static int lua_draw_line(lua_State *L)
 {
-    int x1 = luaL_checkinteger(L, 1);
-    int y1 = luaL_checkinteger(L, 2);
-    int x2 = luaL_checkinteger(L, 3);
-    int y2 = luaL_checkinteger(L, 4);
-    int r = luaL_checkinteger(L, 5);
-    int g = luaL_checkinteger(L, 6);
-    int b = luaL_checkinteger(L, 7);
-    int a = luaL_optinteger(L, 8, 255);
+    int x1 = (int)luaL_checknumber(L, 1);
+    int y1 = (int)luaL_checknumber(L, 2);
+    int x2 = (int)luaL_checknumber(L, 3);
+    int y2 = (int)luaL_checknumber(L, 4);
+    int r = (int)luaL_checknumber(L, 5);
+    int g = (int)luaL_checknumber(L, 6);
+    int b = (int)luaL_checknumber(L, 7);
+    int a = (int)luaL_optnumber(L, 8, 255);
 
     leo_Color color = {(unsigned char)r, (unsigned char)g, (unsigned char)b, (unsigned char)a};
     leo_DrawLine(x1, y1, x2, y2, color);
@@ -157,8 +157,8 @@ static int lua_draw_line(lua_State *L)
 
 static int lua_draw_circle(lua_State *L)
 {
-    int x = luaL_checkinteger(L, 1);
-    int y = luaL_checkinteger(L, 2);
+    int x = (int)luaL_checknumber(L, 1);
+    int y = (int)luaL_checknumber(L, 2);
     float radius = (float)luaL_checknumber(L, 3);
     int r = (int)luaL_checknumber(L, 4);
     int g = (int)luaL_checknumber(L, 5);
@@ -172,8 +172,8 @@ static int lua_draw_circle(lua_State *L)
 
 static int lua_draw_circle_filled(lua_State *L)
 {
-    int x = luaL_checkinteger(L, 1);
-    int y = luaL_checkinteger(L, 2);
+    int x = (int)luaL_checknumber(L, 1);
+    int y = (int)luaL_checknumber(L, 2);
     float radius = (float)luaL_checknumber(L, 3);
     int r = (int)luaL_checknumber(L, 4);
     int g = (int)luaL_checknumber(L, 5);
@@ -187,14 +187,14 @@ static int lua_draw_circle_filled(lua_State *L)
 
 static int lua_draw_rectangle_lines(lua_State *L)
 {
-    int x = luaL_checkinteger(L, 1);
-    int y = luaL_checkinteger(L, 2);
-    int width = luaL_checkinteger(L, 3);
-    int height = luaL_checkinteger(L, 4);
-    int r = luaL_checkinteger(L, 5);
-    int g = luaL_checkinteger(L, 6);
-    int b = luaL_checkinteger(L, 7);
-    int a = luaL_optinteger(L, 8, 255);
+    int x = (int)luaL_checknumber(L, 1);
+    int y = (int)luaL_checknumber(L, 2);
+    int width = (int)luaL_checknumber(L, 3);
+    int height = (int)luaL_checknumber(L, 4);
+    int r = (int)luaL_checknumber(L, 5);
+    int g = (int)luaL_checknumber(L, 6);
+    int b = (int)luaL_checknumber(L, 7);
+    int a = (int)luaL_optnumber(L, 8, 255);
 
     leo_Color color = {(unsigned char)r, (unsigned char)g, (unsigned char)b, (unsigned char)a};
     leo_DrawRectangleLines(x, y, width, height, color);
@@ -203,16 +203,16 @@ static int lua_draw_rectangle_lines(lua_State *L)
 
 static int lua_draw_triangle(lua_State *L)
 {
-    int x1 = luaL_checkinteger(L, 1);
-    int y1 = luaL_checkinteger(L, 2);
-    int x2 = luaL_checkinteger(L, 3);
-    int y2 = luaL_checkinteger(L, 4);
-    int x3 = luaL_checkinteger(L, 5);
-    int y3 = luaL_checkinteger(L, 6);
-    int r = luaL_checkinteger(L, 7);
-    int g = luaL_checkinteger(L, 8);
-    int b = luaL_checkinteger(L, 9);
-    int a = luaL_optinteger(L, 10, 255);
+    int x1 = (int)luaL_checknumber(L, 1);
+    int y1 = (int)luaL_checknumber(L, 2);
+    int x2 = (int)luaL_checknumber(L, 3);
+    int y2 = (int)luaL_checknumber(L, 4);
+    int x3 = (int)luaL_checknumber(L, 5);
+    int y3 = (int)luaL_checknumber(L, 6);
+    int r = (int)luaL_checknumber(L, 7);
+    int g = (int)luaL_checknumber(L, 8);
+    int b = (int)luaL_checknumber(L, 9);
+    int a = (int)luaL_optnumber(L, 10, 255);
 
     leo_Color color = {(unsigned char)r, (unsigned char)g, (unsigned char)b, (unsigned char)a};
     leo_DrawTriangle(x1, y1, x2, y2, x3, y3, color);
@@ -221,16 +221,16 @@ static int lua_draw_triangle(lua_State *L)
 
 static int lua_draw_triangle_filled(lua_State *L)
 {
-    int x1 = luaL_checkinteger(L, 1);
-    int y1 = luaL_checkinteger(L, 2);
-    int x2 = luaL_checkinteger(L, 3);
-    int y2 = luaL_checkinteger(L, 4);
-    int x3 = luaL_checkinteger(L, 5);
-    int y3 = luaL_checkinteger(L, 6);
-    int r = luaL_checkinteger(L, 7);
-    int g = luaL_checkinteger(L, 8);
-    int b = luaL_checkinteger(L, 9);
-    int a = luaL_optinteger(L, 10, 255);
+    int x1 = (int)luaL_checknumber(L, 1);
+    int y1 = (int)luaL_checknumber(L, 2);
+    int x2 = (int)luaL_checknumber(L, 3);
+    int y2 = (int)luaL_checknumber(L, 4);
+    int x3 = (int)luaL_checknumber(L, 5);
+    int y3 = (int)luaL_checknumber(L, 6);
+    int r = (int)luaL_checknumber(L, 7);
+    int g = (int)luaL_checknumber(L, 8);
+    int b = (int)luaL_checknumber(L, 9);
+    int a = (int)luaL_optnumber(L, 10, 255);
 
     leo_Color color = {(unsigned char)r, (unsigned char)g, (unsigned char)b, (unsigned char)a};
     leo_DrawTriangleFilled(x1, y1, x2, y2, x3, y3, color);
