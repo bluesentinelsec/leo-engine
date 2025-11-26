@@ -1,6 +1,7 @@
 // src/actor.c
 #include "leo/actor.h"
 
+#include <SDL3/SDL_stdinc.h>
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
@@ -86,13 +87,13 @@ static const char *LEO_SIG_EXITING = "exiting";
 
 static void *leo__xmalloc(size_t n)
 {
-    void *p = malloc(n);
+    void *p = SDL_malloc(n);
     return p ? p : NULL;
 }
 
 static void *leo__xcalloc(size_t n, size_t sz)
 {
-    void *p = calloc(n, sz);
+    void *p = SDL_calloc(n, sz);
     return p ? p : NULL;
 }
 
@@ -104,7 +105,7 @@ static int leo__ensure_cap(void ***arrp, int *count, int *cap, int need_cap)
     int newcap = (*cap == 0) ? 8 : (*cap * 2);
     if (newcap < need_cap)
         newcap = need_cap;
-    void **np = (void **)realloc(*arrp, (size_t)newcap * sizeof(void *));
+    void **np = (void **)SDL_realloc(*arrp, (size_t)newcap * sizeof(void *));
     if (!np)
         return 0;
     *arrp = np;
@@ -316,7 +317,7 @@ static void leo__destroy_actor_recursive(leo_Actor *a)
     /* finally free actor memory, but never free root (allocated inline) */
     if (a != &a->sys->root)
     {
-        free(a);
+        SDL_free(a);
     }
     else
     {
@@ -405,7 +406,7 @@ leo_ActorSystem *leo_actor_system_create(void)
 
     /* Init root node inline */
     leo_Actor *r = &sys->root;
-    memset(r, 0, sizeof(*r));
+    SDL_memset(r, 0, sizeof(*r));
     r->sys = sys;
     r->uid = sys->next_uid++;
     r->name = "root";
@@ -445,13 +446,13 @@ void leo_actor_system_destroy(leo_ActorSystem *sys)
     /* Free group names */
     for (int i = 0; i < 64; ++i)
     {
-        free(sys->groups.names[i]);
+        SDL_free(sys->groups.names[i]);
         sys->groups.names[i] = NULL;
     }
 
-    free(sys->live);
-    free(sys->to_kill);
-    free(sys);
+    SDL_free(sys->live);
+    SDL_free(sys->to_kill);
+    SDL_free(sys);
 }
 
 void leo_actor_system_update(leo_ActorSystem *sys, float dt)
