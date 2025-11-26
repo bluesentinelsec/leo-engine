@@ -7,6 +7,7 @@
 #include "leo/json.h"
 #include "leo/pack_zlib.h"
 
+#include <SDL3/SDL_stdinc.h>
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
@@ -23,9 +24,9 @@ typedef struct leo__TiledInternals
 
 static void *leo__malloc_zero(size_t n)
 {
-    void *p = malloc(n);
+    void *p = SDL_malloc(n);
     if (p)
-        memset(p, 0, n);
+        SDL_memset(p, 0, n);
     return p;
 }
 
@@ -43,7 +44,7 @@ static int leo__ensure_owned_cap(leo__TiledInternals *in, int need)
     int newcap = in->owned_cap ? in->owned_cap * 2 : 8;
     while (newcap < need)
         newcap *= 2;
-    char **np = (char **)realloc(in->owned, (size_t)newcap * sizeof(char *));
+    char **np = (char **)SDL_realloc(in->owned, (size_t)newcap * sizeof(char *));
     if (!np)
         return 0;
     in->owned = np;
@@ -56,13 +57,13 @@ static char *leo__own_dup(leo__TiledInternals *in, const char *s)
     if (!s)
         return NULL;
     size_t n = strlen(s);
-    char *p = (char *)malloc(n + 1);
+    char *p = (char *)SDL_malloc(n + 1);
     if (!p)
         return NULL;
-    memcpy(p, s, n + 1);
+    SDL_memcpy(p, s, n + 1);
     if (!leo__ensure_owned_cap(in, in->owned_count + 1))
     {
-        free(p);
+        SDL_free(p);
         return NULL;
     }
     in->owned[in->owned_count++] = p;
@@ -94,23 +95,23 @@ static char *leo__join_path(leo__TiledInternals *in, const char *base, const cha
         rel++; /* strip leading '/' to avoid double slash */
 
     size_t out_n = nb + (need_slash ? 1 : 0) + nr;
-    char *out = (char *)malloc(out_n + 1);
+    char *out = (char *)SDL_malloc(out_n + 1);
     if (!out)
         return NULL;
     size_t k = 0;
-    memcpy(out + k, base, nb);
+    SDL_memcpy(out + k, base, nb);
     k += nb;
     if (need_slash)
     {
         out[k++] = '/';
     }
-    memcpy(out + k, rel, nr);
+    SDL_memcpy(out + k, rel, nr);
     k += nr;
     out[k] = '\0';
 
     if (!leo__ensure_owned_cap(in, in->owned_count + 1))
     {
-        free(out);
+        SDL_free(out);
         return NULL;
     }
     in->owned[in->owned_count++] = out;
@@ -131,7 +132,7 @@ static int leo__parse_properties(leo_JsonNode obj, leo_TiledProperty **out_props
     if (n == 0)
         return 1;
 
-    leo_TiledProperty *arr = (leo_TiledProperty *)calloc(n, sizeof(leo_TiledProperty));
+    leo_TiledProperty *arr = (leo_TiledProperty *)SDL_calloc(n, sizeof(leo_TiledProperty));
     if (!arr)
         return 0;
 
@@ -214,7 +215,7 @@ static int leo__load_tile_data(const leo_TiledLoadOptions *opt, leo_JsonNode lay
             return 0;
         }
 
-        uint32_t *v = (uint32_t *)malloc(need * sizeof(uint32_t));
+        uint32_t *v = (uint32_t *)SDL_malloc(need * sizeof(uint32_t));
         if (!v)
         {
             leo_SetError("tiled: OOM for tile data");
@@ -251,7 +252,7 @@ static int leo__load_tile_data(const leo_TiledLoadOptions *opt, leo_JsonNode lay
         }
         if (cnt != need)
         {
-            free(v);
+            SDL_free(v);
             leo_SetError("tiled: CSV layer length %zu != expected %zu", cnt, need);
             return 0;
         }
@@ -290,25 +291,25 @@ static int leo__load_tile_data(const leo_TiledLoadOptions *opt, leo_JsonNode lay
         {
             if (!allow_comp)
             {
-                free(decoded);
+                SDL_free(decoded);
                 leo_SetError("tiled: compressed tile layer encountered but allow_compression=0");
                 return 0;
             }
             if (strcmp(compression, "zlib") == 0)
             {
                 size_t expect = need * sizeof(uint32_t);
-                decomp_buf = (unsigned char *)malloc(expect);
+                decomp_buf = (unsigned char *)SDL_malloc(expect);
                 if (!decomp_buf)
                 {
-                    free(decoded);
+                    SDL_free(decoded);
                     leo_SetError("tiled: OOM for zlib output");
                     return 0;
                 }
                 size_t cap = expect;
                 if (leo_decompress_zlib(decoded, dec_sz, decomp_buf, &cap) != LEO_PACK_OK)
                 {
-                    free(decoded);
-                    free(decomp_buf);
+                    SDL_free(decoded);
+                    SDL_free(decomp_buf);
                     leo_SetError("tiled: zlib decompression failed");
                     return 0;
                 }
@@ -318,7 +319,7 @@ static int leo__load_tile_data(const leo_TiledLoadOptions *opt, leo_JsonNode lay
             else
             {
                 /* Only zlib is needed for tests. */
-                free(decoded);
+                SDL_free(decoded);
                 leo_SetError("tiled: unsupported compression '%s'", compression);
                 return 0;
             }
@@ -328,26 +329,26 @@ static int leo__load_tile_data(const leo_TiledLoadOptions *opt, leo_JsonNode lay
         if (raw_sz != expect)
         {
             if (decomp_buf)
-                free(decomp_buf);
-            free(decoded);
+                SDL_free(decomp_buf);
+            SDL_free(decoded);
             leo_SetError("tiled: base64 layer bytes %zu != expected %zu", raw_sz, expect);
             return 0;
         }
 
-        uint32_t *v = (uint32_t *)malloc(expect);
+        uint32_t *v = (uint32_t *)SDL_malloc(expect);
         if (!v)
         {
             if (decomp_buf)
-                free(decomp_buf);
-            free(decoded);
+                SDL_free(decomp_buf);
+            SDL_free(decoded);
             leo_SetError("tiled: OOM for tile data");
             return 0;
         }
-        memcpy(v, raw, expect);
+        SDL_memcpy(v, raw, expect);
 
         if (decomp_buf)
-            free(decomp_buf);
-        free(decoded);
+            SDL_free(decomp_buf);
+        SDL_free(decoded);
 
         *out = v;
         *out_count = need;
@@ -379,7 +380,7 @@ static int leo__parse_objects(leo_JsonNode layer_obj, leo_TiledObject **out_objs
         return 1;
     }
 
-    leo_TiledObject *v = (leo_TiledObject *)calloc(n, sizeof(leo_TiledObject));
+    leo_TiledObject *v = (leo_TiledObject *)SDL_calloc(n, sizeof(leo_TiledObject));
     if (!v)
     {
         leo_SetError("tiled: OOM for objects");
@@ -405,8 +406,8 @@ static int leo__parse_objects(leo_JsonNode layer_obj, leo_TiledObject **out_objs
         {
             /* clean already-parsed objects */
             for (size_t k = 0; k <= i; ++k)
-                free(v[k].props);
-            free(v);
+                SDL_free(v[k].props);
+            SDL_free(v);
             return 0;
         }
     }
@@ -470,7 +471,7 @@ leo_TiledMap *leo_tiled_load(const char *logical_path, const leo_TiledLoadOption
     if (!map)
     {
         leo_json_free(doc);
-        free(intern);
+        SDL_free(intern);
         leo_SetError("tiled: OOM");
         return NULL;
     }
@@ -505,7 +506,7 @@ leo_TiledMap *leo_tiled_load(const char *logical_path, const leo_TiledLoadOption
         size_t n = leo_json_arr_size(tilesets);
         if (n > 0)
         {
-            map->tilesets = (leo_TiledTileset *)calloc(n, sizeof(leo_TiledTileset));
+            map->tilesets = (leo_TiledTileset *)SDL_calloc(n, sizeof(leo_TiledTileset));
             if (!map->tilesets)
             {
                 leo_SetError("tiled: OOM tilesets");
@@ -581,7 +582,7 @@ leo_TiledMap *leo_tiled_load(const char *logical_path, const leo_TiledLoadOption
     size_t L = leo_json_arr_size(layers);
     if (L > 0)
     {
-        map->layers = (leo_TiledLayer *)calloc(L, sizeof(leo_TiledLayer));
+        map->layers = (leo_TiledLayer *)SDL_calloc(L, sizeof(leo_TiledLayer));
         if (!map->layers)
         {
             leo_SetError("tiled: OOM layers");
@@ -655,7 +656,7 @@ void leo_tiled_free(leo_TiledMap *map)
         {
             if (map->layers[i].type == LEO_TILED_LAYER_TILE)
             {
-                free(map->layers[i].as.tile.gids);
+                SDL_free(map->layers[i].as.tile.gids);
             }
             else if (map->layers[i].type == LEO_TILED_LAYER_OBJECT)
             {
@@ -664,33 +665,33 @@ void leo_tiled_free(leo_TiledMap *map)
                 {
                     for (int k = 0; k < ol->object_count; ++k)
                     {
-                        free(ol->objects[k].props);
+                        SDL_free(ol->objects[k].props);
                     }
                 }
-                free(ol->objects);
+                SDL_free(ol->objects);
             }
         }
-        free(map->layers);
+        SDL_free(map->layers);
     }
 
     /* free tilesets: only our *owned* strings were tracked in intern->owned */
-    free(map->tilesets);
+    SDL_free(map->tilesets);
 
     /* map-level props */
-    free(map->props);
+    SDL_free(map->props);
 
     if (intern)
     {
         /* Owned strings we duplicated (remapped paths, joins) */
         for (int i = 0; i < intern->owned_count; ++i)
-            free(intern->owned[i]);
-        free(intern->owned);
+            SDL_free(intern->owned[i]);
+        SDL_free(intern->owned);
 
         if (intern->json)
             leo_json_free(intern->json);
-        free(intern);
+        SDL_free(intern);
     }
-    free(map);
+    SDL_free(map);
 }
 
 const leo_TiledTileLayer *leo_tiled_find_tile_layer(const leo_TiledMap *map, const char *name)
@@ -729,7 +730,7 @@ bool leo_tiled_resolve_gid(const leo_TiledMap *map, uint32_t base_gid, const leo
     if (out_ts)
         *out_ts = NULL;
     if (out_src)
-        memset(out_src, 0, sizeof(*out_src));
+        SDL_memset(out_src, 0, sizeof(*out_src));
     if (!map || !map->tilesets || map->tileset_count <= 0)
         return false;
 

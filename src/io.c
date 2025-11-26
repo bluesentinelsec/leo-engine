@@ -693,7 +693,7 @@ size_t leo_AssetRead(leo_AssetStream *s, void *dst, size_t n)
             return 0;
         if (n > rem)
             n = rem;
-        memcpy(dst, s->mem + s->pos, n);
+        SDL_memcpy(dst, s->mem + s->pos, n);
         s->pos += n;
         return n;
     }

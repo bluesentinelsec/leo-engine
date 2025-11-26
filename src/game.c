@@ -123,7 +123,7 @@ int leo_GameRun(const leo_GameConfig *cfg, const leo_GameCallbacks *cb)
 
     /* ----- Game context ----- */
     leo_GameContext ctx;
-    memset(&ctx, 0, sizeof(ctx));
+    SDL_memset(&ctx, 0, sizeof(ctx));
     ctx.actors = actors;
     ctx.root = root;
     ctx.user_data = cfg->user_data;
@@ -145,7 +145,7 @@ int leo_GameRun(const leo_GameConfig *cfg, const leo_GameCallbacks *cb)
     /* ----- Main loop ----- */
 #ifdef __EMSCRIPTEN__
     /* Package up loop state for emscripten */
-    leo__GameLoopData *data = malloc(sizeof(leo__GameLoopData));
+    leo__GameLoopData *data = SDL_malloc(sizeof(leo__GameLoopData));
     if (!data)
     {
         SDL_LogError(SDL_LOG_CATEGORY_APPLICATION, "leo_GameRun: malloc failed");

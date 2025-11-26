@@ -3,6 +3,7 @@
  * ========================================================== */
 #include "leo/gzip_pack.h"
 
+#include <SDL3/SDL_stdinc.h>
 #include <limits.h>
 #include <stdint.h>
 #include <string.h>
@@ -107,7 +108,7 @@ leo_pack_result leo_compress_gzip(const void *in, size_t in_sz, void *out, size_
 
     /* --- RAW deflate body --- */
     struct sdefl ctx;
-    memset(&ctx, 0, sizeof(ctx));
+    SDL_memset(&ctx, 0, sizeof(ctx));
     const int lvl = clamp_level(level);
 
     int wrote = sdeflate(&ctx, dst + pos, in, (int)in_sz, lvl);

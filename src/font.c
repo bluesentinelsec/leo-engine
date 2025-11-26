@@ -218,7 +218,7 @@ leo_Font leo_LoadFont(const char *fileName, int pixelSize)
         return _zero();
     }
 
-    unsigned char *fbuf = (unsigned char *)malloc((size_t)fsz);
+    unsigned char *fbuf = (unsigned char *)SDL_malloc((size_t)fsz);
     if (!fbuf)
     {
         fclose(f);
