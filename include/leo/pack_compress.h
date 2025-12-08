@@ -13,7 +13,8 @@ extern "C"
         int level;
     } leo_deflate_opts;
 
-    /* Returns LEO_PACK_OK or *_E_COMPRESS/_E_DECOMPRESS. out_sz is in/out capacity/size. */
+    /* Returns LEO_PACK_OK or *_E_COMPRESS/_E_DECOMPRESS. out_sz is in/out
+     * capacity/size. */
     LEO_API leo_pack_result leo_compress_deflate(const void *in, size_t in_sz, void *out, size_t *out_sz,
                                                  const leo_deflate_opts *opt);
 

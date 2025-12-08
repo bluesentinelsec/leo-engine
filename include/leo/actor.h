@@ -110,7 +110,8 @@ extern "C"
 
     /* Lookups by name:
        - child:      ONLY immediate children of `parent`
-       - recursive:  any descendant depth-first under `parent` (includes children) */
+       - recursive:  any descendant depth-first under `parent` (includes children)
+     */
     LEO_API leo_Actor *leo_actor_find_child_by_name(const leo_Actor *parent, const char *name);
     LEO_API leo_Actor *leo_actor_find_recursive_by_name(const leo_Actor *parent, const char *name);
 

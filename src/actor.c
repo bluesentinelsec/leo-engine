@@ -289,7 +289,8 @@ static void leo__destroy_actor_recursive(leo_Actor *a)
     /* Exiting signal & on_exit */
     if (!a->dying)
     {
-        /* In rare cases, root/system destroy calls this for live nodes; mark to avoid double signals */
+        /* In rare cases, root/system destroy calls this for live nodes; mark to
+         * avoid double signals */
         a->dying = 1;
     }
     leo_signal_define(&a->emitter, LEO_SIG_EXITING);

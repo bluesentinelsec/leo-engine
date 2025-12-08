@@ -10,7 +10,9 @@ release:
 	cmake --build build --parallel
 
 fmt:
-	find src include tests -name "*.c" -o -name "*.h" -o -name "*.cpp" | xargs clang-format -i
+	find include/leo -name "*.h" -exec clang-format-14 -i {} +
+	find src -name "*.c" -exec clang-format-14 -i {} +
+	find tests -name "*.cpp" -exec clang-format-14 -i {} +
 
 web:
 	docker build . -t dev:latest
@@ -19,3 +21,6 @@ web:
 web-podman:
 	podman build . -t dev:latest
 	podman run -it -p 8000:8000 dev:latest
+
+clean:
+	rm -rf build

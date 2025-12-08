@@ -39,18 +39,21 @@ extern "C"
     // Returns true if an asset exists anywhere in mounts; fills info if not NULL.
     LEO_API bool leo_StatAsset(const char *logicalName, leo_AssetInfo *out);
 
-    // Read whole file into caller-supplied buffer; returns bytes written, or 0 on error.
-    // If out_total is provided and buffer==NULL, returns the size required via out_total.
+    // Read whole file into caller-supplied buffer; returns bytes written, or 0 on
+    // error. If out_total is provided and buffer==NULL, returns the size required
+    // via out_total.
     LEO_API size_t leo_ReadAsset(const char *logicalName, void *buffer, size_t bufferCap, size_t *out_total);
 
     // Convenience "read-all + malloc". Caller frees.
     // On success returns non-NULL and fills out_size. On error returns NULL.
     LEO_API void *leo_LoadAsset(const char *logicalName, size_t *out_size);
 
-    /* ---------------- Streaming API (optional but enables music/large files) --------------- */
+    /* ---------------- Streaming API (optional but enables music/large files)
+     * --------------- */
     typedef struct leo_AssetStream leo_AssetStream; /* opaque */
 
-    /* Open an asset for streaming. Returns NULL on error. Fills info if not NULL. */
+    /* Open an asset for streaming. Returns NULL on error. Fills info if not NULL.
+     */
     LEO_API leo_AssetStream *leo_OpenAsset(const char *logicalName, leo_AssetInfo *info);
 
     /* Read up to 'n' bytes into dst. Returns bytes read (0 = EOF or error). */
@@ -89,7 +92,8 @@ extern "C"
     /* Read data from file in user data directory. Caller frees returned data. */
     LEO_API void *leo_ReadFile(const char *relativePath, size_t *out_size);
 
-    /* Read text file from user data directory (adds trailing '\0'). Caller frees. */
+    /* Read text file from user data directory (adds trailing '\0'). Caller frees.
+     */
     LEO_API char *leo_ReadTextFile(const char *relativePath, size_t *out_size_without_nul);
 
     /* Get writable directory path for organization/application. Caller frees. */

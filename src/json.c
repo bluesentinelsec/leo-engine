@@ -23,7 +23,8 @@ static inline cJSON *un(leo_JsonNode n)
 }
 
 /* Optional: if you have custom allocators, initialize cJSON hooks once.
-   Call this at engine init, or make this file-scope function and call it before first parse. */
+   Call this at engine init, or make this file-scope function and call it before
+   first parse. */
 static void _leo_json_init_hooks_once(void)
 {
 #if 0

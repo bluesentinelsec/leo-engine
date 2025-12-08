@@ -235,11 +235,13 @@ bool leo_MountResourcePack(const char *packPath, const char *password, int prior
     strcpy(fullPackPath, packPath);
 #endif
 
-    /* Try to open pack WITHOUT holding the write lock (can touch disk, may be slow). */
+    /* Try to open pack WITHOUT holding the write lock (can touch disk, may be
+     * slow). */
     leo_pack *p = NULL;
     if (leo_pack_open_file(&p, fullPackPath, password) == LEO_PACK_OK)
     {
-        /* Quick policy check: if the pack has obfuscated entries, require a password. */
+        /* Quick policy check: if the pack has obfuscated entries, require a
+         * password. */
         if (!password || !password[0])
         {
             int n = leo_pack_count(p);

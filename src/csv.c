@@ -52,8 +52,8 @@ leo_csv_result leo_csv_parse(const char *data, size_t len, const leo_csv_opts *o
     const char *end = data + len;
     size_t row = 0, col = 0;
 
-    /* If the user asks to abort (non-zero from callback), we finish the CURRENT row,
-       then stop before starting the next row. */
+    /* If the user asks to abort (non-zero from callback), we finish the CURRENT
+       row, then stop before starting the next row. */
     int abort_after_row = 0;
 
     /* Scratch buffer for unescaping quoted fields; grow-on-demand. */

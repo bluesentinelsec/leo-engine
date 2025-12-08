@@ -60,7 +60,8 @@ leo_pack_result leo_decompress_zlib(const void *in, size_t in_sz, void *out, siz
     if (*out_sz > (size_t)INT_MAX)
         *out_sz = (size_t)INT_MAX;
 
-    /* zsinflate reads a zlib stream from 'in' into 'out', returns produced bytes or <0 on error. */
+    /* zsinflate reads a zlib stream from 'in' into 'out', returns produced bytes
+     * or <0 on error. */
     int produced = zsinflate(out, (int)*out_sz, in, (int)in_sz);
     if (produced < 0)
         return LEO_PACK_E_DECOMPRESS;

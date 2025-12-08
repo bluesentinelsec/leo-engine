@@ -34,11 +34,13 @@ extern "C"
         uint64_t data_offset; /* absolute start of payload region */
         uint64_t pack_salt;   /* random salt for XOR seed */
         uint32_t reserved[8]; /* future */
-        /* CRC32 of the whole header with this crc field zeroed (implementation-defined header size). */
+        /* CRC32 of the whole header with this crc field zeroed
+         * (implementation-defined header size). */
         uint32_t header_crc32; /* crc over bytes [0..0x4F] */
     } leo_pack_header_v1;
 
-    /* Entry metadata (name is serialized as length + bytes right before this struct) */
+    /* Entry metadata (name is serialized as length + bytes right before this
+     * struct) */
     typedef struct
     {
         uint16_t flags;    /* PE_* */

@@ -27,10 +27,12 @@ extern "C"
     // Check if a key is NOT being pressed
     LEO_API bool leo_IsKeyUp(int key);
 
-    // Get key pressed (keycode); call multiple times for keys queued, returns 0 when empty
+    // Get key pressed (keycode); call multiple times for keys queued, returns 0
+    // when empty
     LEO_API int leo_GetKeyPressed(void);
 
-    // Get char pressed (unicode); call multiple times for chars queued, returns 0 when empty
+    // Get char pressed (unicode); call multiple times for chars queued, returns 0
+    // when empty
     LEO_API int leo_GetCharPressed(void);
 
     // Set a custom key to exit program (default is ESC)

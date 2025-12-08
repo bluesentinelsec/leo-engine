@@ -82,7 +82,8 @@ static LEO_INLINE float rec_bot(leo_Rectangle r)
 
 bool leo_CheckCollisionRecs(leo_Rectangle a, leo_Rectangle b)
 {
-    /* Edge-touch counts as collision => use <= / >= in the separating axis test complement */
+    /* Edge-touch counts as collision => use <= / >= in the separating axis test
+     * complement */
     if (rec_right(a) < rec_left(b))
         return false;
     if (rec_right(b) < rec_left(a))
@@ -205,7 +206,8 @@ bool leo_CheckCollisionLines(leo_Vector2 a1, leo_Vector2 a2, leo_Vector2 b1, leo
         if (out_pt)
         {
             /* Choose a reasonable point from the overlapping region:
-               use the midpoint of the overlapping endpoint pair projected on the longer axis */
+               use the midpoint of the overlapping endpoint pair projected on the
+               longer axis */
             if (fabsf(x1 - x2) >= fabsf(y1 - y2))
             {
                 float s0 = leo__maxf(ax0, bx0);

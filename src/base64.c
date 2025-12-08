@@ -153,11 +153,13 @@ leo_b64_result leo_base64_decode(const char *src, size_t src_len, void *dst, siz
         }
     }
 
-    // If there are leftover chars (<4) that are not whitespace-only input end → format error.
+    // If there are leftover chars (<4) that are not whitespace-only input end →
+    // format error.
     if (qn != 0)
     {
-        // Accept the case where the trailing chars are whitespace-only; but we skip those above,
-        // so reaching here means we saw 1..3 non-ws chars then EOS → invalid base64.
+        // Accept the case where the trailing chars are whitespace-only; but we skip
+        // those above, so reaching here means we saw 1..3 non-ws chars then EOS →
+        // invalid base64.
         return LEO_B64_E_FORMAT;
     }
 

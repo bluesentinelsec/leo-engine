@@ -34,15 +34,18 @@ extern "C"
     /* Check if a point is inside a triangle (barycentric test). */
     LEO_API bool leo_CheckCollisionPointTriangle(leo_Vector2 point, leo_Vector2 p1, leo_Vector2 p2, leo_Vector2 p3);
 
-    /* Check if a point lies on the line segment [p1..p2] within |threshold| pixels. */
+    /* Check if a point lies on the line segment [p1..p2] within |threshold| pixels.
+     */
     LEO_API bool leo_CheckCollisionPointLine(leo_Vector2 point, leo_Vector2 p1, leo_Vector2 p2, float threshold);
 
     /* Check collision between two line segments [startPos1..endPos1] and
-       [startPos2..endPos2]. If they intersect, writes the collision point (if non-NULL). */
+       [startPos2..endPos2]. If they intersect, writes the collision point (if
+       non-NULL). */
     LEO_API bool leo_CheckCollisionLines(leo_Vector2 startPos1, leo_Vector2 endPos1, leo_Vector2 startPos2,
                                          leo_Vector2 endPos2, leo_Vector2 *collisionPoint /* optional */);
 
-    /* Get the intersection rectangle (overlap) for two rectangles; returns {0,0,0,0} if none. */
+    /* Get the intersection rectangle (overlap) for two rectangles; returns
+     * {0,0,0,0} if none. */
     LEO_API leo_Rectangle leo_GetCollisionRec(leo_Rectangle rec1, leo_Rectangle rec2);
 
 #ifdef __cplusplus

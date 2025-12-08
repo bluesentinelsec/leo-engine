@@ -1,4 +1,5 @@
-// mouse.c — raylib-style mouse API on top of SDL3 (integrates with engine’s logical coords)
+// mouse.c — raylib-style mouse API on top of SDL3 (integrates with engine’s
+// logical coords)
 
 #include "leo/mouse.h"
 #include "leo/engine.h"
@@ -22,7 +23,8 @@ typedef struct
     /* wheel deltas per frame (x,y) */
     float wheelX, wheelY;
 
-    /* absolute position in renderer coords (logical pixels if logical mode is enabled) */
+    /* absolute position in renderer coords (logical pixels if logical mode is
+     * enabled) */
     float x, y;
 
     /* per-frame accumulated motion since last leo_UpdateMouse() */
@@ -109,7 +111,8 @@ void leo_HandleMouseEvent(void *sdl_evt)
         break;
 
     case SDL_EVENT_MOUSE_MOTION:
-        /* window coords; with logical presentation enabled they’re already logical */
+        /* window coords; with logical presentation enabled they’re already logical
+         */
         g_ms.x = e->motion.x;
         g_ms.y = e->motion.y;
         /* accumulate per-frame delta */
@@ -138,7 +141,8 @@ void leo_UpdateMouse(void)
     /* carry previous button state into prev for edge detection */
     SDL_memcpy(g_ms.prev, g_ms.curr, sizeof(g_ms.curr));
 
-    /* refresh connection & absolute position (fallback in case no motion events arrived) */
+    /* refresh connection & absolute position (fallback in case no motion events
+     * arrived) */
     g_ms.connected = SDL_HasMouse() ? 1 : 0;
     if (g_ms.connected)
     {

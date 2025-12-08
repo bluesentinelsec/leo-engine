@@ -20,7 +20,8 @@ extern "C"
     // - Decoding (PNG/JPG/etc.) happens internally; callers never see SDL types.
     // - Ownership: textures returned by the loaders must be released via
     //   leo_UnloadTexture().
-    // - On failure, loaders return a zero-initialized leo_Texture2D (width/height 0).
+    // - On failure, loaders return a zero-initialized leo_Texture2D (width/height
+    // 0).
     // -----------------------------------------------------------------------------
 
     // Optional pixel format for raw uploads (kept minimal for now).

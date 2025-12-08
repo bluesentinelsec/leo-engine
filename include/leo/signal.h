@@ -1,6 +1,7 @@
 #pragma once
 /*
- * leo/signal.h — lightweight, Godot-style signals for Leo Engine 2.0 (thread-safe)
+ * leo/signal.h — lightweight, Godot-style signals for Leo Engine 2.0
+ * (thread-safe)
  *
  * - Embed leo_SignalEmitter in your actor/subsystem structs.
  * - Connect callbacks receiving (owner, user_data, va_list).

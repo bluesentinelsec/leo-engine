@@ -159,18 +159,21 @@ extern "C"
     /* ----------------------------- */
     typedef struct
     {
-        /* Optional base path prefix to rewrite tileset images into your VFS logical space.
-           If non-NULL and tileset->image is relative, we produce "<image_base>/<image>".
-           If absolute paths appear, they are copied as-is unless a remapper is provided. */
+        /* Optional base path prefix to rewrite tileset images into your VFS logical
+           space. If non-NULL and tileset->image is relative, we produce
+           "<image_base>/<image>". If absolute paths appear, they are copied as-is
+           unless a remapper is provided. */
         const char *image_base;
 
-        /* Optional: user remapper for tileset image paths. If provided, this wins over image_base.
-           Should return a pointer to a persistent string (e.g., heap you own) OR write into out_buf. */
+        /* Optional: user remapper for tileset image paths. If provided, this wins
+           over image_base. Should return a pointer to a persistent string (e.g., heap
+           you own) OR write into out_buf. */
         const char *(*remap_image)(const char *original, char *out_buf, size_t out_cap, void *user);
 
         void *remap_user;
 
-        /* Accept compressed tile layers (CSV, base64, base64+zlib/gzip). Default true. */
+        /* Accept compressed tile layers (CSV, base64, base64+zlib/gzip). Default
+         * true. */
         int allow_compression; /* nonzero to allow. */
     } leo_TiledLoadOptions;
 
@@ -187,7 +190,8 @@ extern "C"
     /* Convenience: fetch an object layer by name (NULL if not found). */
     LEO_API const leo_TiledObjectLayer *leo_tiled_find_object_layer(const leo_TiledMap *map, const char *name);
 
-    /* Convenience: map a global id -> (tileset*, src rect). Returns false if not found. */
+    /* Convenience: map a global id -> (tileset*, src rect). Returns false if not
+     * found. */
     LEO_API bool leo_tiled_resolve_gid(const leo_TiledMap *map, uint32_t base_gid, const leo_TiledTileset **out_ts,
                                        leo_Rectangle *out_src);
 

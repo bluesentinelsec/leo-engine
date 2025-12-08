@@ -121,7 +121,8 @@ void leo_DrawCircle(int centerX, int centerY, float radius, leo_Color color)
     _gfxEnableBlending(r);
     _gfxSetColor(r, color);
 
-    // Transform center; scale radius by camera zoom (rotation does not affect radius)
+    // Transform center; scale radius by camera zoom (rotation does not affect
+    // radius)
     const leo_Camera2D cam = leo_GetCurrentCamera2D();
     const float z = (cam.zoom <= 0.0f) ? 1.0f : cam.zoom;
     const float rr = radius * z;
@@ -243,10 +244,12 @@ void leo_DrawRectangleLines(int posX, int posY, int width, int height, leo_Color
         return;
 
     // Optimized: draw 4 lines for rectangle outline
-    leo_DrawLine(posX, posY, posX + width - 1, posY, color);                           // top
-    leo_DrawLine(posX + width - 1, posY, posX + width - 1, posY + height - 1, color);  // right
-    leo_DrawLine(posX + width - 1, posY + height - 1, posX, posY + height - 1, color); // bottom
-    leo_DrawLine(posX, posY + height - 1, posX, posY, color);                          // left
+    leo_DrawLine(posX, posY, posX + width - 1, posY, color); // top
+    leo_DrawLine(posX + width - 1, posY, posX + width - 1, posY + height - 1,
+                 color); // right
+    leo_DrawLine(posX + width - 1, posY + height - 1, posX, posY + height - 1,
+                 color);                                      // bottom
+    leo_DrawLine(posX, posY + height - 1, posX, posY, color); // left
 }
 
 // Helper: render filled triangle using SDL geometry

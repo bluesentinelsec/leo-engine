@@ -12,7 +12,8 @@ extern "C"
 /* -----------------------------------------------------------------------------
    Gamepad API (Raylib parity, SDL3-backed)
    - Multiple gamepads are identified by a small integer index [0..N)
-   - “Pressed/Released” are per-frame edges; call leo_UpdateGamepads() once/frame
+   - “Pressed/Released” are per-frame edges; call leo_UpdateGamepads()
+once/frame
    - Axes return normalized floats in [-1, +1] (triggers usually [0, +1])
 ----------------------------------------------------------------------------- */
 
@@ -92,14 +93,16 @@ extern "C"
     LEO_API bool leo_IsGamepadButtonReleased(int gamepad, int button); /* released this frame */
     LEO_API bool leo_IsGamepadButtonUp(int gamepad, int button);       /* currently up */
 
-    /* Last button pressed (any gamepad). Returns leo_GamepadButton or -1 if none this frame. */
+    /* Last button pressed (any gamepad). Returns leo_GamepadButton or -1 if none
+     * this frame. */
     LEO_API int leo_GetGamepadButtonPressed(void);
 
     /* Axes */
     LEO_API int leo_GetGamepadAxisCount(int gamepad);                /* up to LEO_GAMEPAD_AXIS_COUNT */
     LEO_API float leo_GetGamepadAxisMovement(int gamepad, int axis); /* normalized [-1,+1] (triggers 0..+1) */
 
-    /* Vibration (duration in seconds; left/right are [0..1]). Returns true if supported & started. */
+    /* Vibration (duration in seconds; left/right are [0..1]). Returns true if
+     * supported & started. */
     LEO_API bool leo_SetGamepadVibration(int gamepad, float leftMotor, float rightMotor, float duration);
 
     /* per-axis deadzone (applied in GetGamepadAxisMovement). */
@@ -110,7 +113,8 @@ extern "C"
     /* -------------------------------------------------------------------------- */
 
     /* Set thresholds for stick-as-button evaluation (with hysteresis).
-       - press_threshold   : magnitude to consider a direction newly PRESSED (e.g., 0.50)
+       - press_threshold   : magnitude to consider a direction newly PRESSED (e.g.,
+       0.50)
        - release_threshold : magnitude to consider it RELEASED (e.g., 0.40)
        Must satisfy 0 <= release_threshold <= press_threshold <= 1.0. */
     LEO_API void leo_SetGamepadStickThreshold(float press_threshold, float release_threshold);
@@ -119,7 +123,8 @@ extern "C"
        Note: Y follows the usual controller convention (up often negative). */
     LEO_API leo_Vector2 leo_GetGamepadStick(int gamepad, int stick);
 
-    /* Virtual-button queries on stick directions using the configured thresholds. */
+    /* Virtual-button queries on stick directions using the configured thresholds.
+     */
     LEO_API bool leo_IsGamepadStickPressed(int gamepad, int stick, int dir);  /* edge: went past press */
     LEO_API bool leo_IsGamepadStickDown(int gamepad, int stick, int dir);     /* level: currently past release */
     LEO_API bool leo_IsGamepadStickReleased(int gamepad, int stick, int dir); /* edge: crossed back below release */

@@ -108,8 +108,10 @@ extern "C"
     typedef enum leo_WindowMode
     {
         LEO_WINDOW_MODE_WINDOWED = 0,          /**< Normal windowed mode */
-        LEO_WINDOW_MODE_BORDERLESS_FULLSCREEN, /**< Borderless fullscreen at desktop resolution */
-        LEO_WINDOW_MODE_FULLSCREEN_EXCLUSIVE   /**< Exclusive fullscreen with mode switching */
+        LEO_WINDOW_MODE_BORDERLESS_FULLSCREEN, /**< Borderless fullscreen at desktop
+                                                  resolution */
+        LEO_WINDOW_MODE_FULLSCREEN_EXCLUSIVE   /**< Exclusive fullscreen with mode
+                                                  switching */
     } leo_WindowMode;
 
     /**
@@ -279,7 +281,8 @@ extern "C"
      * @param position Screen position to draw at
      * @param tint Color tint to apply
      *
-     * Draws portion of texture at screen position. Respects active camera transform.
+     * Draws portion of texture at screen position. Respects active camera
+     * transform.
      */
     LEO_API void leo_DrawTextureRec(leo_Texture2D tex, leo_Rectangle src, leo_Vector2 position, leo_Color tint);
 
@@ -302,7 +305,8 @@ extern "C"
     {
         LEO_LOGICAL_PRESENTATION_DISABLED = 0, /**< No logical scaling (passthrough) */
         LEO_LOGICAL_PRESENTATION_STRETCH,      /**< Stretch to fill window */
-        LEO_LOGICAL_PRESENTATION_LETTERBOX,    /**< Preserve aspect ratio with letterboxing */
+        LEO_LOGICAL_PRESENTATION_LETTERBOX,    /**< Preserve aspect ratio with
+                                                  letterboxing */
         LEO_LOGICAL_PRESENTATION_OVERSCAN      /**< Preserve aspect ratio with cropping */
     } leo_LogicalPresentation;
 

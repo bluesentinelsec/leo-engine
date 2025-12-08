@@ -2258,7 +2258,8 @@ static int l_leo_actor_spawn(lua_State *L)
     if (external_vtable && (has_on_init || has_on_update || has_on_render || has_on_exit))
         return luaL_error(L, "leo_actor_spawn: cannot supply both custom vtable and Lua callbacks");
     if (external_vtable && has_name)
-        return luaL_error(L, "leo_actor_spawn: cannot set Lua string name when supplying custom vtable");
+        return luaL_error(L, "leo_actor_spawn: cannot set Lua string name when "
+                             "supplying custom vtable");
 
     int needs_binding = (!external_vtable) &&
                         (has_on_init || has_on_update || has_on_render || has_on_exit || has_user_value || has_name);
@@ -2690,7 +2691,8 @@ static int l_leo_tiled_load(lua_State *L)
         lua_getfield(L, 2, "remap_image");
         if (!lua_isnil(L, -1))
         {
-            return luaL_error(L, "leo_tiled_load: remap_image option is not supported in Lua bindings");
+            return luaL_error(L, "leo_tiled_load: remap_image option is not "
+                                 "supported in Lua bindings");
         }
         lua_pop(L, 1);
 

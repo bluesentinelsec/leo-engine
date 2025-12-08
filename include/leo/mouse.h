@@ -31,7 +31,8 @@ extern "C"
     LEO_API bool leo_IsMouseButtonReleased(int button); /* released this frame */
     LEO_API bool leo_IsMouseButtonUp(int button);       /* currently up */
 
-    /* Position & delta (in renderer coordinates: logical pixels if logical resolution is enabled) */
+    /* Position & delta (in renderer coordinates: logical pixels if logical
+     * resolution is enabled) */
     LEO_API int leo_GetMouseX(void);
     LEO_API int leo_GetMouseY(void);
     LEO_API leo_Vector2 leo_GetMousePosition(void);

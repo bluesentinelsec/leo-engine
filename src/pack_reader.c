@@ -152,7 +152,8 @@ static leo_pack_result load_toc(FILE *f, const leo_pack_header_v1 *hdr, pack_ent
         }
         else
         {
-            /* allow empty names, still allocate a 1-byte empty string for consistency */
+            /* allow empty names, still allocate a 1-byte empty string for consistency
+             */
             name = (char *)LEO_PACK_LOCAL_ALLOC(1);
             if (!name)
             {
@@ -298,12 +299,14 @@ leo_pack_result leo_pack_open_file(leo_pack **out, const char *path, const char 
     p->f = f;
     p->hdr = hdr;
 
-    /* If any obfuscation is present, require password for extraction of those entries */
+    /* If any obfuscation is present, require password for extraction of those
+     * entries */
     if ((hdr.pack_flags & LEO_PACK_FLAG_OBFUSCATED) != 0)
     {
         if (!password || !password[0])
         {
-            /* allow open but later extracts of obfuscated entries will fail with BAD_PASSWORD */
+            /* allow open but later extracts of obfuscated entries will fail with
+             * BAD_PASSWORD */
             p->xor_seed = 0;
         }
         else
@@ -392,11 +395,13 @@ leo_pack_result leo_pack_extract_index(leo_pack *p, int index, void *dst, size_t
 
     if (off > fsz || sz > (fsz - off))
     {
-        // If obfuscated, map corruption to BAD_PASSWORD to keep threat model simple for callers.
+        // If obfuscated, map corruption to BAD_PASSWORD to keep threat model simple
+        // for callers.
         return (e->meta.flags & LEO_PE_OBFUSCATED) ? LEO_PACK_E_BAD_PASSWORD : LEO_PACK_E_FORMAT;
     }
 
-    /* Read stored blob (with safety padding to tolerate small overreads in inflaters) */
+    /* Read stored blob (with safety padding to tolerate small overreads in
+     * inflaters) */
     if (file_seek64(p->f, e->meta.offset) != 0)
         return LEO_PACK_E_IO;
     size_t tmp_sz = (size_t)e->meta.size_stored;
@@ -435,8 +440,9 @@ leo_pack_result leo_pack_extract_index(leo_pack *p, int index, void *dst, size_t
             return LEO_PACK_E_NOSPACE;
         }
         size_t out_sz = produced;
-        /* If obfuscated (or just to be defensive), reject obviously bad zlib headers
-   before calling the inflater. This avoids crashing in third-party code. */
+        /* If obfuscated (or just to be defensive), reject obviously bad zlib
+    headers before calling the inflater. This avoids crashing in third-party code.
+    */
         if (!zlib_header_seems_valid(tmp, tmp_sz))
         {
             LEO_PACK_LOCAL_FREE(tmp);

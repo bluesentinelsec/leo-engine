@@ -100,8 +100,9 @@ static leo_Texture2D _upload_rgba(SDL_Renderer *r, const void *pixels, int w, in
     return _wrap_tex(tex, w, h);
 }
 
-// Try to load an encoded image via Leo VFS. Returns RGBA8 pixels (malloc'd by STB) on success.
-// On failure, returns NULL (caller may fall back to direct file I/O).
+// Try to load an encoded image via Leo VFS. Returns RGBA8 pixels (malloc'd by
+// STB) on success. On failure, returns NULL (caller may fall back to direct
+// file I/O).
 static stbi_uc *_stbi_load_from_vfs_rgba(const char *logicalName, int *w, int *h, int *comp)
 {
     if (!logicalName || !*logicalName)
@@ -111,7 +112,8 @@ static stbi_uc *_stbi_load_from_vfs_rgba(const char *logicalName, int *w, int *h
     // Probe size first (buffer==NULL -> size in out_total).
     if (leo_ReadAsset(logicalName, NULL, 0, &need) != 0 || need == 0)
     {
-        // If leo_ReadAsset returned non-zero here it means “probe only” succeeded. We just keep going.
+        // If leo_ReadAsset returned non-zero here it means “probe only” succeeded.
+        // We just keep going.
     }
     if (need == 0)
         return NULL; // not found in mounts

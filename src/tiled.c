@@ -187,7 +187,8 @@ static int leo__parse_properties(leo_JsonNode obj, leo_TiledProperty **out_props
     return 1;
 }
 
-/* Decode tile layer "data" according to encoding/compression into a freshly malloc'd uint32_t[] of count=width*height.
+/* Decode tile layer "data" according to encoding/compression into a freshly
+ * malloc'd uint32_t[] of count=width*height.
  */
 static int leo__load_tile_data(const leo_TiledLoadOptions *opt, leo_JsonNode layer_obj, int width, int height,
                                uint32_t **out, size_t *out_count)

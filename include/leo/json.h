@@ -8,7 +8,8 @@ extern "C"
 {
 #endif
 
-    // Borrowed-node model: Nodes are views into a document; invalid after doc is freed.
+    // Borrowed-node model: Nodes are views into a document; invalid after doc is
+    // freed.
     typedef struct leo_JsonDoc leo_JsonDoc;
 
     typedef struct leo_JsonNode
@@ -17,11 +18,13 @@ extern "C"
     } leo_JsonNode; // opaque
 
     // -------- Document lifecycle --------
-    /* Parse from memory (UTF-8). On failure returns NULL and (optionally) sets *err_msg to an internal static string.
+    /* Parse from memory (UTF-8). On failure returns NULL and (optionally) sets
+     * *err_msg to an internal static string.
      */
     LEO_API leo_JsonDoc *leo_json_parse(const char *data, size_t len, const char **err_msg);
 
-    /* Load via Leo VFS (pack/filesystem). Convenience; calls your VFS under the hood. */
+    /* Load via Leo VFS (pack/filesystem). Convenience; calls your VFS under the
+     * hood. */
     LEO_API leo_JsonDoc *leo_json_load(const char *path, const char **err_msg);
 
     /* Destroy document and invalidate all nodes derived from it. */
@@ -50,7 +53,8 @@ extern "C"
 
     LEO_API leo_JsonNode leo_json_arr_get(leo_JsonNode arr, size_t index);
 
-    // -------- Typed getters with defaults (return true if present & correct type) --------
+    // -------- Typed getters with defaults (return true if present & correct type)
+    // --------
     LEO_API bool leo_json_get_string(leo_JsonNode obj, const char *key, const char **out);
 
     LEO_API bool leo_json_get_int(leo_JsonNode obj, const char *key, int *out);

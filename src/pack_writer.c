@@ -304,7 +304,8 @@ leo_pack_result leo_pack_writer_add(leo_pack_writer *w, const char *logical_name
         }
     }
 
-    /* Make a mutable copy if we need to obfuscate (so we don’t touch user’s data) */
+    /* Make a mutable copy if we need to obfuscate (so we don’t touch user’s data)
+     */
     uint8_t *mut = NULL;
     if (obfuscate)
     {
@@ -437,7 +438,8 @@ static leo_pack_result write_toc_and_header(leo_pack_writer *w)
     hdr.pack_salt = w->pack_salt ? w->pack_salt : gen_salt64(); /* fallback */
     /* Reserved zeros */
 
-    /* header_crc32 is computed over bytes [0..0x4F] (i.e., header minus the crc field) */
+    /* header_crc32 is computed over bytes [0..0x4F] (i.e., header minus the crc
+     * field) */
     uint8_t tmp[sizeof(hdr)];
     SDL_memcpy(tmp, &hdr, sizeof(hdr));
     /* zero the crc field before computing */
@@ -462,7 +464,8 @@ leo_pack_result leo_pack_writer_end(leo_pack_writer *w)
         return LEO_PACK_E_STATE;
     }
 
-    /* Remember salt chosen in begin (used for seed); fetch it back by reading header */
+    /* Remember salt chosen in begin (used for seed); fetch it back by reading
+     * header */
     if (file_seek64(w->f, 0) != 0)
     {
         fclose(w->f);

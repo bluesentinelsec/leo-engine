@@ -31,7 +31,8 @@ extern "C"
         void *_handle;  // internal: ma_sound*
         int channels;   // 1=mono, 2=stereo (advisory)
         int sampleRate; // advisory
-                        // length in seconds is discoverable via query helpers later if needed
+                        // length in seconds is discoverable via query helpers later
+                        // if needed
     } leo_Sound;
 
     // -------------------------------

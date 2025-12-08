@@ -290,7 +290,8 @@ static void _draw_text_impl(leo_Font font, const char *text, float x, float y, f
     SDL_SetTextureColorMod(atlas, (Uint8)tint.r, (Uint8)tint.g, (Uint8)tint.b);
     SDL_SetTextureAlphaMod(atlas, (Uint8)tint.a);
 
-    // Newline handling uses base-size units for pen advance; we scale geometry later.
+    // Newline handling uses base-size units for pen advance; we scale geometry
+    // later.
     const float lineAdvanceBase = (float)font.lineHeight; // at base size
     const float scale = fontSize / (float)font.baseSize;
     if (scale <= 0.0f)
@@ -343,8 +344,8 @@ static void _draw_text_impl(leo_Font font, const char *text, float x, float y, f
             SDL_RenderTexture(r, atlas, &src, &dst);
         }
 
-        // Advance pen in *base-size* units; spacing is at target size so convert back.
-        // qx/qy were advanced by stbtt as if scale==1 (base units).
+        // Advance pen in *base-size* units; spacing is at target size so convert
+        // back. qx/qy were advanced by stbtt as if scale==1 (base units).
         penX = qx;
         penY = qy;
         // apply extra spacing only if there is a next character on the same line
@@ -461,7 +462,8 @@ leo_Vector2 leo_MeasureTextEx(leo_Font font, const char *text, float fontSize, f
         stbtt_GetBakedQuad(cdata, font._atlasW, font._atlasH, ch - tbl->first, &qx, &qy, &q, 1);
 
         // compute right extent for this glyph in base units
-        float right_base = q.x1; // q.x1 is already in base units (since we asked stbtt with scale==1)
+        float right_base = q.x1; // q.x1 is already in base units (since we asked
+                                 // stbtt with scale==1)
         if (right_base > lineMaxRight_base)
             lineMaxRight_base = right_base;
 

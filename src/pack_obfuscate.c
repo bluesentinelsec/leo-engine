@@ -20,7 +20,8 @@ uint32_t leo_xor_seed_from_password(const char *password, uint64_t pack_salt)
     return seed;
 }
 
-/* Simple bytewise XOR stream based on an LCG keystream (deterministic, non-crypto). */
+/* Simple bytewise XOR stream based on an LCG keystream (deterministic,
+ * non-crypto). */
 void leo_xor_stream_apply(uint32_t seed, void *data, size_t n)
 {
     if (n == 0)

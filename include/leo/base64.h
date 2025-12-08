@@ -31,7 +31,8 @@ extern "C"
     LEO_API size_t leo_base64_decoded_cap(size_t n);
 
     /* Encode raw bytes -> base64 characters.
-     * - dst receives ASCII base64 data (no newline insertion) and is NOT NUL-terminated.
+     * - dst receives ASCII base64 data (no newline insertion) and is NOT
+     * NUL-terminated.
      * - If out_len is provided, it receives the number of bytes written to dst.
      * - Returns LEO_B64_E_NOSPACE if dst_cap is too small.
      */

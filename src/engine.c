@@ -10,20 +10,24 @@
 #include <SDL3/SDL.h>
 #include <SDL3/SDL_stdinc.h>
 
-/** @brief Global SDL window handle - created in leo_InitWindow(), used throughout engine for window operations */
+/** @brief Global SDL window handle - created in leo_InitWindow(), used
+ * throughout engine for window operations */
 SDL_Window *globalWindow = NULL;
 
-/** @brief Global SDL renderer handle - created in leo_InitWindow(), used for all rendering operations */
+/** @brief Global SDL renderer handle - created in leo_InitWindow(), used for
+ * all rendering operations */
 SDL_Renderer *globalRenderer = NULL;
 
 #ifndef LEO_RT_STACK_MAX
 #define LEO_RT_STACK_MAX 8
 #endif
 
-/** @brief Consolidated internal engine state - tracks frame loop, timing, camera, and rendering state */
+/** @brief Consolidated internal engine state - tracks frame loop, timing,
+ * camera, and rendering state */
 typedef struct EngineState
 {
-    /** @brief Frame loop state - true when between BeginDrawing/EndDrawing calls */
+    /** @brief Frame loop state - true when between BeginDrawing/EndDrawing calls
+     */
     int inFrame;
     /** @brief Quit flag - latched when window close or exit key is pressed */
     int quit;
@@ -58,7 +62,8 @@ typedef struct EngineState
     /** @brief True when inside BeginMode2D/EndMode2D block */
     bool cameraActive;
 
-    /** @brief Current world-to-screen transform matrix components (row-major 2x3) */
+    /** @brief Current world-to-screen transform matrix components (row-major 2x3)
+     */
     float m11, m12, tx;
     float m21, m22, ty;
 
@@ -654,7 +659,8 @@ bool leo_SetLogicalResolution(int width, int height, leo_LogicalPresentation pre
         return false;
     }
 
-    /* Record default per-texture scale mode we’ll apply to newly created textures. */
+    /* Record default per-texture scale mode we’ll apply to newly created
+     * textures. */
     s_state.defaultScaleMode = _to_sdl_scale(scale);
 
     if (width <= 0 || height <= 0)
@@ -678,8 +684,9 @@ bool leo_SetLogicalResolution(int width, int height, leo_LogicalPresentation pre
         return false;
     }
 
-    /* With logical presentation enabled, all SDL coordinates are now in logical pixels.
-       Our camera math already works in “screen space” pixels, so this maps cleanly. */
+    /* With logical presentation enabled, all SDL coordinates are now in logical
+       pixels. Our camera math already works in “screen space” pixels, so this
+       maps cleanly. */
     s_state.hasLogical = 1;
     s_state.logicalW = width;
     s_state.logicalH = height;
@@ -877,7 +884,8 @@ void leo_DrawTexturePro(leo_Texture2D tex, leo_Rectangle src, leo_Rectangle dest
     if (!globalRenderer || !tex._handle)
         return;
 
-    // ---- Normalize source rect (handle negative width/height by flipping UVs) ----
+    // ---- Normalize source rect (handle negative width/height by flipping UVs)
+    // ----
     float sx = src.x;
     float sy = src.y;
     float sw = src.width;
@@ -903,11 +911,13 @@ void leo_DrawTexturePro(leo_Texture2D tex, leo_Rectangle src, leo_Rectangle dest
     float u1 = (sx + sw) / (float)tex.width;
     float v1 = (sy + sh) / (float)tex.height;
 
-    // If caller passed negative src.* originally, the swaps above already normalized sx/sy/sw/sh.
-    // The UVs are now correct; no additional swap needed because we adjusted sx/sy.
+    // If caller passed negative src.* originally, the swaps above already
+    // normalized sx/sy/sw/sh. The UVs are now correct; no additional swap needed
+    // because we adjusted sx/sy.
 
-    // ---- Build destination quad (top-left, top-right, bottom-right, bottom-left) in screen space ----
-    // Allow negative dest.width/height (this flips geometry, mirroring around dest.x/y).
+    // ---- Build destination quad (top-left, top-right, bottom-right,
+    // bottom-left) in screen space ---- Allow negative dest.width/height (this
+    // flips geometry, mirroring around dest.x/y).
     const float dx = dest.x, dy = dest.y;
     const float dw = dest.width, dh = dest.height;
 
@@ -959,7 +969,8 @@ void leo_DrawTexturePro(leo_Texture2D tex, leo_Rectangle src, leo_Rectangle dest
     // ---- Draw as geometry with the source texture ----
     SDL_Texture *t = (SDL_Texture *)tex._handle;
 
-    // Ensure blending is enabled for typical sprite draws (don’t error if it fails).
+    // Ensure blending is enabled for typical sprite draws (don’t error if it
+    // fails).
     SDL_SetTextureBlendMode(t, SDL_BLENDMODE_BLEND);
 
     SDL_RenderGeometry(globalRenderer, t, v, 4, indices, 6);

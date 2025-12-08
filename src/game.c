@@ -101,8 +101,8 @@ int leo_GameRun(const leo_GameConfig *cfg, const leo_GameCallbacks *cb)
         if (!leo_SetLogicalResolution(cfg->logical_width, cfg->logical_height, cfg->presentation, cfg->scale_mode))
         {
             /* Non-fatal: keep running without logical scaling */
-            SDL_LogError(SDL_LOG_CATEGORY_APPLICATION,
-                         "leo_GameRun: leo_SetLogicalResolution failed; continuing without logical scaling");
+            SDL_LogError(SDL_LOG_CATEGORY_APPLICATION, "leo_GameRun: leo_SetLogicalResolution failed; continuing "
+                                                       "without logical scaling");
         }
     }
 
@@ -161,8 +161,9 @@ int leo_GameRun(const leo_GameConfig *cfg, const leo_GameCallbacks *cb)
                                  1 /* simulate infinite loop */
     );
 
-    /* NOTE: under emscripten, cleanup must happen inside emscripten_cancel_main_loop
-       callback, so we don’t reach here unless canceled. */
+    /* NOTE: under emscripten, cleanup must happen inside
+       emscripten_cancel_main_loop callback, so we don’t reach here unless
+       canceled. */
 #else
     for (;;)
     {

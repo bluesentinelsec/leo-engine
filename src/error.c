@@ -10,7 +10,8 @@
 
 #define ERROR_BUFFER_SIZE 4096
 
-/* One TLS slot for all threads; each thread stores its own char* buffer in it. */
+/* One TLS slot for all threads; each thread stores its own char* buffer in it.
+ */
 static SDL_TLSID s_tls_error_id; /* zero-initialized by the C runtime */
 
 /* SDL will call this on thread exit for the value stored in this TLS slot. */
