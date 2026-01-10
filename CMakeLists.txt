@@ -30,6 +30,17 @@ FetchContent_Declare(
 )
 FetchContent_MakeAvailable(Catch2)
 
+# Fetch tmxlite
+FetchContent_Declare(
+    tmxlite
+    GIT_REPOSITORY https://github.com/fallahn/tmxlite.git
+    GIT_TAG v1.4.4
+    GIT_SHALLOW TRUE
+    SOURCE_SUBDIR tmxlite
+)
+set(TMXLITE_STATIC_LIB ON CACHE BOOL "Build tmxlite as static library" FORCE)
+FetchContent_MakeAvailable(tmxlite)
+
 # Shared source files
 set(CORE_SOURCES
     src/math_utils.cpp
@@ -46,9 +57,10 @@ target_include_directories(${EXECUTABLE_NAME} PRIVATE
     ${CMAKE_CURRENT_SOURCE_DIR}/include
     ${CMAKE_CURRENT_SOURCE_DIR}/external/CLI11-v2.6.1
     ${CMAKE_CURRENT_SOURCE_DIR}/external/stb-10jan2026
+    ${tmxlite_SOURCE_DIR}/tmxlite/include
 )
 
-target_link_libraries(${EXECUTABLE_NAME} PRIVATE SDL3::SDL3)
+target_link_libraries(${EXECUTABLE_NAME} PRIVATE SDL3::SDL3 tmxlite)
 
 # Tests
 add_executable(leo-engine-tests

@@ -3,6 +3,7 @@
 #include <CLI11.hpp>
 #include <stb_image.h>
 #include <stb_truetype.h>
+#include <tmxlite/Map.hpp>
 #include "version.h"
 
 int main(int argc, char* argv[]) {
@@ -24,6 +25,10 @@ int main(int argc, char* argv[]) {
     // Reference STB symbols to prove linking works
     (void)&stbi_load;
     (void)&stbtt_InitFont;
+
+    // Load tmx map to prove linking works
+    tmx::Map map;
+    map.load("resources/maps/map.json");
     if (!SDL_Init(SDL_INIT_VIDEO)) {
         SDL_ShowSimpleMessageBox(SDL_MESSAGEBOX_ERROR, "Initialization Error",
                                   SDL_GetError(), nullptr);
