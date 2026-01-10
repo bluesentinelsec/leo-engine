@@ -33,6 +33,7 @@ FetchContent_MakeAvailable(Catch2)
 # Shared source files
 set(CORE_SOURCES
     src/math_utils.cpp
+    src/stb_impl.cpp
 )
 
 # Main executable
@@ -43,6 +44,8 @@ add_executable(${EXECUTABLE_NAME}
 
 target_include_directories(${EXECUTABLE_NAME} PRIVATE
     ${CMAKE_CURRENT_SOURCE_DIR}/include
+    ${CMAKE_CURRENT_SOURCE_DIR}/external/CLI11-v2.6.1
+    ${CMAKE_CURRENT_SOURCE_DIR}/external/stb-10jan2026
 )
 
 target_link_libraries(${EXECUTABLE_NAME} PRIVATE SDL3::SDL3)
@@ -50,11 +53,13 @@ target_link_libraries(${EXECUTABLE_NAME} PRIVATE SDL3::SDL3)
 # Tests
 add_executable(leo-engine-tests
     tests/test_math_utils.cpp
+    tests/test_version.cpp
     ${CORE_SOURCES}
 )
 
 target_include_directories(leo-engine-tests PRIVATE
     ${CMAKE_CURRENT_SOURCE_DIR}/include
+    ${CMAKE_CURRENT_SOURCE_DIR}/external/stb-10jan2026
 )
 
 target_link_libraries(leo-engine-tests PRIVATE Catch2::Catch2WithMain SDL3::SDL3)

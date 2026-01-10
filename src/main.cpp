@@ -1,7 +1,29 @@
 #include <SDL3/SDL.h>
 #include <SDL3/SDL_main.h>
+#include <CLI11.hpp>
+#include <stb_image.h>
+#include <stb_truetype.h>
+#include "version.h"
 
 int main(int argc, char* argv[]) {
+    CLI::App app{"Leo Engine"};
+    bool show_version = false;
+    app.add_flag("--version", show_version, "Show version information");
+
+    try {
+        app.parse(argc, argv);
+    } catch (const CLI::ParseError &e) {
+        return app.exit(e);
+    }
+
+    if (show_version) {
+        SDL_Log("leo-engine version %s", LEO_ENGINE_VERSION);
+        return 0;
+    }
+
+    // Reference STB symbols to prove linking works
+    (void)&stbi_load;
+    (void)&stbtt_InitFont;
     if (!SDL_Init(SDL_INIT_VIDEO)) {
         SDL_ShowSimpleMessageBox(SDL_MESSAGEBOX_ERROR, "Initialization Error",
                                   SDL_GetError(), nullptr);
