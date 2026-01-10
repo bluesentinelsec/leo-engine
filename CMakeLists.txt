@@ -1,0 +1,63 @@
+cmake_minimum_required(VERSION 3.20)
+
+set(PROJECT_VERSION 0.1.0)
+set(EXECUTABLE_NAME "leo-engine")
+
+project(LeoEngine VERSION ${PROJECT_VERSION} LANGUAGES CXX)
+
+set(CMAKE_CXX_STANDARD 17)
+set(CMAKE_CXX_STANDARD_REQUIRED ON)
+set(CMAKE_EXPORT_COMPILE_COMMANDS ON)
+
+# Fetch SDL3
+include(FetchContent)
+FetchContent_Declare(
+    SDL3
+    GIT_REPOSITORY https://github.com/libsdl-org/SDL.git
+    GIT_TAG release-3.4.0
+    GIT_SHALLOW TRUE
+)
+set(SDL_STATIC ON CACHE BOOL "Build SDL3 as static library" FORCE)
+set(SDL_SHARED OFF CACHE BOOL "Don't build SDL3 as shared library" FORCE)
+FetchContent_MakeAvailable(SDL3)
+
+# Fetch Catch2
+FetchContent_Declare(
+    Catch2
+    GIT_REPOSITORY https://github.com/catchorg/Catch2.git
+    GIT_TAG v3.12.0
+    GIT_SHALLOW TRUE
+)
+FetchContent_MakeAvailable(Catch2)
+
+# Shared source files
+set(CORE_SOURCES
+    src/math_utils.cpp
+)
+
+# Main executable
+add_executable(${EXECUTABLE_NAME}
+    src/main.cpp
+    ${CORE_SOURCES}
+)
+
+target_include_directories(${EXECUTABLE_NAME} PRIVATE
+    ${CMAKE_CURRENT_SOURCE_DIR}/include
+)
+
+target_link_libraries(${EXECUTABLE_NAME} PRIVATE SDL3::SDL3)
+
+# Tests
+add_executable(leo-engine-tests
+    tests/test_math_utils.cpp
+    ${CORE_SOURCES}
+)
+
+target_include_directories(leo-engine-tests PRIVATE
+    ${CMAKE_CURRENT_SOURCE_DIR}/include
+)
+
+target_link_libraries(leo-engine-tests PRIVATE Catch2::Catch2WithMain SDL3::SDL3)
+
+enable_testing()
+add_test(NAME leo-engine-tests COMMAND leo-engine-tests)
