@@ -5,30 +5,19 @@
 
 namespace engine {
 
-// Static pointer to config for allocator callbacks
-static Config* g_allocator_config = nullptr;
-
 static void* PHYSFS_Alloc(PHYSFS_uint64 size) {
-    return g_allocator_config->malloc_fn(static_cast<size_t>(size));
+    return SDL_malloc(static_cast<size_t>(size));
 }
 
 static void* PHYSFS_Realloc(void* ptr, PHYSFS_uint64 size) {
-    return g_allocator_config->realloc_fn(ptr, static_cast<size_t>(size));
+    return SDL_realloc(ptr, static_cast<size_t>(size));
 }
 
 static void PHYSFS_Free(void* ptr) {
-    g_allocator_config->free_fn(ptr);
+    SDL_free(ptr);
 }
 
 void VFS::ConfigureAllocator() {
-    // Only set allocator if not already configured
-    static bool allocator_configured = false;
-    if (allocator_configured) {
-        return;
-    }
-    
-    g_allocator_config = &config;
-    
     PHYSFS_Allocator allocator;
     allocator.Init = nullptr;
     allocator.Deinit = nullptr;
@@ -39,8 +28,6 @@ void VFS::ConfigureAllocator() {
     if (!PHYSFS_setAllocator(&allocator)) {
         throw std::runtime_error("Failed to set PhysFS allocator");
     }
-    
-    allocator_configured = true;
 }
 
 bool VFS::TryMount(const char* path) {
@@ -69,11 +56,11 @@ void VFS::Mount(const char* path) {
     }
 }
 
-VFS::VFS(Config& cfg) : config(cfg) {
-    ConfigureAllocator();
-    
+VFS::VFS(Config& cfg) : config(cfg), initialized_physfs(false) {
     // Initialize PhysFS (skip if already initialized from previous test)
     if (!PHYSFS_isInit()) {
+        ConfigureAllocator();
+        
         if (!PHYSFS_init(config.argv0)) {
             PHYSFS_ErrorCode error = PHYSFS_getLastErrorCode();
             const char* errorMsg = PHYSFS_getErrorByCode(error);
@@ -85,6 +72,8 @@ VFS::VFS(Config& cfg) : config(cfg) {
             SDL_free(buffer);
             throw err;
         }
+        
+        initialized_physfs = true;
         
         // Set up write directory using organization and app name
         const char* prefDir = PHYSFS_getPrefDir(config.organization, config.app_name);
@@ -106,14 +95,18 @@ VFS::VFS(Config& cfg) : config(cfg) {
     if (TryMount("../resources.zip")) return;
     
     // Neither found - fail
-    PHYSFS_deinit();
+    if (initialized_physfs) {
+        PHYSFS_deinit();
+    }
     throw std::runtime_error(
         "Failed to mount resources: tried 'resources/', '../resources/', 'resources.zip', '../resources.zip'"
     );
 }
 
 VFS::~VFS() {
-    PHYSFS_deinit();
+    if (initialized_physfs) {
+        PHYSFS_deinit();
+    }
 }
 
 } // namespace engine

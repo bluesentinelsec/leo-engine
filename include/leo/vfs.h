@@ -20,6 +20,7 @@ public:
     
 private:
     Config& config;
+    bool initialized_physfs;  // Track if this instance initialized PhysFS
     
     // Helper: Try to mount a path, returns true on success, false on failure
     // Does not throw
