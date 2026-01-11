@@ -37,3 +37,13 @@ jobs:
     
     - name: Run tests
       run: cd build && ctest --output-on-failure -C Release
+    
+    - name: Upload artifact
+      uses: actions/upload-artifact@v4
+      with:
+        name: leo-engine-${{ matrix.os }}
+        path: |
+          build/leo-engine*
+          !build/**/*.o
+          !build/**/*.obj
+        if-no-files-found: error
