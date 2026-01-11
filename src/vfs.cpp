@@ -304,6 +304,73 @@ static void ListWriteDirFilesRecursive(const char *dir, const char *write_dir, c
     PHYSFS_freeList(list);
 }
 
+static void DeleteDirRecursiveInternal(const char *dir, const char *write_dir)
+{
+    char **list = PHYSFS_enumerateFiles(dir);
+    if (!list)
+    {
+        throw MakePhysfsError("Failed to enumerate write directory", dir);
+    }
+
+    for (char **it = list; *it; ++it)
+    {
+        char *path = BuildChildPath(dir, *it);
+        if (!path)
+        {
+            PHYSFS_freeList(list);
+            throw std::runtime_error("DeleteDirRecursive failed to allocate path");
+        }
+
+        if (!IsPathInWriteDir(path, write_dir))
+        {
+            SDL_free(path);
+            continue;
+        }
+
+        PHYSFS_Stat stat;
+        if (!PHYSFS_stat(path, &stat))
+        {
+            std::runtime_error err = MakePhysfsError("Failed to stat", path);
+            SDL_free(path);
+            PHYSFS_freeList(list);
+            throw err;
+        }
+
+        if (stat.filetype == PHYSFS_FILETYPE_DIRECTORY)
+        {
+            try
+            {
+                DeleteDirRecursiveInternal(path, write_dir);
+            }
+            catch (...)
+            {
+                SDL_free(path);
+                PHYSFS_freeList(list);
+                throw;
+            }
+            SDL_free(path);
+            continue;
+        }
+
+        if (!PHYSFS_delete(path))
+        {
+            std::runtime_error err = MakePhysfsError("Failed to delete file", path);
+            SDL_free(path);
+            PHYSFS_freeList(list);
+            throw err;
+        }
+
+        SDL_free(path);
+    }
+
+    PHYSFS_freeList(list);
+
+    if (!PHYSFS_delete(dir))
+    {
+        throw MakePhysfsError("Failed to delete directory", dir);
+    }
+}
+
 void VFS::ConfigureAllocator()
 {
     PHYSFS_Allocator allocator{};
@@ -695,6 +762,120 @@ void VFS::ListWriteDirFiles(char ***out_entries)
         PHYSFS_unmount(write_dir);
     }
     *out_entries = entries;
+}
+
+void VFS::DeleteFile(const char *vfs_path)
+{
+    if (vfs_path == nullptr || vfs_path[0] == '\0')
+    {
+        throw std::runtime_error("DeleteFile requires a non-empty path");
+    }
+
+    const char *write_dir = GetWriteDirOrThrow();
+    bool mounted = false;
+    PHYSFS_Stat stat;
+
+    mounted = EnsureWriteDirMounted(write_dir);
+
+    if (!IsPathInWriteDir(vfs_path, write_dir))
+    {
+        if (mounted)
+        {
+            PHYSFS_unmount(write_dir);
+        }
+        throw MakeError("Write directory does not contain", vfs_path);
+    }
+
+    if (!PHYSFS_stat(vfs_path, &stat))
+    {
+        if (mounted)
+        {
+            PHYSFS_unmount(write_dir);
+        }
+        throw MakePhysfsError("Failed to stat", vfs_path);
+    }
+
+    if (stat.filetype == PHYSFS_FILETYPE_DIRECTORY)
+    {
+        if (mounted)
+        {
+            PHYSFS_unmount(write_dir);
+        }
+        throw MakeError("DeleteFile requires a file", vfs_path);
+    }
+
+    if (!PHYSFS_delete(vfs_path))
+    {
+        if (mounted)
+        {
+            PHYSFS_unmount(write_dir);
+        }
+        throw MakePhysfsError("Failed to delete file", vfs_path);
+    }
+
+    if (mounted)
+    {
+        PHYSFS_unmount(write_dir);
+    }
+}
+
+void VFS::DeleteDirRecursive(const char *vfs_path)
+{
+    if (vfs_path == nullptr || vfs_path[0] == '\0')
+    {
+        throw std::runtime_error("DeleteDirRecursive requires a non-empty path");
+    }
+
+    const char *write_dir = GetWriteDirOrThrow();
+    bool mounted = false;
+    PHYSFS_Stat stat;
+
+    mounted = EnsureWriteDirMounted(write_dir);
+
+    if (!IsPathInWriteDir(vfs_path, write_dir))
+    {
+        if (mounted)
+        {
+            PHYSFS_unmount(write_dir);
+        }
+        throw MakeError("Write directory does not contain", vfs_path);
+    }
+
+    if (!PHYSFS_stat(vfs_path, &stat))
+    {
+        if (mounted)
+        {
+            PHYSFS_unmount(write_dir);
+        }
+        throw MakePhysfsError("Failed to stat", vfs_path);
+    }
+
+    if (stat.filetype != PHYSFS_FILETYPE_DIRECTORY)
+    {
+        if (mounted)
+        {
+            PHYSFS_unmount(write_dir);
+        }
+        throw MakeError("DeleteDirRecursive requires a directory", vfs_path);
+    }
+
+    try
+    {
+        DeleteDirRecursiveInternal(vfs_path, write_dir);
+    }
+    catch (...)
+    {
+        if (mounted)
+        {
+            PHYSFS_unmount(write_dir);
+        }
+        throw;
+    }
+
+    if (mounted)
+    {
+        PHYSFS_unmount(write_dir);
+    }
 }
 
 void VFS::FreeList(char **entries) noexcept

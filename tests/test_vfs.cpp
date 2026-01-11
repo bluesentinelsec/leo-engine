@@ -175,6 +175,46 @@ TEST_CASE("VFS can list write dir files with relative paths", "[vfs]")
     SDL_Quit();
 }
 
+TEST_CASE("VFS can delete files and directories in write dir", "[vfs]")
+{
+    SDL_Init(0);
+
+    engine::Config config = {.argv0 = "test",
+                             .resource_path = nullptr,
+                             .organization = "bluesentinelsec",
+                             .app_name = "leo-engine",
+                             .malloc_fn = SDL_malloc,
+                             .realloc_fn = SDL_realloc,
+                             .free_fn = SDL_free};
+
+    {
+        engine::VFS vfs(config);
+
+        const char *payload = "delete-test";
+        size_t payload_size = SDL_strlen(payload);
+
+        vfs.WriteAll("delete_test/one.txt", payload, payload_size);
+        vfs.WriteAll("delete_test/subdir/two.txt", payload, payload_size);
+
+        vfs.DeleteFile("delete_test/one.txt");
+
+        void *data = nullptr;
+        size_t size = 0;
+        REQUIRE_THROWS_AS(vfs.ReadAllWriteDir("delete_test/one.txt", &data, &size), std::runtime_error);
+
+        vfs.DeleteDirRecursive("delete_test/subdir");
+        char **entries = nullptr;
+        REQUIRE_THROWS_AS(vfs.ListWriteDir("delete_test/subdir", &entries), std::runtime_error);
+
+        vfs.DeleteDirRecursive("delete_test");
+        REQUIRE_THROWS_AS(vfs.ListWriteDir("delete_test", &entries), std::runtime_error);
+
+        REQUIRE_THROWS_AS(vfs.DeleteFile("maps/map.json"), std::runtime_error);
+    }
+
+    SDL_Quit();
+}
+
 TEST_CASE("VFS ListWriteDir throws when directory is missing", "[vfs]")
 {
     SDL_Init(0);

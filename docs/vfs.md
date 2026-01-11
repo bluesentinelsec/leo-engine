@@ -161,6 +161,12 @@ for (char** it = files; *it; ++it) {
 vfs.FreeList(files);
 ```
 
+### Delete files and directories
+```cpp
+vfs.DeleteFile("saves/slot1.dat");
+vfs.DeleteDirRecursive("recordings");
+```
+
 ## Notes
 
 - Paths use forward slashes (`/`) regardless of platform.
