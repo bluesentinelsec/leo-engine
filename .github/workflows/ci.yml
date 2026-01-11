@@ -38,10 +38,16 @@ jobs:
     - name: Run tests
       run: cd build && ctest --output-on-failure -C Release
     
+    - name: Get version
+      id: version
+      run: |
+        VERSION=$(grep "set(PROJECT_VERSION" CMakeLists.txt | sed 's/.*set(PROJECT_VERSION \(.*\))/\1/')
+        echo "version=$VERSION" >> $GITHUB_OUTPUT
+    
     - name: Upload artifact
       uses: actions/upload-artifact@v4
       with:
-        name: leo-engine-${{ matrix.os }}
+        name: leo-engine-${{ steps.version.outputs.version }}-${{ runner.os }}
         path: |
           build/leo-engine*
           !build/**/*.o
