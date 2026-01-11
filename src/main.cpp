@@ -6,6 +6,14 @@
 #include <tmxlite/Map.hpp>
 #include <lua.hpp>
 #include <physfs.h>
+
+#define MA_MALLOC(sz)       SDL_malloc(sz)
+#define MA_REALLOC(p, sz)   SDL_realloc(p, sz)
+#define MA_FREE(p)          SDL_free(p)
+
+#define MINIAUDIO_IMPLEMENTATION
+#include <miniaudio.h>
+
 #include "version.h"
 
 int main(int argc, char* argv[]) {
@@ -37,6 +45,9 @@ int main(int argc, char* argv[]) {
 
     // Reference PhysFS symbol to prove linking works
     (void)&PHYSFS_init;
+
+    // Reference miniaudio symbol to prove linking works
+    (void)&ma_device_init;
     if (!SDL_Init(SDL_INIT_VIDEO)) {
         SDL_ShowSimpleMessageBox(SDL_MESSAGEBOX_ERROR, "Initialization Error",
                                   SDL_GetError(), nullptr);

@@ -61,6 +61,15 @@ set(PHYSFS_BUILD_STATIC ON CACHE BOOL "Build PhysFS as static library" FORCE)
 set(PHYSFS_BUILD_SHARED OFF CACHE BOOL "Don't build PhysFS as shared library" FORCE)
 FetchContent_MakeAvailable(physfs)
 
+# Fetch miniaudio (header-only)
+FetchContent_Declare(
+    miniaudio
+    GIT_REPOSITORY https://github.com/mackron/miniaudio.git
+    GIT_TAG 0.11.23
+    GIT_SHALLOW TRUE
+)
+FetchContent_MakeAvailable(miniaudio)
+
 # Shared source files
 set(CORE_SOURCES
     src/math_utils.cpp
@@ -78,6 +87,7 @@ target_include_directories(${EXECUTABLE_NAME} PRIVATE
     ${CMAKE_CURRENT_SOURCE_DIR}/external/CLI11-v2.6.1
     ${CMAKE_CURRENT_SOURCE_DIR}/external/stb-10jan2026
     ${tmxlite_SOURCE_DIR}/tmxlite/include
+    ${miniaudio_SOURCE_DIR}
 )
 
 target_link_libraries(${EXECUTABLE_NAME} PRIVATE SDL3::SDL3 tmxlite lua::lua physfs-static)
