@@ -23,6 +23,21 @@ class VFS
     // Read entire file into SDL-allocated buffer. Caller frees via SDL_free.
     void ReadAll(const char *vfs_path, void **out_data, size_t *out_size);
 
+    // Read file from write directory only. Caller frees via SDL_free.
+    void ReadAllWriteDir(const char *vfs_path, void **out_data, size_t *out_size);
+
+    // Write entire buffer to write directory, creating parent dirs as needed.
+    void WriteAll(const char *vfs_path, const void *data, size_t size);
+
+    // List entries in the write directory (PhysFS-style list).
+    void ListWriteDir(const char *vfs_path, char ***out_entries);
+
+    // List files under the write directory, returning full relative paths.
+    void ListWriteDirFiles(char ***out_entries);
+
+    // Free a list returned by ListWriteDir or ListWriteDirFiles.
+    void FreeList(char **entries) noexcept;
+
   private:
     Config &config;
     bool initialized_physfs; // Track if this instance initialized PhysFS

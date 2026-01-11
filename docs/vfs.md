@@ -1,210 +1,169 @@
-# Virtual File System (VFS) Design
+# Virtual File System (VFS)
 
 ## Overview
 
-Leo Engine uses PhysFS to provide a unified virtual file system that abstracts access to game resources. The VFS supports mounting directories during development and ZIP archives for production builds.
+Leo Engine uses PhysFS to provide a unified virtual file system for game data.
+Resources are mounted read-only at the VFS root (`/`). Writes go to a separate
+PhysFS write directory (also mounted at `/` during write-dir operations).
 
-## Requirements
+Key properties:
+- Fail-fast: all VFS errors throw `std::runtime_error`.
+- SDL allocators: PhysFS and VFS buffers use `SDL_malloc`, `SDL_realloc`, and
+  `SDL_free`.
+- Read-only resources: callers should not write into the mounted resources.
+- Write dir is initialized by `VFS` automatically.
 
-### Default Behavior
-- Attempt to mount `resources/` (directory) first, then `resources.zip` (archive)
-- Mount at root `/` - single mount point only
-- If neither mount succeeds, throw a fatal exception with clear error messaging
-- Use INFO console logs to indicate what we're trying to mount (SDL3 logging functions)
+## Configuration and Initialization
 
-### CLI Override
-- `--resource-dir <path>` or `-r <path>` to override the default resource location
-- Supports both directories and archives
-- Accepts relative paths (resolved from current working directory) and absolute paths
-
-### Error Handling
-- Fail-fast philosophy: mount failures are fatal
-- Exception message must include:
-  - The path that was attempted
-  - The PhysFS error message explaining why it failed
-
-### Memory Management
-- Configure PhysFS to use SDL3 memory allocators via `PHYSFS_Allocator`
-- Use `SDL_malloc`, `SDL_realloc`, `SDL_free`
-
-### PhysFS Configuration
-- Use `PHYSFS_setSaneConfig()` with:
-  - Organization: `"bluesentinelsec"`
-  - App name: `"leo-engine"`
-  - Archive extension: `"zip"`
-  - Include CD-ROMs: `0` (false)
-  - Archives first: `0` (false - prefer directories)
-
-### Engine Configuration
-- Create a centralized `EngineConfig` struct in the `engine` namespace
-- Store in `EngineConfig`:
-  - `argv[0]` - for subsystems that need it
-  - Mounted resource path
-  - PhysFS configuration defaults (organization, app name)
-- `EngineConfig` will be extended as more subsystems are added
-- `EngineConfig` is owned by `main.cpp` and passed to subsystems (no singleton)
-
-## Proposed Implementation
-
-### Source Files
-
-```
-include/
-  leo/engine_config.h       # EngineConfig struct definition
-  leo/vfs.h          # VFS class definition
-
-src/
-  vfs.cpp        # VFS implementation
-  
-tests/
-  test_vfs.cpp          # VFS unit tests
-```
-
-### Classes and Structs
+The VFS consumes an `engine::Config`:
 
 ```cpp
-// leo/engine_config.h
 namespace engine {
     struct Config {
-        const char* argv0;                    // argv[0] from main
-        const char* resource_path;            // Path to mounted resource directory/archive
-        const char* organization;             // "bluesentinelsec"
-        const char* app_name;                 // "leo-engine"
-        
-        // Memory allocation functions (default to SDL3)
-        void* (*malloc_fn)(size_t);           // Default: SDL_malloc
-        void* (*realloc_fn)(void*, size_t);   // Default: SDL_realloc
-        void  (*free_fn)(void*);              // Default: SDL_free
-        
-        // Future: audio settings, window config, etc.
-    };
-}
-
-// leo/vfs.h
-namespace engine {
-    class VFS {
-    public:
-        // Initialize PhysFS with SDL3 allocators and mount resources
-        // Throws exception on failure
-        VFS(Config& config);
-        
-        // Destructor calls PHYSFS_deinit()
-        ~VFS();
-        
-        // Delete copy/move to enforce single instance
-        VFS(const VFS&) = delete;
-        VFS& operator=(const VFS&) = delete;
-        
-    private:
-        // Helper: Try to mount a path (directory or archive)
-        // Throws exception on failure with detailed error message
-        void Mount(const char* path);
-        
-        // Helper: Set up SDL3 memory allocators for PhysFS
-        void ConfigureAllocator();
+        const char* argv0;
+        const char* resource_path; // Optional override
+        const char* organization;  // e.g. "bluesentinelsec"
+        const char* app_name;      // e.g. "leo-engine"
+        void* (*malloc_fn)(size_t);   // Present but not used by VFS today
+        void* (*realloc_fn)(void*, size_t);
+        void  (*free_fn)(void*);
     };
 }
 ```
 
-### Test-Driven Development Approach
+Constructor behavior (`engine::VFS::VFS`):
+1. If PhysFS is not initialized, the VFS sets PhysFS allocators to SDL and
+   calls `PHYSFS_init(argv0)`.
+2. If no write dir is set, VFS calls `PHYSFS_getPrefDir(organization, app_name)`
+   and sets it as the write dir with `PHYSFS_setWriteDir`.
+3. Mounts resources at `/`:
+   - If `config.resource_path` is set, it is mounted.
+   - Otherwise it tries `resources/`, then `resources.zip`.
+4. If no resources mount succeeds, the constructor throws.
 
-Tests use real files in `resources/` and `resources.zip` present in the project root.
+## Read API
 
-1. **Successful directory mount**
-   - Given: `resources/` directory exists
-   - When: VFS initializes with default settings
-   - Then: PhysFS mounts successfully, `config.resource_path` is set to `"resources/"`
-
-2. **Successful archive mount**
-   - Given: `resources.zip` exists, no `resources/` directory
-   - When: VFS initializes with default settings
-   - Then: PhysFS mounts the archive, `config.resource_path` is set to `"resources.zip"`
-
-3. **Mount failure throws exception**
-   - Given: Neither `resources/` nor `resources.zip` exists
-   - When: VFS initializes
-   - Then: Exception is thrown with path and PhysFS error message
-
-4. **File reading through VFS**
-   - Given: A file exists in the mounted resource path
-   - When: File is read through PhysFS
-   - Then: File contents are accessible
-
-**Deferred tests:**
-- CLI override (will be tested when CLI integration is added)
-- Memory allocator configuration (assume PhysFS library works correctly)
-
-## Design Decisions
-
-### 1. Mount Point
-Mount at root `/` with single mount point. First try `resources/` (directory), then `resources.zip` (archive).
-
-### 2. Search Path Priority
-Directory takes priority over archive. If both exist, mount the directory.
-
-### 3. Write Directory
-Write access will be needed for save files/logs, but implementation is deferred. PhysFS handles this separately from read-only mounts.
-
-### 4. Archive Format
-ZIP only. PhysFS may support other formats at build time, which is acceptable.
-
-### 5. Initialization Timing
-VFS initializes after SDL3 and CLI argument parsing. Integration with `main.cpp` is deferred.
-
-### 6. Resource Path Validation
-No validation. If the directory/archive exists, mount it.
-
-### 7. Hot Reloading
-Not supported. No unmounting/remounting at runtime.
-
-### 8. Error Recovery
-Try `resources/` then `resources.zip`. Throw fatal error if neither is found.
-
-### 9. Relative vs Absolute Paths
-Both supported. Relative paths resolved from current working directory (shell handles this).
-
-### 10. EngineConfig Lifetime
-No singleton. `EngineConfig` owned by `main.cpp` and passed to subsystems.
-
-## Integration Notes (Deferred)
-
-VFS initialization will happen in `main.cpp` after:
-1. SDL3 initialization (for memory allocators)
-2. CLI argument parsing (to get `--resource-dir` if provided)
-
-Example future integration:
+### Read from mounted resources
 ```cpp
-int main(int argc, char* argv[]) {
-    SDL_Init(SDL_INIT_VIDEO);
-    
-    CLI::App app{"Leo Engine"};
-    std::string resource_dir;
-    app.add_option("-r,--resource-dir", resource_dir, "Resource directory or archive");
-    app.parse(argc, argv);
-    
-    engine::Config config = {
-        .argv0 = argv[0],
-        .organization = "bluesentinelsec",
-        .app_name = "leo-engine",
-        .malloc_fn = SDL_malloc,
-        .realloc_fn = SDL_realloc,
-        .free_fn = SDL_free
-    };
-    
-    engine::VFS vfs(config);
-    
-    // ... rest of engine initialization
-    
-    // VFS destructor calls PHYSFS_deinit()
-    SDL_Quit();
-}
+void ReadAll(const char* vfs_path, void** out_data, size_t* out_size);
 ```
 
-## Implementation Notes
+- Reads from the PhysFS search path (mounted resources).
+- Allocates with `SDL_malloc`; caller frees with `SDL_free`.
+- Throws on any failure (open, length, read).
 
-- PhysFS requires `PHYSFS_init(argv[0])` to determine the base directory
-- Store `argv[0]` in `EngineConfig` for subsystems that need it
-- PhysFS automatically handles platform-specific path separators
-- All PhysFS functions return error codes that can be queried via `PHYSFS_getLastErrorCode()` and `PHYSFS_getErrorByCode()`
-- Memory allocator must be set before `PHYSFS_init()` is called
-- Use SDL3 functions for memory allocation and standard library replacements throughout VFS implementation
+### Read from write dir only
+```cpp
+void ReadAllWriteDir(const char* vfs_path, void** out_data, size_t* out_size);
+```
+
+- Ensures the file resolves to the write directory (not resources).
+- Uses the same allocation rules as `ReadAll`.
+- Throws if the file is missing or not located in the write dir.
+
+## Write API
+
+```cpp
+void WriteAll(const char* vfs_path, const void* data, size_t size);
+```
+
+- Writes to the PhysFS write dir only.
+- Automatically creates parent directories via `PHYSFS_mkdir`.
+- Throws on any failure (mkdir, open, write, close).
+- `vfs_path` must be non-empty; `data` must be non-null for `size > 0`.
+
+## Listing the Write Dir
+
+### List immediate entries (PhysFS style)
+```cpp
+void ListWriteDir(const char* vfs_path, char*** out_entries);
+void FreeList(char** entries) noexcept;
+```
+
+- Returns a null-terminated list of entry names in `vfs_path`.
+- Output is filtered to entries that live in the write dir.
+- Call `FreeList` to release the list.
+
+### List all files with full relative paths
+```cpp
+void ListWriteDirFiles(char*** out_entries);
+void FreeList(char** entries) noexcept;
+```
+
+- Recursively enumerates files under the write dir.
+- Returns full relative paths like `saves/slot1.dat`.
+- Directories are not returned, only files.
+- Call `FreeList` to release the list.
+
+## Error Handling
+
+All VFS methods throw `std::runtime_error` on failure.
+PhysFS-related failures include the PhysFS error string and the path when
+available.
+
+## Tutorial
+
+### Setup
+```cpp
+engine::Config config = {
+    .argv0 = argv[0],
+    .resource_path = nullptr, // or set to a custom resource root
+    .organization = "bluesentinelsec",
+    .app_name = "leo-engine",
+    .malloc_fn = SDL_malloc,
+    .realloc_fn = SDL_realloc,
+    .free_fn = SDL_free
+};
+
+engine::VFS vfs(config);
+```
+
+### Read a resource file
+```cpp
+void* data = nullptr;
+size_t size = 0;
+vfs.ReadAll("maps/map.json", &data, &size);
+// ... use data/size ...
+SDL_free(data);
+```
+
+### Write a save file
+```cpp
+const char* payload = "save-data";
+vfs.WriteAll("saves/slot1.dat", payload, SDL_strlen(payload));
+```
+
+### Read back from the write dir
+```cpp
+void* save_data = nullptr;
+size_t save_size = 0;
+vfs.ReadAllWriteDir("saves/slot1.dat", &save_data, &save_size);
+SDL_free(save_data);
+```
+
+### List the write dir
+```cpp
+char** entries = nullptr;
+vfs.ListWriteDir("", &entries);
+for (char** it = entries; *it; ++it) {
+    SDL_Log("entry: %s", *it);
+}
+vfs.FreeList(entries);
+```
+
+### List all files with full paths
+```cpp
+char** files = nullptr;
+vfs.ListWriteDirFiles(&files);
+for (char** it = files; *it; ++it) {
+    SDL_Log("file: %s", *it);
+}
+vfs.FreeList(files);
+```
+
+## Notes
+
+- Paths use forward slashes (`/`) regardless of platform.
+- The write dir location is platform-specific. Use `PHYSFS_getWriteDir()` to
+  retrieve the resolved path for manual inspection.
+- VFS does not support hot reloading or remounting at runtime.
