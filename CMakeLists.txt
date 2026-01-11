@@ -74,6 +74,7 @@ FetchContent_MakeAvailable(miniaudio)
 set(CORE_SOURCES
     src/math_utils.cpp
     src/stb_impl.cpp
+    src/vfs.cpp
 )
 
 # Main executable
@@ -96,6 +97,7 @@ target_link_libraries(${EXECUTABLE_NAME} PRIVATE SDL3::SDL3 tmxlite lua::lua phy
 add_executable(leo-engine-tests
     tests/test_math_utils.cpp
     tests/test_version.cpp
+    tests/test_vfs.cpp
     ${CORE_SOURCES}
 )
 
@@ -104,7 +106,7 @@ target_include_directories(leo-engine-tests PRIVATE
     ${CMAKE_CURRENT_SOURCE_DIR}/external/stb-10jan2026
 )
 
-target_link_libraries(leo-engine-tests PRIVATE Catch2::Catch2WithMain SDL3::SDL3)
+target_link_libraries(leo-engine-tests PRIVATE Catch2::Catch2WithMain SDL3::SDL3 physfs-static)
 
 enable_testing()
 add_test(NAME leo-engine-tests COMMAND leo-engine-tests)
