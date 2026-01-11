@@ -29,7 +29,7 @@ jobs:
           libwayland-dev libxkbcommon-dev libdrm-dev libgbm-dev
     
     - name: Configure CMake
-      run: cmake -B build -S . -DCMAKE_BUILD_TYPE=Release
+      run: cmake -B build -S . -DCMAKE_BUILD_TYPE=Release -DCMAKE_POLICY_VERSION_MINIMUM=3.5
     
     - name: Build
       run: cmake --build build --config Release
