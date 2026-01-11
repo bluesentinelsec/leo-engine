@@ -41,6 +41,26 @@ FetchContent_Declare(
 set(TMXLITE_STATIC_LIB ON CACHE BOOL "Build tmxlite as static library" FORCE)
 FetchContent_MakeAvailable(tmxlite)
 
+# Fetch Lua
+FetchContent_Declare(
+    lua
+    GIT_REPOSITORY https://github.com/marovira/lua.git
+    GIT_TAG 5.4.4
+    GIT_SHALLOW TRUE
+)
+set(BUILD_SHARED_LIBS OFF CACHE BOOL "Build Lua as static library" FORCE)
+FetchContent_MakeAvailable(lua)
+
+# Fetch PhysFS
+FetchContent_Declare(
+    physfs
+    GIT_REPOSITORY https://github.com/icculus/physfs.git
+    GIT_TAG 5ee045551a5d3404822f8ea08486b74d1b283858
+)
+set(PHYSFS_BUILD_STATIC ON CACHE BOOL "Build PhysFS as static library" FORCE)
+set(PHYSFS_BUILD_SHARED OFF CACHE BOOL "Don't build PhysFS as shared library" FORCE)
+FetchContent_MakeAvailable(physfs)
+
 # Shared source files
 set(CORE_SOURCES
     src/math_utils.cpp
@@ -60,7 +80,7 @@ target_include_directories(${EXECUTABLE_NAME} PRIVATE
     ${tmxlite_SOURCE_DIR}/tmxlite/include
 )
 
-target_link_libraries(${EXECUTABLE_NAME} PRIVATE SDL3::SDL3 tmxlite)
+target_link_libraries(${EXECUTABLE_NAME} PRIVATE SDL3::SDL3 tmxlite lua::lua physfs-static)
 
 # Tests
 add_executable(leo-engine-tests

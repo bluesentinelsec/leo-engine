@@ -4,6 +4,8 @@
 #include <stb_image.h>
 #include <stb_truetype.h>
 #include <tmxlite/Map.hpp>
+#include <lua.hpp>
+#include <physfs.h>
 #include "version.h"
 
 int main(int argc, char* argv[]) {
@@ -29,6 +31,12 @@ int main(int argc, char* argv[]) {
     // Load tmx map to prove linking works
     tmx::Map map;
     map.load("resources/maps/map.json");
+
+    // Reference Lua symbol to prove linking works
+    (void)&lua_newstate;
+
+    // Reference PhysFS symbol to prove linking works
+    (void)&PHYSFS_init;
     if (!SDL_Init(SDL_INIT_VIDEO)) {
         SDL_ShowSimpleMessageBox(SDL_MESSAGEBOX_ERROR, "Initialization Error",
                                   SDL_GetError(), nullptr);
