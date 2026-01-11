@@ -4,14 +4,8 @@
 #include "leo/vfs.h"
 #include "leo/engine_config.h"
 
-// Helper to initialize SDL once
-struct SDLFixture {
-    SDLFixture() { SDL_Init(0); }
-    ~SDLFixture() { SDL_Quit(); }
-};
-
 TEST_CASE("VFS mounts resources directory", "[vfs]") {
-    SDLFixture sdl;
+    SDL_Init(0);
     
     engine::Config config = {
         .argv0 = "test",
@@ -23,17 +17,21 @@ TEST_CASE("VFS mounts resources directory", "[vfs]") {
         .free_fn = SDL_free
     };
     
-    engine::VFS vfs(config);
+    {
+        engine::VFS vfs(config);
+        
+        REQUIRE(config.resource_path != nullptr);
+        // Accept either "resources/" or "../resources/" depending on working directory
+        bool valid_path = (SDL_strcmp(config.resource_path, "resources/") == 0) ||
+                          (SDL_strcmp(config.resource_path, "../resources/") == 0);
+        REQUIRE(valid_path);
+    }
     
-    REQUIRE(config.resource_path != nullptr);
-    // Accept either "resources/" or "../resources/" depending on working directory
-    bool valid_path = (SDL_strcmp(config.resource_path, "resources/") == 0) ||
-                      (SDL_strcmp(config.resource_path, "../resources/") == 0);
-    REQUIRE(valid_path);
+    SDL_Quit();
 }
 
 TEST_CASE("VFS can read file from mounted resources", "[vfs]") {
-    SDLFixture sdl;
+    SDL_Init(0);
     
     engine::Config config = {
         .argv0 = "test",
@@ -45,16 +43,20 @@ TEST_CASE("VFS can read file from mounted resources", "[vfs]") {
         .free_fn = SDL_free
     };
     
-    engine::VFS vfs(config);
+    {
+        engine::VFS vfs(config);
+        
+        // Try to read a file from resources
+        PHYSFS_File* file = PHYSFS_openRead("maps/map.json");
+        REQUIRE(file != nullptr);
+        PHYSFS_close(file);
+    }
     
-    // Try to read a file from resources
-    PHYSFS_File* file = PHYSFS_openRead("maps/map.json");
-    REQUIRE(file != nullptr);
-    PHYSFS_close(file);
+    SDL_Quit();
 }
 
 TEST_CASE("VFS throws exception when resources not found", "[vfs]") {
-    SDLFixture sdl;
+    SDL_Init(0);
     
     engine::Config config = {
         .argv0 = "test",
@@ -67,4 +69,6 @@ TEST_CASE("VFS throws exception when resources not found", "[vfs]") {
     };
     
     REQUIRE_THROWS_AS(engine::VFS(config), std::runtime_error);
+    
+    SDL_Quit();
 }

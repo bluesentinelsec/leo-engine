@@ -72,11 +72,8 @@ void VFS::Mount(const char* path) {
 VFS::VFS(Config& cfg) : config(cfg) {
     ConfigureAllocator();
     
-    // Check if PhysFS is already initialized
-    bool already_initialized = PHYSFS_isInit();
-    
-    if (!already_initialized) {
-        // Initialize PhysFS first with argv[0]
+    // Initialize PhysFS (skip if already initialized from previous test)
+    if (!PHYSFS_isInit()) {
         if (!PHYSFS_init(config.argv0)) {
             PHYSFS_ErrorCode error = PHYSFS_getLastErrorCode();
             const char* errorMsg = PHYSFS_getErrorByCode(error);
@@ -109,9 +106,7 @@ VFS::VFS(Config& cfg) : config(cfg) {
     if (TryMount("../resources.zip")) return;
     
     // Neither found - fail
-    if (!already_initialized) {
-        PHYSFS_deinit();
-    }
+    PHYSFS_deinit();
     throw std::runtime_error(
         "Failed to mount resources: tried 'resources/', '../resources/', 'resources.zip', '../resources.zip'"
     );
