@@ -1,33 +1,38 @@
+#include <CLI11.hpp>
 #include <SDL3/SDL.h>
 #include <SDL3/SDL_main.h>
-#include <CLI11.hpp>
+#include <lua.hpp>
+#include <physfs.h>
 #include <stb_image.h>
 #include <stb_truetype.h>
 #include <tmxlite/Map.hpp>
-#include <lua.hpp>
-#include <physfs.h>
 
-#define MA_MALLOC(sz)       SDL_malloc(sz)
-#define MA_REALLOC(p, sz)   SDL_realloc(p, sz)
-#define MA_FREE(p)          SDL_free(p)
+#define MA_MALLOC(sz) SDL_malloc(sz)
+#define MA_REALLOC(p, sz) SDL_realloc(p, sz)
+#define MA_FREE(p) SDL_free(p)
 
 #define MINIAUDIO_IMPLEMENTATION
 #include <miniaudio.h>
 
 #include "version.h"
 
-int main(int argc, char* argv[]) {
+int main(int argc, char *argv[])
+{
     CLI::App app{"Leo Engine"};
     bool show_version = false;
     app.add_flag("--version", show_version, "Show version information");
 
-    try {
+    try
+    {
         app.parse(argc, argv);
-    } catch (const CLI::ParseError &e) {
+    }
+    catch (const CLI::ParseError &e)
+    {
         return app.exit(e);
     }
 
-    if (show_version) {
+    if (show_version)
+    {
         SDL_Log("leo-engine version %s", LEO_ENGINE_VERSION);
         return 0;
     }
@@ -48,24 +53,24 @@ int main(int argc, char* argv[]) {
 
     // Reference miniaudio symbol to prove linking works
     (void)&ma_device_init;
-    if (!SDL_Init(SDL_INIT_VIDEO)) {
-        SDL_ShowSimpleMessageBox(SDL_MESSAGEBOX_ERROR, "Initialization Error",
-                                  SDL_GetError(), nullptr);
+    if (!SDL_Init(SDL_INIT_VIDEO))
+    {
+        SDL_ShowSimpleMessageBox(SDL_MESSAGEBOX_ERROR, "Initialization Error", SDL_GetError(), nullptr);
         return 1;
     }
 
-    SDL_Window* window = SDL_CreateWindow("Leo Engine", 1280, 720, 0);
-    if (!window) {
-        SDL_ShowSimpleMessageBox(SDL_MESSAGEBOX_ERROR, "Window Creation Error",
-                                  SDL_GetError(), nullptr);
+    SDL_Window *window = SDL_CreateWindow("Leo Engine", 1280, 720, 0);
+    if (!window)
+    {
+        SDL_ShowSimpleMessageBox(SDL_MESSAGEBOX_ERROR, "Window Creation Error", SDL_GetError(), nullptr);
         SDL_Quit();
         return 1;
     }
 
-    SDL_Renderer* renderer = SDL_CreateRenderer(window, nullptr);
-    if (!renderer) {
-        SDL_ShowSimpleMessageBox(SDL_MESSAGEBOX_ERROR, "Renderer Creation Error",
-                                  SDL_GetError(), nullptr);
+    SDL_Renderer *renderer = SDL_CreateRenderer(window, nullptr);
+    if (!renderer)
+    {
+        SDL_ShowSimpleMessageBox(SDL_MESSAGEBOX_ERROR, "Renderer Creation Error", SDL_GetError(), nullptr);
         SDL_DestroyWindow(window);
         SDL_Quit();
         return 1;
@@ -74,9 +79,12 @@ int main(int argc, char* argv[]) {
     bool running = true;
     SDL_Event event;
 
-    while (running) {
-        while (SDL_PollEvent(&event)) {
-            if (event.type == SDL_EVENT_QUIT) {
+    while (running)
+    {
+        while (SDL_PollEvent(&event))
+        {
+            if (event.type == SDL_EVENT_QUIT)
+            {
                 running = false;
             }
         }
