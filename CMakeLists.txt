@@ -110,3 +110,4 @@ target_link_libraries(leo-engine-tests PRIVATE Catch2::Catch2WithMain SDL3::SDL3
 
 enable_testing()
 add_test(NAME leo-engine-tests COMMAND leo-engine-tests)
+set_tests_properties(leo-engine-tests PROPERTIES WORKING_DIRECTORY ${CMAKE_SOURCE_DIR})

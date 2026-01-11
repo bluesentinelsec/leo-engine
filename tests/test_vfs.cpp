@@ -21,10 +21,7 @@ TEST_CASE("VFS mounts resources directory", "[vfs]") {
         engine::VFS vfs(config);
         
         REQUIRE(config.resource_path != nullptr);
-        // Accept either "resources/" or "../resources/" depending on working directory
-        bool valid_path = (SDL_strcmp(config.resource_path, "resources/") == 0) ||
-                          (SDL_strcmp(config.resource_path, "../resources/") == 0);
-        REQUIRE(valid_path);
+        REQUIRE(SDL_strcmp(config.resource_path, "resources/") == 0);
     }
     
     SDL_Quit();

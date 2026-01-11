@@ -91,15 +91,13 @@ VFS::VFS(Config& cfg) : config(cfg), initialized_physfs(false) {
     // Try to mount resources in order of preference
     if (TryMount("resources/")) return;
     if (TryMount("resources.zip")) return;
-    if (TryMount("../resources/")) return;
-    if (TryMount("../resources.zip")) return;
     
     // Neither found - fail
     if (initialized_physfs) {
         PHYSFS_deinit();
     }
     throw std::runtime_error(
-        "Failed to mount resources: tried 'resources/', '../resources/', 'resources.zip', '../resources.zip'"
+        "Failed to mount resources: tried 'resources/' and 'resources.zip'"
     );
 }
 
