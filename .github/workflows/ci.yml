@@ -40,6 +40,7 @@ jobs:
     
     - name: Get version
       id: version
+      shell: bash
       run: |
         VERSION=$(grep "set(PROJECT_VERSION" CMakeLists.txt | sed 's/.*set(PROJECT_VERSION \(.*\))/\1/')
         echo "version=$VERSION" >> $GITHUB_OUTPUT
