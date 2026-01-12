@@ -4,17 +4,39 @@
 #include <catch2/catch_test_macros.hpp>
 #include <physfs.h>
 
+namespace
+{
+
+struct SDLGuard
+{
+    SDLGuard()
+    {
+        SDL_Init(0);
+    }
+
+    ~SDLGuard()
+    {
+        SDL_Quit();
+    }
+};
+
+engine::Config MakeConfig(const char *resource_path = nullptr)
+{
+    return {.argv0 = "test",
+            .resource_path = resource_path,
+            .organization = "bluesentinelsec",
+            .app_name = "leo-engine",
+            .malloc_fn = SDL_malloc,
+            .realloc_fn = SDL_realloc,
+            .free_fn = SDL_free};
+}
+
+} // namespace
+
 TEST_CASE("VFS mounts resources directory", "[vfs]")
 {
-    SDL_Init(0);
-
-    engine::Config config = {.argv0 = "test",
-                             .resource_path = nullptr,
-                             .organization = "bluesentinelsec",
-                             .app_name = "leo-engine",
-                             .malloc_fn = SDL_malloc,
-                             .realloc_fn = SDL_realloc,
-                             .free_fn = SDL_free};
+    SDLGuard sdl;
+    engine::Config config = MakeConfig();
 
     {
         engine::VFS vfs(config);
@@ -22,21 +44,12 @@ TEST_CASE("VFS mounts resources directory", "[vfs]")
         REQUIRE(config.resource_path != nullptr);
         REQUIRE(SDL_strcmp(config.resource_path, "resources/") == 0);
     }
-
-    SDL_Quit();
 }
 
 TEST_CASE("VFS can read file from mounted resources", "[vfs]")
 {
-    SDL_Init(0);
-
-    engine::Config config = {.argv0 = "test",
-                             .resource_path = nullptr,
-                             .organization = "bluesentinelsec",
-                             .app_name = "leo-engine",
-                             .malloc_fn = SDL_malloc,
-                             .realloc_fn = SDL_realloc,
-                             .free_fn = SDL_free};
+    SDLGuard sdl;
+    engine::Config config = MakeConfig();
 
     {
         engine::VFS vfs(config);
@@ -48,21 +61,12 @@ TEST_CASE("VFS can read file from mounted resources", "[vfs]")
         REQUIRE(size > 0);
         SDL_free(data);
     }
-
-    SDL_Quit();
 }
 
 TEST_CASE("VFS ReadAll throws when file is missing", "[vfs]")
 {
-    SDL_Init(0);
-
-    engine::Config config = {.argv0 = "test",
-                             .resource_path = nullptr,
-                             .organization = "bluesentinelsec",
-                             .app_name = "leo-engine",
-                             .malloc_fn = SDL_malloc,
-                             .realloc_fn = SDL_realloc,
-                             .free_fn = SDL_free};
+    SDLGuard sdl;
+    engine::Config config = MakeConfig();
 
     {
         engine::VFS vfs(config);
@@ -70,21 +74,12 @@ TEST_CASE("VFS ReadAll throws when file is missing", "[vfs]")
         size_t size = 0;
         REQUIRE_THROWS_AS(vfs.ReadAll("missing.file", &data, &size), std::runtime_error);
     }
-
-    SDL_Quit();
 }
 
 TEST_CASE("VFS can write, list, and read from write dir", "[vfs]")
 {
-    SDL_Init(0);
-
-    engine::Config config = {.argv0 = "test",
-                             .resource_path = nullptr,
-                             .organization = "bluesentinelsec",
-                             .app_name = "leo-engine",
-                             .malloc_fn = SDL_malloc,
-                             .realloc_fn = SDL_realloc,
-                             .free_fn = SDL_free};
+    SDLGuard sdl;
+    engine::Config config = MakeConfig();
 
     {
         engine::VFS vfs(config);
@@ -117,21 +112,12 @@ TEST_CASE("VFS can write, list, and read from write dir", "[vfs]")
         REQUIRE(SDL_memcmp(data, payload, size) == 0);
         SDL_free(data);
     }
-
-    SDL_Quit();
 }
 
 TEST_CASE("VFS can list write dir files with relative paths", "[vfs]")
 {
-    SDL_Init(0);
-
-    engine::Config config = {.argv0 = "test",
-                             .resource_path = nullptr,
-                             .organization = "bluesentinelsec",
-                             .app_name = "leo-engine",
-                             .malloc_fn = SDL_malloc,
-                             .realloc_fn = SDL_realloc,
-                             .free_fn = SDL_free};
+    SDLGuard sdl;
+    engine::Config config = MakeConfig();
 
     {
         engine::VFS vfs(config);
@@ -171,21 +157,12 @@ TEST_CASE("VFS can list write dir files with relative paths", "[vfs]")
         REQUIRE(found_config);
         REQUIRE(found_recording);
     }
-
-    SDL_Quit();
 }
 
 TEST_CASE("VFS can delete files and directories in write dir", "[vfs]")
 {
-    SDL_Init(0);
-
-    engine::Config config = {.argv0 = "test",
-                             .resource_path = nullptr,
-                             .organization = "bluesentinelsec",
-                             .app_name = "leo-engine",
-                             .malloc_fn = SDL_malloc,
-                             .realloc_fn = SDL_realloc,
-                             .free_fn = SDL_free};
+    SDLGuard sdl;
+    engine::Config config = MakeConfig();
 
     {
         engine::VFS vfs(config);
@@ -211,44 +188,24 @@ TEST_CASE("VFS can delete files and directories in write dir", "[vfs]")
 
         REQUIRE_THROWS_AS(vfs.DeleteFile("maps/map.json"), std::runtime_error);
     }
-
-    SDL_Quit();
 }
 
 TEST_CASE("VFS ListWriteDir throws when directory is missing", "[vfs]")
 {
-    SDL_Init(0);
-
-    engine::Config config = {.argv0 = "test",
-                             .resource_path = nullptr,
-                             .organization = "bluesentinelsec",
-                             .app_name = "leo-engine",
-                             .malloc_fn = SDL_malloc,
-                             .realloc_fn = SDL_realloc,
-                             .free_fn = SDL_free};
+    SDLGuard sdl;
+    engine::Config config = MakeConfig();
 
     {
         engine::VFS vfs(config);
         char **entries = nullptr;
         REQUIRE_THROWS_AS(vfs.ListWriteDir("missing-dir", &entries), std::runtime_error);
     }
-
-    SDL_Quit();
 }
 
 TEST_CASE("VFS throws exception when resources not found", "[vfs]")
 {
-    SDL_Init(0);
-
-    engine::Config config = {.argv0 = "test",
-                             .resource_path = "nonexistent/",
-                             .organization = "bluesentinelsec",
-                             .app_name = "leo-engine",
-                             .malloc_fn = SDL_malloc,
-                             .realloc_fn = SDL_realloc,
-                             .free_fn = SDL_free};
+    SDLGuard sdl;
+    engine::Config config = MakeConfig("nonexistent/");
 
     REQUIRE_THROWS_AS(engine::VFS(config), std::runtime_error);
-
-    SDL_Quit();
 }

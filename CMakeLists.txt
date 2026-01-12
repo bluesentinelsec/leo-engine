@@ -75,6 +75,7 @@ set(CORE_SOURCES
     src/math_utils.cpp
     src/stb_impl.cpp
     src/vfs.cpp
+    src/engine_core.cpp
 )
 
 # Main executable
@@ -98,6 +99,7 @@ add_executable(leo-engine-tests
     tests/test_math_utils.cpp
     tests/test_version.cpp
     tests/test_vfs.cpp
+    tests/test_engine_core.cpp
     ${CORE_SOURCES}
 )
 

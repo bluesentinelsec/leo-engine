@@ -35,14 +35,14 @@ class VFS
     // List files under the write directory, returning full relative paths.
     void ListWriteDirFiles(char ***out_entries);
 
+    // Free a list returned by ListWriteDir or ListWriteDirFiles.
+    void FreeList(char **entries) noexcept;
+
     // Delete a single file from the write directory.
     void DeleteFile(const char *vfs_path);
 
     // Delete a directory and its contents from the write directory.
     void DeleteDirRecursive(const char *vfs_path);
-
-    // Free a list returned by ListWriteDir or ListWriteDirFiles.
-    void FreeList(char **entries) noexcept;
 
   private:
     Config &config;

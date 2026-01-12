@@ -93,6 +93,27 @@ static bool EnsureWriteDirMounted(const char *write_dir)
     return true;
 }
 
+class ScopedWriteDirMount
+{
+  public:
+    explicit ScopedWriteDirMount(const char *write_dir) : write_dir(write_dir), mounted(false)
+    {
+        mounted = EnsureWriteDirMounted(write_dir);
+    }
+
+    ~ScopedWriteDirMount()
+    {
+        if (mounted)
+        {
+            PHYSFS_unmount(write_dir);
+        }
+    }
+
+  private:
+    const char *write_dir;
+    bool mounted;
+};
+
 static char *CopyString(const char *src)
 {
     size_t length = SDL_strlen(src);
@@ -132,6 +153,19 @@ static bool IsPathInWriteDir(const char *path, const char *write_dir)
         return false;
     }
     return SDL_strcmp(real_dir, write_dir) == 0;
+}
+
+static void EnsureWriteDirContains(const char *vfs_path, const char *write_dir, bool allow_empty)
+{
+    if (allow_empty && vfs_path[0] == '\0')
+    {
+        return;
+    }
+
+    if (!IsPathInWriteDir(vfs_path, write_dir))
+    {
+        throw MakeError("Write directory does not contain", vfs_path);
+    }
 }
 
 static char **FilterWriteDirEntries(const char *dir, char **entries, const char *write_dir)
@@ -551,36 +585,9 @@ void VFS::ReadAllWriteDir(const char *vfs_path, void **out_data, size_t *out_siz
     }
 
     const char *write_dir = GetWriteDirOrThrow();
-    bool mounted = false;
-
-    mounted = EnsureWriteDirMounted(write_dir);
-
-    if (!IsPathInWriteDir(vfs_path, write_dir))
-    {
-        if (mounted)
-        {
-            PHYSFS_unmount(write_dir);
-        }
-        throw MakeError("Write directory does not contain", vfs_path);
-    }
-
-    try
-    {
-        ReadAll(vfs_path, out_data, out_size);
-    }
-    catch (...)
-    {
-        if (mounted)
-        {
-            PHYSFS_unmount(write_dir);
-        }
-        throw;
-    }
-
-    if (mounted)
-    {
-        PHYSFS_unmount(write_dir);
-    }
+    ScopedWriteDirMount mount(write_dir);
+    EnsureWriteDirContains(vfs_path, write_dir, false);
+    ReadAll(vfs_path, out_data, out_size);
 }
 
 void VFS::WriteAll(const char *vfs_path, const void *data, size_t size)
@@ -673,28 +680,15 @@ void VFS::ListWriteDir(const char *vfs_path, char ***out_entries)
     }
 
     const char *write_dir = GetWriteDirOrThrow();
-    bool mounted = false;
+    ScopedWriteDirMount mount(write_dir);
     char **entries = nullptr;
     char **filtered = nullptr;
 
-    mounted = EnsureWriteDirMounted(write_dir);
-
-    if (vfs_path[0] != '\0' && !IsPathInWriteDir(vfs_path, write_dir))
-    {
-        if (mounted)
-        {
-            PHYSFS_unmount(write_dir);
-        }
-        throw MakeError("Write directory does not contain", vfs_path);
-    }
+    EnsureWriteDirContains(vfs_path, write_dir, true);
 
     entries = PHYSFS_enumerateFiles(vfs_path);
     if (!entries)
     {
-        if (mounted)
-        {
-            PHYSFS_unmount(write_dir);
-        }
         throw MakePhysfsError("Failed to enumerate write directory", vfs_path);
     }
 
@@ -702,16 +696,7 @@ void VFS::ListWriteDir(const char *vfs_path, char ***out_entries)
     PHYSFS_freeList(entries);
     if (!filtered)
     {
-        if (mounted)
-        {
-            PHYSFS_unmount(write_dir);
-        }
         throw std::runtime_error("ListWriteDir failed to allocate list");
-    }
-
-    if (mounted)
-    {
-        PHYSFS_unmount(write_dir);
     }
     *out_entries = filtered;
 }
@@ -724,20 +709,15 @@ void VFS::ListWriteDirFiles(char ***out_entries)
     }
 
     const char *write_dir = GetWriteDirOrThrow();
-    bool mounted = false;
     char **entries = nullptr;
     size_t count = 0;
     size_t capacity = 0;
 
-    mounted = EnsureWriteDirMounted(write_dir);
+    ScopedWriteDirMount mount(write_dir);
 
     entries = static_cast<char **>(SDL_malloc(sizeof(char *)));
     if (!entries)
     {
-        if (mounted)
-        {
-            PHYSFS_unmount(write_dir);
-        }
         throw std::runtime_error("ListWriteDirFiles failed to allocate list");
     }
     entries[0] = nullptr;
@@ -750,17 +730,9 @@ void VFS::ListWriteDirFiles(char ***out_entries)
     catch (...)
     {
         FreeStringList(entries);
-        if (mounted)
-        {
-            PHYSFS_unmount(write_dir);
-        }
         throw;
     }
 
-    if (mounted)
-    {
-        PHYSFS_unmount(write_dir);
-    }
     *out_entries = entries;
 }
 
@@ -772,50 +744,24 @@ void VFS::DeleteFile(const char *vfs_path)
     }
 
     const char *write_dir = GetWriteDirOrThrow();
-    bool mounted = false;
     PHYSFS_Stat stat;
 
-    mounted = EnsureWriteDirMounted(write_dir);
-
-    if (!IsPathInWriteDir(vfs_path, write_dir))
-    {
-        if (mounted)
-        {
-            PHYSFS_unmount(write_dir);
-        }
-        throw MakeError("Write directory does not contain", vfs_path);
-    }
+    ScopedWriteDirMount mount(write_dir);
+    EnsureWriteDirContains(vfs_path, write_dir, false);
 
     if (!PHYSFS_stat(vfs_path, &stat))
     {
-        if (mounted)
-        {
-            PHYSFS_unmount(write_dir);
-        }
         throw MakePhysfsError("Failed to stat", vfs_path);
     }
 
     if (stat.filetype == PHYSFS_FILETYPE_DIRECTORY)
     {
-        if (mounted)
-        {
-            PHYSFS_unmount(write_dir);
-        }
         throw MakeError("DeleteFile requires a file", vfs_path);
     }
 
     if (!PHYSFS_delete(vfs_path))
     {
-        if (mounted)
-        {
-            PHYSFS_unmount(write_dir);
-        }
         throw MakePhysfsError("Failed to delete file", vfs_path);
-    }
-
-    if (mounted)
-    {
-        PHYSFS_unmount(write_dir);
     }
 }
 
@@ -827,55 +773,22 @@ void VFS::DeleteDirRecursive(const char *vfs_path)
     }
 
     const char *write_dir = GetWriteDirOrThrow();
-    bool mounted = false;
     PHYSFS_Stat stat;
 
-    mounted = EnsureWriteDirMounted(write_dir);
-
-    if (!IsPathInWriteDir(vfs_path, write_dir))
-    {
-        if (mounted)
-        {
-            PHYSFS_unmount(write_dir);
-        }
-        throw MakeError("Write directory does not contain", vfs_path);
-    }
+    ScopedWriteDirMount mount(write_dir);
+    EnsureWriteDirContains(vfs_path, write_dir, false);
 
     if (!PHYSFS_stat(vfs_path, &stat))
     {
-        if (mounted)
-        {
-            PHYSFS_unmount(write_dir);
-        }
         throw MakePhysfsError("Failed to stat", vfs_path);
     }
 
     if (stat.filetype != PHYSFS_FILETYPE_DIRECTORY)
     {
-        if (mounted)
-        {
-            PHYSFS_unmount(write_dir);
-        }
         throw MakeError("DeleteDirRecursive requires a directory", vfs_path);
     }
 
-    try
-    {
-        DeleteDirRecursiveInternal(vfs_path, write_dir);
-    }
-    catch (...)
-    {
-        if (mounted)
-        {
-            PHYSFS_unmount(write_dir);
-        }
-        throw;
-    }
-
-    if (mounted)
-    {
-        PHYSFS_unmount(write_dir);
-    }
+    DeleteDirRecursiveInternal(vfs_path, write_dir);
 }
 
 void VFS::FreeList(char **entries) noexcept

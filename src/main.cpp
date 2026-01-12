@@ -7,6 +7,9 @@
 #include <stb_truetype.h>
 #include <tmxlite/Map.hpp>
 
+#include <iostream>
+
+#include "leo/engine_core.h"
 #define MA_MALLOC(sz) SDL_malloc(sz)
 #define MA_REALLOC(p, sz) SDL_realloc(p, sz)
 #define MA_FREE(p) SDL_free(p)
@@ -33,75 +36,43 @@ int main(int argc, char *argv[])
 
     if (show_version)
     {
-        SDL_Log("leo-engine version %s", LEO_ENGINE_VERSION);
+        std::cout << LEO_ENGINE_VERSION << std::endl;
         return 0;
     }
 
-    // Reference STB symbols to prove linking works
-    (void)&stbi_load;
-    (void)&stbtt_InitFont;
-
-    // Load tmx map to prove linking works
-    tmx::Map map;
-    map.load("resources/maps/map.json");
-
-    // Reference Lua symbol to prove linking works
-    (void)&lua_newstate;
-
-    // Reference PhysFS symbol to prove linking works
-    (void)&PHYSFS_init;
-
-    // Reference miniaudio symbol to prove linking works
-    (void)&ma_device_init;
-    if (!SDL_Init(SDL_INIT_VIDEO))
+    try
     {
-        SDL_ShowSimpleMessageBox(SDL_MESSAGEBOX_ERROR, "Initialization Error", SDL_GetError(), nullptr);
+        leo::Engine::Config config = {
+            .argv0 = argv[0],
+            .resource_path = nullptr,
+            .organization = "bluesentinelsec",
+            .app_name = "leo-engine",
+            .window_title = "Leo Engine",
+            .window_width = 1280,
+            .window_height = 720,
+            .logical_width = 320,
+            .logical_height = 180,
+            .window_mode = leo::Engine::WindowMode::Windowed,
+            .tick_hz = 60,
+            .NumFrameTicks = 0,
+            .malloc_fn = SDL_malloc,
+            .realloc_fn = SDL_realloc,
+            .free_fn = SDL_free};
+
+        leo::Engine::Simulation game(config);
+        return game.Run();
+    }
+    catch (const std::exception &e)
+    {
+        SDL_LogError(SDL_LOG_CATEGORY_ERROR, "%s", e.what());
+        SDL_ShowSimpleMessageBox(SDL_MESSAGEBOX_ERROR, "Leo Engine Error", e.what(), nullptr);
         return 1;
     }
-
-    SDL_Window *window = SDL_CreateWindow("Leo Engine", 1280, 720, 0);
-    if (!window)
+    catch (...)
     {
-        SDL_ShowSimpleMessageBox(SDL_MESSAGEBOX_ERROR, "Window Creation Error", SDL_GetError(), nullptr);
-        SDL_Quit();
+        const char *message = "Unknown error";
+        SDL_LogError(SDL_LOG_CATEGORY_ERROR, "%s", message);
+        SDL_ShowSimpleMessageBox(SDL_MESSAGEBOX_ERROR, "Leo Engine Error", message, nullptr);
         return 1;
     }
-
-    SDL_Renderer *renderer = SDL_CreateRenderer(window, nullptr);
-    if (!renderer)
-    {
-        SDL_ShowSimpleMessageBox(SDL_MESSAGEBOX_ERROR, "Renderer Creation Error", SDL_GetError(), nullptr);
-        SDL_DestroyWindow(window);
-        SDL_Quit();
-        return 1;
-    }
-
-    bool running = true;
-    SDL_Event event;
-
-    while (running)
-    {
-        while (SDL_PollEvent(&event))
-        {
-            if (event.type == SDL_EVENT_QUIT)
-            {
-                running = false;
-            }
-        }
-
-        SDL_SetRenderDrawColor(renderer, 0, 0, 0, 255);
-        SDL_RenderClear(renderer);
-
-        SDL_SetRenderDrawColor(renderer, 255, 0, 0, 255);
-        SDL_FRect rect = {540.0f, 310.0f, 200.0f, 100.0f};
-        SDL_RenderFillRect(renderer, &rect);
-
-        SDL_RenderPresent(renderer);
-    }
-
-    SDL_DestroyRenderer(renderer);
-    SDL_DestroyWindow(window);
-    SDL_Quit();
-
-    return 0;
 }
