@@ -22,6 +22,7 @@ jobs:
       run: |
         sudo apt-get update
         sudo apt-get install -y cmake build-essential \
+          xvfb \
           libx11-dev libxext-dev libxrandr-dev libxcursor-dev libxfixes-dev \
           libxi-dev libxinerama-dev libxxf86vm-dev libxss-dev libgl1-mesa-dev \
           libdbus-1-dev libudev-dev libgles2-mesa-dev libegl1-mesa-dev \
@@ -35,7 +36,12 @@ jobs:
     - name: Build
       run: cmake --build build --config Release
     
+    - name: Run tests (Linux)
+      if: runner.os == 'Linux'
+      run: xvfb-run -a bash -lc "cd build && ctest --output-on-failure -C Release"
+    
     - name: Run tests
+      if: runner.os != 'Linux'
       run: cd build && ctest --output-on-failure -C Release
     
     - name: Get version
