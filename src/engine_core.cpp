@@ -1,8 +1,19 @@
 #include "leo/engine_core.h"
+#include "leo/texture_loader.h"
 #include <stdexcept>
+#include <utility>
 
 namespace
 {
+
+struct DemoTextures
+{
+    engine::Texture background;
+    engine::Texture character;
+    bool loaded = false;
+};
+
+DemoTextures g_demo;
 
 const char *GetWindowTitle(const leo::Engine::Config &config)
 {
@@ -156,7 +167,12 @@ int Simulation::Run()
 
 void Simulation::OnInit(Context &ctx)
 {
-    (void)ctx;
+    engine::TextureLoader loader(*ctx.vfs, ctx.renderer);
+    engine::Texture background = loader.Load("images/background_1920x1080.png");
+    engine::Texture character = loader.Load("images/character_64x64.png");
+    g_demo.background = std::move(background);
+    g_demo.character = std::move(character);
+    g_demo.loaded = true;
 }
 
 void Simulation::OnUpdate(Context &ctx, const InputFrame &input)
@@ -169,12 +185,57 @@ void Simulation::OnRender(Context &ctx)
 {
     SDL_SetRenderDrawColor(ctx.renderer, 0, 0, 0, 255);
     SDL_RenderClear(ctx.renderer);
+
+    if (g_demo.loaded)
+    {
+        float target_w = 0.0f;
+        float target_h = 0.0f;
+        if (ctx.config && ctx.config->logical_width > 0)
+        {
+            target_w = static_cast<float>(ctx.config->logical_width);
+        }
+        if (ctx.config && ctx.config->logical_height > 0)
+        {
+            target_h = static_cast<float>(ctx.config->logical_height);
+        }
+        if (target_w <= 0.0f)
+        {
+            target_w = g_demo.background.width > 0 ? static_cast<float>(g_demo.background.width)
+                                                   : static_cast<float>(g_demo.character.width);
+        }
+        if (target_h <= 0.0f)
+        {
+            target_h = g_demo.background.height > 0 ? static_cast<float>(g_demo.background.height)
+                                                    : static_cast<float>(g_demo.character.height);
+        }
+
+        if (g_demo.background.handle)
+        {
+            SDL_FRect dst = {0.0f, 0.0f, target_w, target_h};
+            SDL_RenderTextureRotated(ctx.renderer, g_demo.background.handle, nullptr, &dst, 0.0, nullptr,
+                                     SDL_FLIP_NONE);
+        }
+
+        if (g_demo.character.handle)
+        {
+            SDL_FRect src = {0.0f, 0.0f, static_cast<float>(g_demo.character.width),
+                             static_cast<float>(g_demo.character.height)};
+            SDL_FRect dst = {(target_w - src.w) * 0.5f, (target_h - src.h) * 0.5f, src.w, src.h};
+            SDL_FPoint center = {dst.w * 0.5f, dst.h * 0.5f};
+            double angle = static_cast<double>(ctx.frame_index % 360);
+            SDL_RenderTextureRotated(ctx.renderer, g_demo.character.handle, &src, &dst, angle, &center, SDL_FLIP_NONE);
+        }
+    }
+
     SDL_RenderPresent(ctx.renderer);
 }
 
 void Simulation::OnExit(Context &ctx)
 {
     (void)ctx;
+    g_demo.background.Reset();
+    g_demo.character.Reset();
+    g_demo.loaded = false;
 }
 
 } // namespace Engine

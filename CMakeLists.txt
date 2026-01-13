@@ -76,6 +76,7 @@ set(CORE_SOURCES
     src/stb_impl.cpp
     src/vfs.cpp
     src/engine_core.cpp
+    src/texture_loader.cpp
 )
 
 # Main executable
@@ -100,6 +101,7 @@ add_executable(leo-engine-tests
     tests/test_version.cpp
     tests/test_vfs.cpp
     tests/test_engine_core.cpp
+    tests/test_texture_loader.cpp
     ${CORE_SOURCES}
 )
 
