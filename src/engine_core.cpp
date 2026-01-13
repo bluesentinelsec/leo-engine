@@ -1,4 +1,5 @@
 #include "leo/engine_core.h"
+#include "leo/font.h"
 #include "leo/texture_loader.h"
 #include <stdexcept>
 #include <utility>
@@ -10,7 +11,12 @@ struct DemoTextures
 {
     engine::Texture background;
     engine::Texture character;
+    engine::Font font;
+    engine::Text fps_text;
     bool loaded = false;
+    bool font_loaded = false;
+    Uint64 fps_last_ticks = 0;
+    Uint32 fps_frame_count = 0;
 };
 
 DemoTextures g_demo;
@@ -173,6 +179,20 @@ void Simulation::OnInit(Context &ctx)
     g_demo.background = std::move(background);
     g_demo.character = std::move(character);
     g_demo.loaded = true;
+
+    engine::Font font = engine::Font::LoadFromVfs(*ctx.vfs, ctx.renderer, "font/font.ttf", 24);
+    g_demo.font = std::move(font);
+    engine::TextDesc fps_desc = {
+        .font = &g_demo.font,
+        .text = "FPS: 0",
+        .pixel_size = 24,
+        .position = {16.0f, 16.0f},
+        .color = {255, 255, 255, 255},
+    };
+    g_demo.fps_text = engine::Text(fps_desc);
+    g_demo.font_loaded = true;
+    g_demo.fps_last_ticks = SDL_GetTicks();
+    g_demo.fps_frame_count = 0;
 }
 
 void Simulation::OnUpdate(Context &ctx, const InputFrame &input)
@@ -227,6 +247,23 @@ void Simulation::OnRender(Context &ctx)
         }
     }
 
+    if (g_demo.font_loaded)
+    {
+        g_demo.fps_frame_count++;
+        Uint64 now = SDL_GetTicks();
+        Uint64 elapsed = now - g_demo.fps_last_ticks;
+        if (elapsed >= 1000)
+        {
+            double fps = (static_cast<double>(g_demo.fps_frame_count) * 1000.0) / static_cast<double>(elapsed);
+            char buffer[32];
+            SDL_snprintf(buffer, sizeof(buffer), "FPS: %.1f", fps);
+            g_demo.fps_text.SetString(buffer);
+            g_demo.fps_frame_count = 0;
+            g_demo.fps_last_ticks = now;
+        }
+        g_demo.fps_text.Draw(ctx.renderer);
+    }
+
     SDL_RenderPresent(ctx.renderer);
 }
 
@@ -236,6 +273,9 @@ void Simulation::OnExit(Context &ctx)
     g_demo.background.Reset();
     g_demo.character.Reset();
     g_demo.loaded = false;
+    g_demo.fps_text = engine::Text();
+    g_demo.font.Reset();
+    g_demo.font_loaded = false;
 }
 
 } // namespace Engine
