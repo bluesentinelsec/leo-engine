@@ -42,22 +42,21 @@ int main(int argc, char *argv[])
 
     try
     {
-        leo::Engine::Config config = {
-            .argv0 = argv[0],
-            .resource_path = nullptr,
-            .organization = "bluesentinelsec",
-            .app_name = "leo-engine",
-            .window_title = "Leo Engine",
-            .window_width = 1280,
-            .window_height = 720,
-            .logical_width = 320,
-            .logical_height = 180,
-            .window_mode = leo::Engine::WindowMode::Windowed,
-            .tick_hz = 60,
-            .NumFrameTicks = 0,
-            .malloc_fn = SDL_malloc,
-            .realloc_fn = SDL_realloc,
-            .free_fn = SDL_free};
+        leo::Engine::Config config = {.argv0 = argv[0],
+                                      .resource_path = nullptr,
+                                      .organization = "bluesentinelsec",
+                                      .app_name = "leo-engine",
+                                      .window_title = "Leo Engine",
+                                      .window_width = 1280,
+                                      .window_height = 720,
+                                      .logical_width = 320,
+                                      .logical_height = 180,
+                                      .window_mode = leo::Engine::WindowMode::Windowed,
+                                      .tick_hz = 60,
+                                      .NumFrameTicks = 0,
+                                      .malloc_fn = SDL_malloc,
+                                      .realloc_fn = SDL_realloc,
+                                      .free_fn = SDL_free};
 
         leo::Engine::Simulation game(config);
         return game.Run();

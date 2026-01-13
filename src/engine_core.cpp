@@ -63,8 +63,8 @@ Simulation::Simulation(Config &config) : config(config), vfs(config), window(nul
 
 int Simulation::Run()
 {
-    if (!SDL_Init(SDL_INIT_AUDIO | SDL_INIT_VIDEO | SDL_INIT_EVENTS |
-                  SDL_INIT_HAPTIC | SDL_INIT_GAMEPAD ))
+
+    if (!SDL_Init(SDL_INIT_AUDIO | SDL_INIT_VIDEO | SDL_INIT_EVENTS | SDL_INIT_HAPTIC | SDL_INIT_GAMEPAD))
     {
         throw std::runtime_error(SDL_GetError());
     }
