@@ -78,6 +78,8 @@ set(CORE_SOURCES
     src/engine_core.cpp
     src/texture_loader.cpp
     src/font.cpp
+    src/audio.cpp
+    src/miniaudio_impl.cpp
 )
 
 # Main executable
@@ -104,12 +106,14 @@ add_executable(leo-engine-tests
     tests/test_engine_core.cpp
     tests/test_texture_loader.cpp
     tests/test_font.cpp
+    tests/test_audio.cpp
     ${CORE_SOURCES}
 )
 
 target_include_directories(leo-engine-tests PRIVATE
     ${CMAKE_CURRENT_SOURCE_DIR}/include
     ${CMAKE_CURRENT_SOURCE_DIR}/external/stb-10jan2026
+    ${miniaudio_SOURCE_DIR}
 )
 
 target_link_libraries(leo-engine-tests PRIVATE Catch2::Catch2WithMain SDL3::SDL3 physfs-static)

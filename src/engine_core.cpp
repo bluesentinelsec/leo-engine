@@ -1,4 +1,5 @@
 #include "leo/engine_core.h"
+#include "leo/audio.h"
 #include "leo/font.h"
 #include "leo/texture_loader.h"
 #include <stdexcept>
@@ -13,10 +14,15 @@ struct DemoTextures
     engine::Texture character;
     engine::Font font;
     engine::Text fps_text;
+    engine::Sound coin_sound;
+    engine::Sound ogre_sound;
+    engine::Music music;
     bool loaded = false;
     bool font_loaded = false;
+    bool audio_loaded = false;
     Uint64 fps_last_ticks = 0;
     Uint32 fps_frame_count = 0;
+    Uint32 sfx_ticks = 0;
 };
 
 DemoTextures g_demo;
@@ -193,12 +199,34 @@ void Simulation::OnInit(Context &ctx)
     g_demo.font_loaded = true;
     g_demo.fps_last_ticks = SDL_GetTicks();
     g_demo.fps_frame_count = 0;
+
+    g_demo.coin_sound = engine::Sound::LoadFromVfs(*ctx.vfs, "sound/coin.wav");
+    g_demo.ogre_sound = engine::Sound::LoadFromVfs(*ctx.vfs, "sound/ogre3.wav");
+    g_demo.music = engine::Music::LoadFromVfs(*ctx.vfs, "music/music.wav");
+    g_demo.music.SetLooping(true);
+    g_demo.music.Play();
+    g_demo.coin_sound.Play();
+    g_demo.audio_loaded = true;
+    g_demo.sfx_ticks = 0;
 }
 
 void Simulation::OnUpdate(Context &ctx, const InputFrame &input)
 {
     (void)ctx;
     (void)input;
+
+    if (g_demo.audio_loaded)
+    {
+        g_demo.sfx_ticks++;
+        if (g_demo.sfx_ticks % 120 == 0)
+        {
+            g_demo.coin_sound.Play();
+        }
+        if (g_demo.sfx_ticks % 300 == 0)
+        {
+            g_demo.ogre_sound.Play();
+        }
+    }
 }
 
 void Simulation::OnRender(Context &ctx)
@@ -276,6 +304,10 @@ void Simulation::OnExit(Context &ctx)
     g_demo.fps_text = engine::Text();
     g_demo.font.Reset();
     g_demo.font_loaded = false;
+    g_demo.music.Reset();
+    g_demo.coin_sound.Reset();
+    g_demo.ogre_sound.Reset();
+    g_demo.audio_loaded = false;
 }
 
 } // namespace Engine
