@@ -27,6 +27,151 @@ struct DemoTextures
 
 DemoTextures g_demo;
 
+engine::Key MapScancode(SDL_Scancode scancode)
+{
+    switch (scancode)
+    {
+    case SDL_SCANCODE_A:
+        return engine::Key::A;
+    case SDL_SCANCODE_B:
+        return engine::Key::B;
+    case SDL_SCANCODE_C:
+        return engine::Key::C;
+    case SDL_SCANCODE_D:
+        return engine::Key::D;
+    case SDL_SCANCODE_E:
+        return engine::Key::E;
+    case SDL_SCANCODE_F:
+        return engine::Key::F;
+    case SDL_SCANCODE_G:
+        return engine::Key::G;
+    case SDL_SCANCODE_H:
+        return engine::Key::H;
+    case SDL_SCANCODE_I:
+        return engine::Key::I;
+    case SDL_SCANCODE_J:
+        return engine::Key::J;
+    case SDL_SCANCODE_K:
+        return engine::Key::K;
+    case SDL_SCANCODE_L:
+        return engine::Key::L;
+    case SDL_SCANCODE_M:
+        return engine::Key::M;
+    case SDL_SCANCODE_N:
+        return engine::Key::N;
+    case SDL_SCANCODE_O:
+        return engine::Key::O;
+    case SDL_SCANCODE_P:
+        return engine::Key::P;
+    case SDL_SCANCODE_Q:
+        return engine::Key::Q;
+    case SDL_SCANCODE_R:
+        return engine::Key::R;
+    case SDL_SCANCODE_S:
+        return engine::Key::S;
+    case SDL_SCANCODE_T:
+        return engine::Key::T;
+    case SDL_SCANCODE_U:
+        return engine::Key::U;
+    case SDL_SCANCODE_V:
+        return engine::Key::V;
+    case SDL_SCANCODE_W:
+        return engine::Key::W;
+    case SDL_SCANCODE_X:
+        return engine::Key::X;
+    case SDL_SCANCODE_Y:
+        return engine::Key::Y;
+    case SDL_SCANCODE_Z:
+        return engine::Key::Z;
+    case SDL_SCANCODE_0:
+        return engine::Key::Num0;
+    case SDL_SCANCODE_1:
+        return engine::Key::Num1;
+    case SDL_SCANCODE_2:
+        return engine::Key::Num2;
+    case SDL_SCANCODE_3:
+        return engine::Key::Num3;
+    case SDL_SCANCODE_4:
+        return engine::Key::Num4;
+    case SDL_SCANCODE_5:
+        return engine::Key::Num5;
+    case SDL_SCANCODE_6:
+        return engine::Key::Num6;
+    case SDL_SCANCODE_7:
+        return engine::Key::Num7;
+    case SDL_SCANCODE_8:
+        return engine::Key::Num8;
+    case SDL_SCANCODE_9:
+        return engine::Key::Num9;
+    case SDL_SCANCODE_ESCAPE:
+        return engine::Key::Escape;
+    case SDL_SCANCODE_RETURN:
+        return engine::Key::Enter;
+    case SDL_SCANCODE_SPACE:
+        return engine::Key::Space;
+    case SDL_SCANCODE_TAB:
+        return engine::Key::Tab;
+    case SDL_SCANCODE_BACKSPACE:
+        return engine::Key::Backspace;
+    case SDL_SCANCODE_DELETE:
+        return engine::Key::Delete;
+    case SDL_SCANCODE_LEFT:
+        return engine::Key::Left;
+    case SDL_SCANCODE_RIGHT:
+        return engine::Key::Right;
+    case SDL_SCANCODE_UP:
+        return engine::Key::Up;
+    case SDL_SCANCODE_DOWN:
+        return engine::Key::Down;
+    case SDL_SCANCODE_LSHIFT:
+        return engine::Key::LShift;
+    case SDL_SCANCODE_RSHIFT:
+        return engine::Key::RShift;
+    case SDL_SCANCODE_LCTRL:
+        return engine::Key::LCtrl;
+    case SDL_SCANCODE_RCTRL:
+        return engine::Key::RCtrl;
+    case SDL_SCANCODE_LALT:
+        return engine::Key::LAlt;
+    case SDL_SCANCODE_RALT:
+        return engine::Key::RAlt;
+    case SDL_SCANCODE_HOME:
+        return engine::Key::Home;
+    case SDL_SCANCODE_END:
+        return engine::Key::End;
+    case SDL_SCANCODE_PAGEUP:
+        return engine::Key::PageUp;
+    case SDL_SCANCODE_PAGEDOWN:
+        return engine::Key::PageDown;
+    case SDL_SCANCODE_F1:
+        return engine::Key::F1;
+    case SDL_SCANCODE_F2:
+        return engine::Key::F2;
+    case SDL_SCANCODE_F3:
+        return engine::Key::F3;
+    case SDL_SCANCODE_F4:
+        return engine::Key::F4;
+    case SDL_SCANCODE_F5:
+        return engine::Key::F5;
+    case SDL_SCANCODE_F6:
+        return engine::Key::F6;
+    case SDL_SCANCODE_F7:
+        return engine::Key::F7;
+    case SDL_SCANCODE_F8:
+        return engine::Key::F8;
+    case SDL_SCANCODE_F9:
+        return engine::Key::F9;
+    case SDL_SCANCODE_F10:
+        return engine::Key::F10;
+    case SDL_SCANCODE_F11:
+        return engine::Key::F11;
+    case SDL_SCANCODE_F12:
+        return engine::Key::F12;
+    default:
+        return engine::Key::Unknown;
+    }
+}
+
 const char *GetWindowTitle(const leo::Engine::Config &config)
 {
     return config.window_title ? config.window_title : "Leo Engine";
@@ -129,12 +274,15 @@ int Simulation::Run()
     bool throttle = (config.NumFrameTicks == 0);
 
     SDL_Event event;
+    engine::KeyboardState keyboard_state;
+    keyboard_state.Reset();
     while (running)
     {
         Uint32 frame_start = SDL_GetTicks();
         InputFrame input = {};
         input.quit_requested = false;
         input.frame_index = frame_ticks;
+        keyboard_state.BeginFrame();
 
         while (SDL_PollEvent(&event))
         {
@@ -143,8 +291,19 @@ int Simulation::Run()
                 input.quit_requested = true;
                 running = false;
             }
+            else if (event.type == SDL_EVENT_KEY_DOWN)
+            {
+                engine::Key key = MapScancode(event.key.scancode);
+                keyboard_state.SetKeyDown(key);
+            }
+            else if (event.type == SDL_EVENT_KEY_UP)
+            {
+                engine::Key key = MapScancode(event.key.scancode);
+                keyboard_state.SetKeyUp(key);
+            }
         }
 
+        input.keyboard = keyboard_state;
         ctx.frame_index = frame_ticks;
         OnUpdate(ctx, input);
         OnRender(ctx);
