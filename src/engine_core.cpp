@@ -183,6 +183,25 @@ engine::Key MapScancode(SDL_Scancode scancode)
     }
 }
 
+engine::MouseButton MapMouseButton(Uint8 button)
+{
+    switch (button)
+    {
+    case SDL_BUTTON_LEFT:
+        return engine::MouseButton::Left;
+    case SDL_BUTTON_MIDDLE:
+        return engine::MouseButton::Middle;
+    case SDL_BUTTON_RIGHT:
+        return engine::MouseButton::Right;
+    case SDL_BUTTON_X1:
+        return engine::MouseButton::X1;
+    case SDL_BUTTON_X2:
+        return engine::MouseButton::X2;
+    default:
+        return engine::MouseButton::Unknown;
+    }
+}
+
 engine::GamepadButton MapGamepadButton(Uint8 button)
 {
     switch (button)
@@ -454,6 +473,8 @@ int Simulation::Run()
     SDL_Event event;
     engine::KeyboardState keyboard_state;
     keyboard_state.Reset();
+    engine::MouseState mouse_state;
+    mouse_state.Reset();
     for (int i = 0; i < kMaxGamepads; ++i)
     {
         g_gamepads[i].handle = nullptr;
@@ -467,6 +488,7 @@ int Simulation::Run()
         input.quit_requested = false;
         input.frame_index = frame_ticks;
         keyboard_state.BeginFrame();
+        mouse_state.BeginFrame();
         for (int i = 0; i < kMaxGamepads; ++i)
         {
             g_gamepads[i].state.BeginFrame();
@@ -488,6 +510,35 @@ int Simulation::Run()
             {
                 engine::Key key = MapScancode(event.key.scancode);
                 keyboard_state.SetKeyUp(key);
+            }
+            else if (event.type == SDL_EVENT_MOUSE_MOTION)
+            {
+                mouse_state.SetPosition(event.motion.x, event.motion.y);
+                mouse_state.AddDelta(event.motion.xrel, event.motion.yrel);
+            }
+            else if (event.type == SDL_EVENT_MOUSE_BUTTON_DOWN)
+            {
+                engine::MouseButton button = MapMouseButton(event.button.button);
+                mouse_state.SetButtonDown(button);
+                mouse_state.SetPosition(event.button.x, event.button.y);
+            }
+            else if (event.type == SDL_EVENT_MOUSE_BUTTON_UP)
+            {
+                engine::MouseButton button = MapMouseButton(event.button.button);
+                mouse_state.SetButtonUp(button);
+                mouse_state.SetPosition(event.button.x, event.button.y);
+            }
+            else if (event.type == SDL_EVENT_MOUSE_WHEEL)
+            {
+                float wheel_x = event.wheel.x;
+                float wheel_y = event.wheel.y;
+                if (event.wheel.direction == SDL_MOUSEWHEEL_FLIPPED)
+                {
+                    wheel_x = -wheel_x;
+                    wheel_y = -wheel_y;
+                }
+                mouse_state.AddWheel(wheel_x, wheel_y);
+                mouse_state.SetPosition(event.wheel.mouse_x, event.wheel.mouse_y);
             }
             else if (event.type == SDL_EVENT_GAMEPAD_ADDED)
             {
@@ -531,6 +582,7 @@ int Simulation::Run()
         }
 
         input.keyboard = keyboard_state;
+        input.mouse = mouse_state;
         for (int i = 0; i < kMaxGamepads; ++i)
         {
             input.gamepads[i] = g_gamepads[i].state;
