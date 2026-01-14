@@ -27,6 +27,17 @@ struct DemoTextures
 
 DemoTextures g_demo;
 
+constexpr int kMaxGamepads = 2;
+
+struct GamepadSlot
+{
+    SDL_Gamepad *handle = nullptr;
+    SDL_JoystickID instance = 0;
+    engine::GamepadState state = {};
+};
+
+GamepadSlot g_gamepads[kMaxGamepads];
+
 engine::Key MapScancode(SDL_Scancode scancode)
 {
     switch (scancode)
@@ -172,6 +183,171 @@ engine::Key MapScancode(SDL_Scancode scancode)
     }
 }
 
+engine::GamepadButton MapGamepadButton(Uint8 button)
+{
+    switch (button)
+    {
+    case SDL_GAMEPAD_BUTTON_SOUTH:
+        return engine::GamepadButton::South;
+    case SDL_GAMEPAD_BUTTON_EAST:
+        return engine::GamepadButton::East;
+    case SDL_GAMEPAD_BUTTON_WEST:
+        return engine::GamepadButton::West;
+    case SDL_GAMEPAD_BUTTON_NORTH:
+        return engine::GamepadButton::North;
+    case SDL_GAMEPAD_BUTTON_BACK:
+        return engine::GamepadButton::Back;
+    case SDL_GAMEPAD_BUTTON_GUIDE:
+        return engine::GamepadButton::Guide;
+    case SDL_GAMEPAD_BUTTON_START:
+        return engine::GamepadButton::Start;
+    case SDL_GAMEPAD_BUTTON_LEFT_STICK:
+        return engine::GamepadButton::LeftStick;
+    case SDL_GAMEPAD_BUTTON_RIGHT_STICK:
+        return engine::GamepadButton::RightStick;
+    case SDL_GAMEPAD_BUTTON_LEFT_SHOULDER:
+        return engine::GamepadButton::LeftShoulder;
+    case SDL_GAMEPAD_BUTTON_RIGHT_SHOULDER:
+        return engine::GamepadButton::RightShoulder;
+    case SDL_GAMEPAD_BUTTON_DPAD_UP:
+        return engine::GamepadButton::DpadUp;
+    case SDL_GAMEPAD_BUTTON_DPAD_DOWN:
+        return engine::GamepadButton::DpadDown;
+    case SDL_GAMEPAD_BUTTON_DPAD_LEFT:
+        return engine::GamepadButton::DpadLeft;
+    case SDL_GAMEPAD_BUTTON_DPAD_RIGHT:
+        return engine::GamepadButton::DpadRight;
+    case SDL_GAMEPAD_BUTTON_MISC1:
+        return engine::GamepadButton::Misc1;
+    case SDL_GAMEPAD_BUTTON_TOUCHPAD:
+        return engine::GamepadButton::Touchpad;
+    default:
+        return engine::GamepadButton::Unknown;
+    }
+}
+
+engine::GamepadAxis MapGamepadAxis(Uint8 axis)
+{
+    switch (axis)
+    {
+    case SDL_GAMEPAD_AXIS_LEFTX:
+        return engine::GamepadAxis::LeftX;
+    case SDL_GAMEPAD_AXIS_LEFTY:
+        return engine::GamepadAxis::LeftY;
+    case SDL_GAMEPAD_AXIS_RIGHTX:
+        return engine::GamepadAxis::RightX;
+    case SDL_GAMEPAD_AXIS_RIGHTY:
+        return engine::GamepadAxis::RightY;
+    case SDL_GAMEPAD_AXIS_LEFT_TRIGGER:
+        return engine::GamepadAxis::LeftTrigger;
+    case SDL_GAMEPAD_AXIS_RIGHT_TRIGGER:
+        return engine::GamepadAxis::RightTrigger;
+    default:
+        return engine::GamepadAxis::Count;
+    }
+}
+
+float NormalizeAxis(engine::GamepadAxis axis, Sint16 value)
+{
+    if (axis == engine::GamepadAxis::LeftTrigger || axis == engine::GamepadAxis::RightTrigger)
+    {
+        float normalized = static_cast<float>(value) / 32767.0f;
+        if (normalized < 0.0f)
+        {
+            return 0.0f;
+        }
+        if (normalized > 1.0f)
+        {
+            return 1.0f;
+        }
+        return normalized;
+    }
+
+    if (value < 0)
+    {
+        return static_cast<float>(value) / 32768.0f;
+    }
+    return static_cast<float>(value) / 32767.0f;
+}
+
+int FindGamepadSlot(SDL_JoystickID instance_id)
+{
+    for (int i = 0; i < kMaxGamepads; ++i)
+    {
+        if (g_gamepads[i].handle && g_gamepads[i].instance == instance_id)
+        {
+            return i;
+        }
+    }
+    return -1;
+}
+
+int FindFreeGamepadSlot()
+{
+    for (int i = 0; i < kMaxGamepads; ++i)
+    {
+        if (!g_gamepads[i].handle)
+        {
+            return i;
+        }
+    }
+    return -1;
+}
+
+void AttachGamepad(SDL_JoystickID instance_id)
+{
+    int slot = FindFreeGamepadSlot();
+    if (slot < 0)
+    {
+        SDL_LogInfo(SDL_LOG_CATEGORY_APPLICATION, "Gamepad ignored: no free slots");
+        return;
+    }
+
+    SDL_Gamepad *gamepad = SDL_OpenGamepad(instance_id);
+    if (!gamepad)
+    {
+        SDL_LogWarn(SDL_LOG_CATEGORY_APPLICATION, "Failed to open gamepad: %s", SDL_GetError());
+        return;
+    }
+
+    g_gamepads[slot].handle = gamepad;
+    g_gamepads[slot].instance = instance_id;
+    g_gamepads[slot].state.Reset();
+    g_gamepads[slot].state.SetConnected(true);
+}
+
+void DetachGamepad(SDL_JoystickID instance_id)
+{
+    int slot = FindGamepadSlot(instance_id);
+    if (slot < 0)
+    {
+        return;
+    }
+
+    if (g_gamepads[slot].handle)
+    {
+        SDL_CloseGamepad(g_gamepads[slot].handle);
+    }
+
+    g_gamepads[slot].handle = nullptr;
+    g_gamepads[slot].instance = 0;
+    g_gamepads[slot].state.Reset();
+}
+
+void CloseGamepads()
+{
+    for (int i = 0; i < kMaxGamepads; ++i)
+    {
+        if (g_gamepads[i].handle)
+        {
+            SDL_CloseGamepad(g_gamepads[i].handle);
+            g_gamepads[i].handle = nullptr;
+        }
+        g_gamepads[i].instance = 0;
+        g_gamepads[i].state.Reset();
+    }
+}
+
 const char *GetWindowTitle(const leo::Engine::Config &config)
 {
     return config.window_title ? config.window_title : "Leo Engine";
@@ -237,6 +413,8 @@ int Simulation::Run()
         throw std::runtime_error(SDL_GetError());
     }
 
+    SDL_SetGamepadEventsEnabled(true);
+
     int width = 0;
     int height = 0;
     ResolveWindowSize(config, &width, &height);
@@ -276,6 +454,12 @@ int Simulation::Run()
     SDL_Event event;
     engine::KeyboardState keyboard_state;
     keyboard_state.Reset();
+    for (int i = 0; i < kMaxGamepads; ++i)
+    {
+        g_gamepads[i].handle = nullptr;
+        g_gamepads[i].instance = 0;
+        g_gamepads[i].state.Reset();
+    }
     while (running)
     {
         Uint32 frame_start = SDL_GetTicks();
@@ -283,6 +467,10 @@ int Simulation::Run()
         input.quit_requested = false;
         input.frame_index = frame_ticks;
         keyboard_state.BeginFrame();
+        for (int i = 0; i < kMaxGamepads; ++i)
+        {
+            g_gamepads[i].state.BeginFrame();
+        }
 
         while (SDL_PollEvent(&event))
         {
@@ -301,9 +489,52 @@ int Simulation::Run()
                 engine::Key key = MapScancode(event.key.scancode);
                 keyboard_state.SetKeyUp(key);
             }
+            else if (event.type == SDL_EVENT_GAMEPAD_ADDED)
+            {
+                AttachGamepad(event.gdevice.which);
+            }
+            else if (event.type == SDL_EVENT_GAMEPAD_REMOVED)
+            {
+                DetachGamepad(event.gdevice.which);
+            }
+            else if (event.type == SDL_EVENT_GAMEPAD_BUTTON_DOWN)
+            {
+                int slot = FindGamepadSlot(event.gbutton.which);
+                if (slot >= 0)
+                {
+                    engine::GamepadButton button = MapGamepadButton(event.gbutton.button);
+                    g_gamepads[slot].state.SetButtonDown(button);
+                }
+            }
+            else if (event.type == SDL_EVENT_GAMEPAD_BUTTON_UP)
+            {
+                int slot = FindGamepadSlot(event.gbutton.which);
+                if (slot >= 0)
+                {
+                    engine::GamepadButton button = MapGamepadButton(event.gbutton.button);
+                    g_gamepads[slot].state.SetButtonUp(button);
+                }
+            }
+            else if (event.type == SDL_EVENT_GAMEPAD_AXIS_MOTION)
+            {
+                int slot = FindGamepadSlot(event.gaxis.which);
+                if (slot >= 0)
+                {
+                    engine::GamepadAxis axis = MapGamepadAxis(event.gaxis.axis);
+                    if (axis != engine::GamepadAxis::Count)
+                    {
+                        float value = NormalizeAxis(axis, event.gaxis.value);
+                        g_gamepads[slot].state.SetAxis(axis, value);
+                    }
+                }
+            }
         }
 
         input.keyboard = keyboard_state;
+        for (int i = 0; i < kMaxGamepads; ++i)
+        {
+            input.gamepads[i] = g_gamepads[i].state;
+        }
         ctx.frame_index = frame_ticks;
         OnUpdate(ctx, input);
         OnRender(ctx);
@@ -325,6 +556,8 @@ int Simulation::Run()
     }
 
     OnExit(ctx);
+
+    CloseGamepads();
 
     SDL_DestroyRenderer(renderer);
     SDL_DestroyWindow(window);

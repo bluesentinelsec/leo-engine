@@ -2,6 +2,7 @@
 #define LEO_ENGINE_CORE_H
 
 #include "engine_config.h"
+#include "leo/gamepad.h"
 #include "leo/keyboard.h"
 #include "leo/vfs.h"
 #include <SDL3/SDL.h>
@@ -19,6 +20,7 @@ struct InputFrame
     bool quit_requested;
     Uint32 frame_index;
     ::engine::KeyboardState keyboard;
+    ::engine::GamepadState gamepads[2];
 };
 
 struct Context

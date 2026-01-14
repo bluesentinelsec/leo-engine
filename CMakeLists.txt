@@ -108,6 +108,7 @@ add_executable(leo-engine-tests
     tests/test_font.cpp
     tests/test_audio.cpp
     tests/test_keyboard.cpp
+    tests/test_gamepad.cpp
     ${CORE_SOURCES}
 )
 
