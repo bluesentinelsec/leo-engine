@@ -364,18 +364,9 @@ Uint32 ResolveTickHz(const leo::Engine::Config &config)
     return config.tick_hz > 0 ? static_cast<Uint32>(config.tick_hz) : 60;
 }
 
-SDL_WindowFlags ResolveWindowFlags(leo::Engine::WindowMode mode)
+SDL_WindowFlags ResolveBaseWindowFlags()
 {
-    switch (mode)
-    {
-    case leo::Engine::WindowMode::Fullscreen:
-        return SDL_WINDOW_FULLSCREEN;
-    case leo::Engine::WindowMode::BorderlessFullscreen:
-        return static_cast<SDL_WindowFlags>(SDL_WINDOW_FULLSCREEN | SDL_WINDOW_BORDERLESS);
-    case leo::Engine::WindowMode::Windowed:
-    default:
-        return SDL_WINDOW_RESIZABLE;
-    }
+    return SDL_WINDOW_RESIZABLE;
 }
 
 const SDL_DisplayMode *GetDesktopDisplayMode(SDL_Window *window)
@@ -498,12 +489,14 @@ int Simulation::Run()
     int height = 0;
     ResolveWindowSize(config, &width, &height);
 
-    window = SDL_CreateWindow(GetWindowTitle(config), width, height, ResolveWindowFlags(config.window_mode));
+    window = SDL_CreateWindow(GetWindowTitle(config), width, height, ResolveBaseWindowFlags());
     if (!window)
     {
         SDL_Quit();
         throw std::runtime_error(SDL_GetError());
     }
+
+    SDL_PumpEvents();
 
     try
     {
