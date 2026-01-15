@@ -46,7 +46,7 @@ int main(int argc, char *argv[])
                                       .window_height = 720,
                                       .logical_width = 1920,
                                       .logical_height = 1080,
-                                      .window_mode = leo::Engine::WindowMode::Windowed,
+                                      .window_mode = leo::Engine::WindowMode::BorderlessFullscreen,
                                       .tick_hz = 60,
                                       .NumFrameTicks = 0,
                                       .malloc_fn = SDL_malloc,

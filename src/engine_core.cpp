@@ -374,7 +374,85 @@ SDL_WindowFlags ResolveWindowFlags(leo::Engine::WindowMode mode)
         return static_cast<SDL_WindowFlags>(SDL_WINDOW_FULLSCREEN | SDL_WINDOW_BORDERLESS);
     case leo::Engine::WindowMode::Windowed:
     default:
-        return 0;
+        return SDL_WINDOW_RESIZABLE;
+    }
+}
+
+const SDL_DisplayMode *GetDesktopDisplayMode(SDL_Window *window)
+{
+    SDL_DisplayID display_id = SDL_GetDisplayForWindow(window);
+    if (display_id == 0)
+    {
+        throw std::runtime_error(SDL_GetError());
+    }
+
+    const SDL_DisplayMode *desktop_mode = SDL_GetDesktopDisplayMode(display_id);
+    if (!desktop_mode)
+    {
+        throw std::runtime_error(SDL_GetError());
+    }
+
+    return desktop_mode;
+}
+
+void ApplyWindowMode(SDL_Window *window, const leo::Engine::Config &config)
+{
+    if (!window)
+    {
+        throw std::runtime_error("ApplyWindowMode requires a window");
+    }
+
+    switch (config.window_mode)
+    {
+    case leo::Engine::WindowMode::Windowed: {
+        if (!SDL_SetWindowFullscreen(window, false))
+        {
+            throw std::runtime_error(SDL_GetError());
+        }
+
+        SDL_SetWindowFullscreenMode(window, nullptr);
+        SDL_SetWindowBordered(window, true);
+        SDL_SetWindowResizable(window, true);
+
+        int width = 0;
+        int height = 0;
+        ResolveWindowSize(config, &width, &height);
+        SDL_SetWindowSize(window, width, height);
+        break;
+    }
+    case leo::Engine::WindowMode::BorderlessFullscreen: {
+        if (!SDL_SetWindowFullscreen(window, false))
+        {
+            throw std::runtime_error(SDL_GetError());
+        }
+
+        if (!SDL_SetWindowFullscreenMode(window, nullptr))
+        {
+            throw std::runtime_error(SDL_GetError());
+        }
+
+        SDL_SetWindowBordered(window, false);
+        SDL_SetWindowResizable(window, false);
+
+        const SDL_DisplayMode *desktop_mode = GetDesktopDisplayMode(window);
+        SDL_SetWindowSize(window, desktop_mode->w, desktop_mode->h);
+        SDL_SetWindowPosition(window, 0, 0);
+        SDL_RaiseWindow(window);
+        break;
+    }
+    case leo::Engine::WindowMode::Fullscreen: {
+        const SDL_DisplayMode *desktop_mode = GetDesktopDisplayMode(window);
+        if (!SDL_SetWindowFullscreenMode(window, desktop_mode))
+        {
+            throw std::runtime_error(SDL_GetError());
+        }
+        SDL_SetWindowResizable(window, false);
+        if (!SDL_SetWindowFullscreen(window, true))
+        {
+            throw std::runtime_error(SDL_GetError());
+        }
+        break;
+    }
     }
 }
 
@@ -425,6 +503,17 @@ int Simulation::Run()
     {
         SDL_Quit();
         throw std::runtime_error(SDL_GetError());
+    }
+
+    try
+    {
+        ApplyWindowMode(window, config);
+    }
+    catch (...)
+    {
+        SDL_DestroyWindow(window);
+        SDL_Quit();
+        throw;
     }
 
     renderer = SDL_CreateRenderer(window, nullptr);

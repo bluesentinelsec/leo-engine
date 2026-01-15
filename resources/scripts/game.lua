@@ -1,4 +1,5 @@
 local graphics = leo.graphics
+local window = leo.window
 local audio = leo.audio
 local font = leo.font
 
@@ -57,6 +58,18 @@ leo.update = function(dt, input)
   end
   if sfx_ticks % 300 == 0 then
     ogre_sfx:play()
+  end
+
+  if input.keyboard:isPressed("escape") then
+    leo.quit()
+  end
+
+  if input.keyboard:isPressed("1") then
+    window.setMode("borderless")
+  elseif input.keyboard:isPressed("2") then
+    window.setMode("windowed")
+  elseif input.keyboard:isPressed("3") then
+    window.setMode("fullscreen")
   end
 end
 

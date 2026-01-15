@@ -49,6 +49,8 @@ class LuaRuntime
     void ClearQuitRequest() noexcept;
     bool IsLoaded() const noexcept;
     void RequestQuit() noexcept;
+    WindowMode GetWindowMode() const noexcept;
+    void SetWindowMode(WindowMode mode) noexcept;
 
     VFS &GetVfs() const;
     SDL_Window *GetWindow() const noexcept;
@@ -75,6 +77,7 @@ class LuaRuntime
     bool loaded;
     bool quit_requested;
     SDL_Color draw_color;
+    WindowMode window_mode;
     int current_font_ref;
     engine::Font *current_font_ptr;
     int current_font_size;

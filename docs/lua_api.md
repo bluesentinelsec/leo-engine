@@ -49,6 +49,15 @@ leo.graphics.draw(tex, x, y, angle, sx, sy)
 leo.graphics.setColor(255, 255, 255, 255)
 ```
 
+### leo.window
+Window sizing and mode helpers.
+
+```lua
+leo.window.setMode("borderless")
+leo.window.setSize(1280, 720)
+local w, h = leo.window.getSize()
+```
+
 ### leo.font
 Font loading and text rendering.
 

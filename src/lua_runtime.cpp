@@ -161,6 +161,135 @@ engine::Key ParseKey(const char *name)
     return engine::Key::Unknown;
 }
 
+bool ParseWindowMode(const char *name, engine::WindowMode *out_mode)
+{
+    if (!name || !*name || !out_mode)
+    {
+        return false;
+    }
+
+    if (SDL_strcasecmp(name, "windowed") == 0 || SDL_strcasecmp(name, "window") == 0)
+    {
+        *out_mode = engine::WindowMode::Windowed;
+        return true;
+    }
+
+    if (SDL_strcasecmp(name, "fullscreen") == 0 || SDL_strcasecmp(name, "exclusive") == 0 ||
+        SDL_strcasecmp(name, "fullscreenexclusive") == 0)
+    {
+        *out_mode = engine::WindowMode::Fullscreen;
+        return true;
+    }
+
+    if (SDL_strcasecmp(name, "borderless") == 0 || SDL_strcasecmp(name, "borderlessfullscreen") == 0 ||
+        SDL_strcasecmp(name, "fullscreenborderless") == 0)
+    {
+        *out_mode = engine::WindowMode::BorderlessFullscreen;
+        return true;
+    }
+
+    return false;
+}
+
+void ResolveWindowSize(const engine::Config *config, int *out_width, int *out_height)
+{
+    int width = 1280;
+    int height = 720;
+    if (config)
+    {
+        if (config->window_width > 0)
+        {
+            width = config->window_width;
+        }
+        if (config->window_height > 0)
+        {
+            height = config->window_height;
+        }
+    }
+    *out_width = width;
+    *out_height = height;
+}
+
+const SDL_DisplayMode *GetDesktopDisplayMode(SDL_Window *window)
+{
+    SDL_DisplayID display_id = SDL_GetDisplayForWindow(window);
+    if (display_id == 0)
+    {
+        return nullptr;
+    }
+
+    return SDL_GetDesktopDisplayMode(display_id);
+}
+
+bool ApplyWindowMode(SDL_Window *window, const engine::Config *config, engine::WindowMode mode)
+{
+    if (!window)
+    {
+        SDL_SetError("ApplyWindowMode requires a window");
+        return false;
+    }
+
+    switch (mode)
+    {
+    case engine::WindowMode::Windowed: {
+        if (!SDL_SetWindowFullscreen(window, false))
+        {
+            return false;
+        }
+        SDL_SetWindowFullscreenMode(window, nullptr);
+        SDL_SetWindowBordered(window, true);
+        SDL_SetWindowResizable(window, true);
+
+        int width = 0;
+        int height = 0;
+        ResolveWindowSize(config, &width, &height);
+        SDL_SetWindowSize(window, width, height);
+        break;
+    }
+    case engine::WindowMode::BorderlessFullscreen: {
+        if (!SDL_SetWindowFullscreen(window, false))
+        {
+            return false;
+        }
+        if (!SDL_SetWindowFullscreenMode(window, nullptr))
+        {
+            return false;
+        }
+        SDL_SetWindowBordered(window, false);
+        SDL_SetWindowResizable(window, false);
+
+        const SDL_DisplayMode *desktop_mode = GetDesktopDisplayMode(window);
+        if (!desktop_mode)
+        {
+            return false;
+        }
+        SDL_SetWindowSize(window, desktop_mode->w, desktop_mode->h);
+        SDL_SetWindowPosition(window, 0, 0);
+        SDL_RaiseWindow(window);
+        break;
+    }
+    case engine::WindowMode::Fullscreen: {
+        const SDL_DisplayMode *desktop_mode = GetDesktopDisplayMode(window);
+        if (!desktop_mode)
+        {
+            return false;
+        }
+        if (!SDL_SetWindowFullscreenMode(window, desktop_mode))
+        {
+            return false;
+        }
+        SDL_SetWindowResizable(window, false);
+        if (!SDL_SetWindowFullscreen(window, true))
+        {
+            return false;
+        }
+        break;
+    }
+    }
+
+    return true;
+}
+
 engine::MouseButton ParseMouseButton(const char *name)
 {
     if (!name || !*name)
@@ -396,6 +525,74 @@ int LuaGraphicsGetSize(lua_State *L)
     else if (runtime->GetWindow())
     {
         SDL_GetWindowSize(runtime->GetWindow(), &width, &height);
+    }
+
+    lua_pushinteger(L, width);
+    lua_pushinteger(L, height);
+    return 2;
+}
+
+int LuaWindowSetSize(lua_State *L)
+{
+    engine::LuaRuntime *runtime = GetRuntime(L);
+    SDL_Window *window = runtime->GetWindow();
+    if (!window)
+    {
+        return luaL_error(L, "leo.window.setSize requires an active window");
+    }
+
+    int width = static_cast<int>(luaL_checkinteger(L, 1));
+    int height = static_cast<int>(luaL_checkinteger(L, 2));
+    if (width <= 0 || height <= 0)
+    {
+        return luaL_error(L, "leo.window.setSize requires positive dimensions");
+    }
+
+    SDL_SetWindowSize(window, width, height);
+    return 0;
+}
+
+int LuaWindowSetMode(lua_State *L)
+{
+    engine::LuaRuntime *runtime = GetRuntime(L);
+    SDL_Window *window = runtime->GetWindow();
+    if (!window)
+    {
+        return luaL_error(L, "leo.window.setMode requires an active window");
+    }
+
+    const char *mode_name = luaL_checkstring(L, 1);
+    engine::WindowMode mode = engine::WindowMode::Windowed;
+    if (!ParseWindowMode(mode_name, &mode))
+    {
+        return luaL_error(L, "Unknown window mode: %s", mode_name);
+    }
+
+    if (mode == runtime->GetWindowMode())
+    {
+        return 0;
+    }
+
+    const engine::Config *config = runtime->GetConfig();
+    if (!ApplyWindowMode(window, config, mode))
+    {
+        const char *error = SDL_GetError();
+        return luaL_error(L, "%s", (error && *error) ? error : "Failed to change window mode");
+    }
+
+    runtime->SetWindowMode(mode);
+    return 0;
+}
+
+int LuaWindowGetSize(lua_State *L)
+{
+    engine::LuaRuntime *runtime = GetRuntime(L);
+    SDL_Window *window = runtime->GetWindow();
+    int width = 0;
+    int height = 0;
+    if (window)
+    {
+        SDL_GetWindowSize(window, &width, &height);
     }
 
     lua_pushinteger(L, width);
@@ -1041,6 +1238,17 @@ void RegisterGraphics(lua_State *L)
     lua_setfield(L, -2, "getSize");
 }
 
+void RegisterWindow(lua_State *L)
+{
+    lua_newtable(L);
+    lua_pushcfunction(L, LuaWindowSetSize);
+    lua_setfield(L, -2, "setSize");
+    lua_pushcfunction(L, LuaWindowSetMode);
+    lua_setfield(L, -2, "setMode");
+    lua_pushcfunction(L, LuaWindowGetSize);
+    lua_setfield(L, -2, "getSize");
+}
+
 void RegisterFont(lua_State *L)
 {
     lua_newtable(L);
@@ -1139,6 +1347,9 @@ void RegisterLeo(lua_State *L)
     RegisterGraphics(L);
     lua_setfield(L, -2, "graphics");
 
+    RegisterWindow(L);
+    lua_setfield(L, -2, "window");
+
     RegisterFont(L);
     lua_setfield(L, -2, "font");
 
@@ -1164,8 +1375,8 @@ namespace engine
 
 LuaRuntime::LuaRuntime() noexcept
     : L(nullptr), vfs(nullptr), window(nullptr), renderer(nullptr), config(nullptr), tick_index(0), tick_dt(0.0f),
-      loaded(false), quit_requested(false), draw_color({255, 255, 255, 255}), current_font_ref(LUA_NOREF),
-      current_font_ptr(nullptr), current_font_size(0)
+      loaded(false), quit_requested(false), draw_color({255, 255, 255, 255}), window_mode(WindowMode::Windowed),
+      current_font_ref(LUA_NOREF), current_font_ptr(nullptr), current_font_size(0)
 {
 }
 
@@ -1184,6 +1395,7 @@ void LuaRuntime::Init(VFS &vfs_ref, SDL_Window *window_ref, SDL_Renderer *render
     window = window_ref;
     renderer = renderer_ref;
     config = &cfg;
+    window_mode = cfg.window_mode;
 
     L = luaL_newstate();
     if (!L)
@@ -1360,6 +1572,16 @@ bool LuaRuntime::IsLoaded() const noexcept
 void LuaRuntime::RequestQuit() noexcept
 {
     quit_requested = true;
+}
+
+WindowMode LuaRuntime::GetWindowMode() const noexcept
+{
+    return window_mode;
+}
+
+void LuaRuntime::SetWindowMode(WindowMode mode) noexcept
+{
+    window_mode = mode;
 }
 
 VFS &LuaRuntime::GetVfs() const
