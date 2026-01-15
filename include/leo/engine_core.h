@@ -7,6 +7,14 @@
 #include "leo/mouse.h"
 #include "leo/vfs.h"
 #include <SDL3/SDL.h>
+#include <memory>
+
+namespace engine
+{
+
+class LuaRuntime;
+
+} // namespace engine
 
 namespace leo
 {
@@ -38,11 +46,12 @@ class Simulation
 {
   public:
     explicit Simulation(Config &config);
+    ~Simulation();
     int Run();
 
   private:
     void OnInit(Context &ctx);
-    void OnUpdate(Context &ctx, const InputFrame &input);
+    void OnUpdate(Context &ctx, const InputFrame &input, float dt);
     void OnRender(Context &ctx);
     void OnExit(Context &ctx);
 
@@ -50,6 +59,7 @@ class Simulation
     ::engine::VFS vfs;
     SDL_Window *window;
     SDL_Renderer *renderer;
+    std::unique_ptr<::engine::LuaRuntime> lua;
 };
 
 } // namespace Engine

@@ -5,6 +5,7 @@ TEST_CASE("Simulation runs requested frame ticks", "[engine_core]")
 {
     engine::Config config = {.argv0 = "test",
                              .resource_path = nullptr,
+                             .script_path = nullptr,
                              .organization = "bluesentinelsec",
                              .app_name = "leo-engine",
                              .window_title = "Leo Engine Test",

@@ -1,31 +1,10 @@
 #include "leo/engine_core.h"
-#include "leo/audio.h"
-#include "leo/font.h"
-#include "leo/texture_loader.h"
+#include "leo/lua_runtime.h"
+#include <memory>
 #include <stdexcept>
-#include <utility>
 
 namespace
 {
-
-struct DemoTextures
-{
-    engine::Texture background;
-    engine::Texture character;
-    engine::Font font;
-    engine::Text fps_text;
-    engine::Sound coin_sound;
-    engine::Sound ogre_sound;
-    engine::Music music;
-    bool loaded = false;
-    bool font_loaded = false;
-    bool audio_loaded = false;
-    Uint64 fps_last_ticks = 0;
-    Uint32 fps_frame_count = 0;
-    Uint32 sfx_ticks = 0;
-};
-
-DemoTextures g_demo;
 
 constexpr int kMaxGamepads = 2;
 
@@ -420,9 +399,12 @@ namespace leo
 namespace Engine
 {
 
-Simulation::Simulation(Config &config) : config(config), vfs(config), window(nullptr), renderer(nullptr)
+Simulation::Simulation(Config &config)
+    : config(config), vfs(config), window(nullptr), renderer(nullptr), lua(nullptr)
 {
 }
+
+Simulation::~Simulation() = default;
 
 int Simulation::Run()
 {
@@ -467,6 +449,7 @@ int Simulation::Run()
     bool running = true;
     Uint32 frame_ticks = 0;
     Uint32 tick_hz = ResolveTickHz(config);
+    float tick_dt = tick_hz > 0 ? 1.0f / static_cast<float>(tick_hz) : 0.0f;
     Uint32 tick_delay_ms = tick_hz > 0 ? 1000 / tick_hz : 0;
     bool throttle = (config.NumFrameTicks == 0);
 
@@ -588,8 +571,16 @@ int Simulation::Run()
             input.gamepads[i] = g_gamepads[i].state;
         }
         ctx.frame_index = frame_ticks;
-        OnUpdate(ctx, input);
+        if (lua)
+        {
+            lua->SetFrameInfo(frame_ticks, tick_dt);
+        }
+        OnUpdate(ctx, input, tick_dt);
         OnRender(ctx);
+        if (lua && lua->WantsQuit())
+        {
+            running = false;
+        }
 
         frame_ticks++;
         if (config.NumFrameTicks > 0 && frame_ticks >= config.NumFrameTicks)
@@ -623,53 +614,23 @@ int Simulation::Run()
 
 void Simulation::OnInit(Context &ctx)
 {
-    engine::TextureLoader loader(*ctx.vfs, ctx.renderer);
-    engine::Texture background = loader.Load("images/background_1920x1080.png");
-    engine::Texture character = loader.Load("images/character_64x64.png");
-    g_demo.background = std::move(background);
-    g_demo.character = std::move(character);
-    g_demo.loaded = true;
+    if (!config.script_path || !*config.script_path)
+    {
+        return;
+    }
 
-    engine::Font font = engine::Font::LoadFromVfs(*ctx.vfs, ctx.renderer, "font/font.ttf", 24);
-    g_demo.font = std::move(font);
-    engine::TextDesc fps_desc = {
-        .font = &g_demo.font,
-        .text = "FPS: 0",
-        .pixel_size = 24,
-        .position = {16.0f, 16.0f},
-        .color = {255, 255, 255, 255},
-    };
-    g_demo.fps_text = engine::Text(fps_desc);
-    g_demo.font_loaded = true;
-    g_demo.fps_last_ticks = SDL_GetTicks();
-    g_demo.fps_frame_count = 0;
-
-    g_demo.coin_sound = engine::Sound::LoadFromVfs(*ctx.vfs, "sound/coin.wav");
-    g_demo.ogre_sound = engine::Sound::LoadFromVfs(*ctx.vfs, "sound/ogre3.wav");
-    g_demo.music = engine::Music::LoadFromVfs(*ctx.vfs, "music/music.wav");
-    g_demo.music.SetLooping(true);
-    g_demo.music.Play();
-    g_demo.coin_sound.Play();
-    g_demo.audio_loaded = true;
-    g_demo.sfx_ticks = 0;
+    lua = std::make_unique<engine::LuaRuntime>();
+    lua->Init(*ctx.vfs, ctx.window, ctx.renderer, config);
+    lua->LoadScript(config.script_path);
+    lua->CallLoad();
 }
 
-void Simulation::OnUpdate(Context &ctx, const InputFrame &input)
+void Simulation::OnUpdate(Context &ctx, const InputFrame &input, float dt)
 {
     (void)ctx;
-    (void)input;
-
-    if (g_demo.audio_loaded)
+    if (lua)
     {
-        g_demo.sfx_ticks++;
-        if (g_demo.sfx_ticks % 120 == 0)
-        {
-            g_demo.coin_sound.Play();
-        }
-        if (g_demo.sfx_ticks % 300 == 0)
-        {
-            g_demo.ogre_sound.Play();
-        }
+        lua->CallUpdate(dt, input);
     }
 }
 
@@ -678,62 +639,9 @@ void Simulation::OnRender(Context &ctx)
     SDL_SetRenderDrawColor(ctx.renderer, 0, 0, 0, 255);
     SDL_RenderClear(ctx.renderer);
 
-    if (g_demo.loaded)
+    if (lua)
     {
-        float target_w = 0.0f;
-        float target_h = 0.0f;
-        if (ctx.config && ctx.config->logical_width > 0)
-        {
-            target_w = static_cast<float>(ctx.config->logical_width);
-        }
-        if (ctx.config && ctx.config->logical_height > 0)
-        {
-            target_h = static_cast<float>(ctx.config->logical_height);
-        }
-        if (target_w <= 0.0f)
-        {
-            target_w = g_demo.background.width > 0 ? static_cast<float>(g_demo.background.width)
-                                                   : static_cast<float>(g_demo.character.width);
-        }
-        if (target_h <= 0.0f)
-        {
-            target_h = g_demo.background.height > 0 ? static_cast<float>(g_demo.background.height)
-                                                    : static_cast<float>(g_demo.character.height);
-        }
-
-        if (g_demo.background.handle)
-        {
-            SDL_FRect dst = {0.0f, 0.0f, target_w, target_h};
-            SDL_RenderTextureRotated(ctx.renderer, g_demo.background.handle, nullptr, &dst, 0.0, nullptr,
-                                     SDL_FLIP_NONE);
-        }
-
-        if (g_demo.character.handle)
-        {
-            SDL_FRect src = {0.0f, 0.0f, static_cast<float>(g_demo.character.width),
-                             static_cast<float>(g_demo.character.height)};
-            SDL_FRect dst = {(target_w - src.w) * 0.5f, (target_h - src.h) * 0.5f, src.w, src.h};
-            SDL_FPoint center = {dst.w * 0.5f, dst.h * 0.5f};
-            double angle = static_cast<double>(ctx.frame_index % 360);
-            SDL_RenderTextureRotated(ctx.renderer, g_demo.character.handle, &src, &dst, angle, &center, SDL_FLIP_NONE);
-        }
-    }
-
-    if (g_demo.font_loaded)
-    {
-        g_demo.fps_frame_count++;
-        Uint64 now = SDL_GetTicks();
-        Uint64 elapsed = now - g_demo.fps_last_ticks;
-        if (elapsed >= 1000)
-        {
-            double fps = (static_cast<double>(g_demo.fps_frame_count) * 1000.0) / static_cast<double>(elapsed);
-            char buffer[32];
-            SDL_snprintf(buffer, sizeof(buffer), "FPS: %.1f", fps);
-            g_demo.fps_text.SetString(buffer);
-            g_demo.fps_frame_count = 0;
-            g_demo.fps_last_ticks = now;
-        }
-        g_demo.fps_text.Draw(ctx.renderer);
+        lua->CallDraw();
     }
 
     SDL_RenderPresent(ctx.renderer);
@@ -742,16 +650,11 @@ void Simulation::OnRender(Context &ctx)
 void Simulation::OnExit(Context &ctx)
 {
     (void)ctx;
-    g_demo.background.Reset();
-    g_demo.character.Reset();
-    g_demo.loaded = false;
-    g_demo.fps_text = engine::Text();
-    g_demo.font.Reset();
-    g_demo.font_loaded = false;
-    g_demo.music.Reset();
-    g_demo.coin_sound.Reset();
-    g_demo.ogre_sound.Reset();
-    g_demo.audio_loaded = false;
+    if (lua)
+    {
+        lua->CallShutdown();
+        lua.reset();
+    }
 }
 
 } // namespace Engine

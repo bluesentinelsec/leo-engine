@@ -80,6 +80,7 @@ set(CORE_SOURCES
     src/font.cpp
     src/audio.cpp
     src/miniaudio_impl.cpp
+    src/lua_runtime.cpp
 )
 
 # Main executable
@@ -119,7 +120,7 @@ target_include_directories(leo-engine-tests PRIVATE
     ${miniaudio_SOURCE_DIR}
 )
 
-target_link_libraries(leo-engine-tests PRIVATE Catch2::Catch2WithMain SDL3::SDL3 physfs-static)
+target_link_libraries(leo-engine-tests PRIVATE Catch2::Catch2WithMain SDL3::SDL3 lua::lua physfs-static)
 
 enable_testing()
 add_test(NAME leo-engine-tests COMMAND leo-engine-tests)

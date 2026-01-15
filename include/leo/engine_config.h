@@ -17,6 +17,7 @@ struct Config
 {
     const char *argv0;         // argv[0] from main
     const char *resource_path; // Path to mounted resource directory/archive
+    const char *script_path;   // Lua script path inside VFS (optional)
     const char *organization;  // "bluesentinelsec"
     const char *app_name;      // "leo-engine"
     const char *window_title;  // Window title

@@ -2,7 +2,6 @@
 #include "leo/engine_config.h"
 #include "leo/vfs.h"
 #include <catch2/catch_test_macros.hpp>
-#include <cstdlib>
 #include <stdexcept>
 
 namespace
@@ -12,6 +11,7 @@ engine::Config MakeConfig()
 {
     return {.argv0 = "test",
             .resource_path = nullptr,
+            .script_path = nullptr,
             .organization = "bluesentinelsec",
             .app_name = "leo-engine",
             .malloc_fn = SDL_malloc,
@@ -19,21 +19,10 @@ engine::Config MakeConfig()
             .free_fn = SDL_free};
 }
 
-void SetNoDeviceEnv()
-{
-#ifdef _WIN32
-    _putenv_s("LEO_AUDIO_NO_DEVICE", "1");
-#else
-    setenv("LEO_AUDIO_NO_DEVICE", "1", 1);
-#endif
-}
-
 } // namespace
 
 TEST_CASE("Sound loads from VFS and can be configured", "[audio]")
 {
-    SetNoDeviceEnv();
-
     engine::Config config = MakeConfig();
     engine::VFS vfs(config);
 
@@ -48,8 +37,6 @@ TEST_CASE("Sound loads from VFS and can be configured", "[audio]")
 
 TEST_CASE("Music loads from VFS and can be configured", "[audio]")
 {
-    SetNoDeviceEnv();
-
     engine::Config config = MakeConfig();
     engine::VFS vfs(config);
 
@@ -64,8 +51,6 @@ TEST_CASE("Music loads from VFS and can be configured", "[audio]")
 
 TEST_CASE("Audio loaders throw when file is missing", "[audio]")
 {
-    SetNoDeviceEnv();
-
     engine::Config config = MakeConfig();
     engine::VFS vfs(config);
 

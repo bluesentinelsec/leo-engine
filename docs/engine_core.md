@@ -20,6 +20,7 @@ int main(int argc, char** argv)
     leo::Engine::Config config = {
         .argv0 = argv[0],
         .resource_path = nullptr,
+        .script_path = "scripts/game.lua",
         .organization = "bluesentinelsec",
         .app_name = "leo-engine",
         .window_title = "Leo Engine",
@@ -48,6 +49,7 @@ simulation orchestrates the loop and invokes its internal lifecycle methods.
 `leo::Engine::Simulation` uses `leo::Engine::Config` as a single source of truth:
 
 - `argv0`, `resource_path`, `organization`, `app_name` for VFS setup.
+- `script_path` for the Lua entrypoint (optional).
 - `window_title`, `window_width`, `window_height` for window creation.
 - `logical_width`, `logical_height` for the virtual render resolution.
 - `window_mode` for fullscreen/windowed/borderless.
@@ -65,11 +67,12 @@ simulation orchestrates the loop and invokes its internal lifecycle methods.
 ## Simulation Callbacks
 
 `leo::Engine::Simulation` defines internal lifecycle methods that the loop
-invokes:
+invokes. By default, these forward to the Lua runtime when `script_path` is
+set:
 
 - `OnInit(Context&)`  
   One-time setup. Load assets from VFS, initialize game state.
-- `OnUpdate(Context&, const InputFrame&)`  
+- `OnUpdate(Context&, const InputFrame&, float dt)`  
   Fixed-timestep simulation step. All gameplay state changes happen here.
 - `OnRender(Context&)`  
   Render current state. Rendering must not mutate gameplay state.
@@ -79,7 +82,8 @@ invokes:
 ## Input Model
 
 The engine delivers one `InputFrame` per simulation tick. This is the canonical
-input for deterministic gameplay:
+input for deterministic gameplay, and it is passed into the Lua `leo.update`
+callback:
 
 - Keyboard/mouse/controller state is normalized into the frame.
 - `OnUpdate` receives the current `InputFrame`.

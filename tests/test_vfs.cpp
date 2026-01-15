@@ -24,6 +24,7 @@ engine::Config MakeConfig(const char *resource_path = nullptr)
 {
     return {.argv0 = "test",
             .resource_path = resource_path,
+            .script_path = nullptr,
             .organization = "bluesentinelsec",
             .app_name = "leo-engine",
             .malloc_fn = SDL_malloc,
