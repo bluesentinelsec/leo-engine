@@ -1,6 +1,7 @@
 #include "leo/lua_runtime.h"
 #include "leo/engine_core.h"
 #include "leo/audio.h"
+#include "leo/collision.h"
 #include "leo/font.h"
 #include "leo/gamepad.h"
 #include "leo/graphics.h"
@@ -434,6 +435,22 @@ void ReadPointList(lua_State *L, int index, std::vector<SDL_FPoint> *out_points)
     }
 }
 
+SDL_FPoint ReadPointPair(lua_State *L, int index)
+{
+    float x = static_cast<float>(luaL_checknumber(L, index));
+    float y = static_cast<float>(luaL_checknumber(L, index + 1));
+    return {x, y};
+}
+
+SDL_FRect ReadRect(lua_State *L, int index)
+{
+    float x = static_cast<float>(luaL_checknumber(L, index));
+    float y = static_cast<float>(luaL_checknumber(L, index + 1));
+    float w = static_cast<float>(luaL_checknumber(L, index + 2));
+    float h = static_cast<float>(luaL_checknumber(L, index + 3));
+    return {x, y, w, h};
+}
+
 LuaTexture *CheckTexture(lua_State *L, int index)
 {
     return static_cast<LuaTexture *>(luaL_checkudata(L, index, kTextureMeta));
@@ -782,6 +799,99 @@ int LuaGraphicsDrawPolyOutline(lua_State *L)
     leo::Graphics::Color color = ReadColor(L, 2);
     leo::Graphics::DrawPolyOutline(runtime->GetRenderer(), points.data(), static_cast<int>(points.size()), color);
     return 0;
+}
+
+int LuaCollisionCheckRecs(lua_State *L)
+{
+    SDL_FRect a = ReadRect(L, 1);
+    SDL_FRect b = ReadRect(L, 5);
+    lua_pushboolean(L, leo::Collision::CheckCollisionRecs(a, b));
+    return 1;
+}
+
+int LuaCollisionCheckCircles(lua_State *L)
+{
+    SDL_FPoint c1 = ReadPointPair(L, 1);
+    float r1 = static_cast<float>(luaL_checknumber(L, 3));
+    SDL_FPoint c2 = ReadPointPair(L, 4);
+    float r2 = static_cast<float>(luaL_checknumber(L, 6));
+    lua_pushboolean(L, leo::Collision::CheckCollisionCircles(c1, r1, c2, r2));
+    return 1;
+}
+
+int LuaCollisionCheckCircleRec(lua_State *L)
+{
+    SDL_FPoint center = ReadPointPair(L, 1);
+    float radius = static_cast<float>(luaL_checknumber(L, 3));
+    SDL_FRect rec = ReadRect(L, 4);
+    lua_pushboolean(L, leo::Collision::CheckCollisionCircleRec(center, radius, rec));
+    return 1;
+}
+
+int LuaCollisionCheckCircleLine(lua_State *L)
+{
+    SDL_FPoint center = ReadPointPair(L, 1);
+    float radius = static_cast<float>(luaL_checknumber(L, 3));
+    SDL_FPoint p1 = ReadPointPair(L, 4);
+    SDL_FPoint p2 = ReadPointPair(L, 6);
+    lua_pushboolean(L, leo::Collision::CheckCollisionCircleLine(center, radius, p1, p2));
+    return 1;
+}
+
+int LuaCollisionCheckPointRec(lua_State *L)
+{
+    SDL_FPoint point = ReadPointPair(L, 1);
+    SDL_FRect rec = ReadRect(L, 3);
+    lua_pushboolean(L, leo::Collision::CheckCollisionPointRec(point, rec));
+    return 1;
+}
+
+int LuaCollisionCheckPointCircle(lua_State *L)
+{
+    SDL_FPoint point = ReadPointPair(L, 1);
+    SDL_FPoint center = ReadPointPair(L, 3);
+    float radius = static_cast<float>(luaL_checknumber(L, 5));
+    lua_pushboolean(L, leo::Collision::CheckCollisionPointCircle(point, center, radius));
+    return 1;
+}
+
+int LuaCollisionCheckPointTriangle(lua_State *L)
+{
+    SDL_FPoint point = ReadPointPair(L, 1);
+    SDL_FPoint p1 = ReadPointPair(L, 3);
+    SDL_FPoint p2 = ReadPointPair(L, 5);
+    SDL_FPoint p3 = ReadPointPair(L, 7);
+    lua_pushboolean(L, leo::Collision::CheckCollisionPointTriangle(point, p1, p2, p3));
+    return 1;
+}
+
+int LuaCollisionCheckPointLine(lua_State *L)
+{
+    SDL_FPoint point = ReadPointPair(L, 1);
+    SDL_FPoint p1 = ReadPointPair(L, 3);
+    SDL_FPoint p2 = ReadPointPair(L, 5);
+    lua_pushboolean(L, leo::Collision::CheckCollisionPointLine(point, p1, p2));
+    return 1;
+}
+
+int LuaCollisionCheckPointPoly(lua_State *L)
+{
+    SDL_FPoint point = ReadPointPair(L, 1);
+    std::vector<SDL_FPoint> points;
+    ReadPointList(L, 3, &points);
+    lua_pushboolean(
+        L, leo::Collision::CheckCollisionPointPoly(point, points.data(), static_cast<int>(points.size())));
+    return 1;
+}
+
+int LuaCollisionCheckLines(lua_State *L)
+{
+    SDL_FPoint p1 = ReadPointPair(L, 1);
+    SDL_FPoint p2 = ReadPointPair(L, 3);
+    SDL_FPoint p3 = ReadPointPair(L, 5);
+    SDL_FPoint p4 = ReadPointPair(L, 7);
+    lua_pushboolean(L, leo::Collision::CheckCollisionLines(p1, p2, p3, p4));
+    return 1;
 }
 
 int LuaTextureGc(lua_State *L)
@@ -1493,6 +1603,31 @@ void RegisterFs(lua_State *L)
     lua_setfield(L, -2, "read");
 }
 
+void RegisterCollision(lua_State *L)
+{
+    lua_newtable(L);
+    lua_pushcfunction(L, LuaCollisionCheckRecs);
+    lua_setfield(L, -2, "checkRecs");
+    lua_pushcfunction(L, LuaCollisionCheckCircles);
+    lua_setfield(L, -2, "checkCircles");
+    lua_pushcfunction(L, LuaCollisionCheckCircleRec);
+    lua_setfield(L, -2, "checkCircleRec");
+    lua_pushcfunction(L, LuaCollisionCheckCircleLine);
+    lua_setfield(L, -2, "checkCircleLine");
+    lua_pushcfunction(L, LuaCollisionCheckPointRec);
+    lua_setfield(L, -2, "checkPointRec");
+    lua_pushcfunction(L, LuaCollisionCheckPointCircle);
+    lua_setfield(L, -2, "checkPointCircle");
+    lua_pushcfunction(L, LuaCollisionCheckPointTriangle);
+    lua_setfield(L, -2, "checkPointTriangle");
+    lua_pushcfunction(L, LuaCollisionCheckPointLine);
+    lua_setfield(L, -2, "checkPointLine");
+    lua_pushcfunction(L, LuaCollisionCheckPointPoly);
+    lua_setfield(L, -2, "checkPointPoly");
+    lua_pushcfunction(L, LuaCollisionCheckLines);
+    lua_setfield(L, -2, "checkLines");
+}
+
 void PushKeyboard(lua_State *L, const engine::KeyboardState &state)
 {
     LuaKeyboard *ud = static_cast<LuaKeyboard *>(lua_newuserdata(L, sizeof(LuaKeyboard)));
@@ -1569,6 +1704,9 @@ void RegisterLeo(lua_State *L)
 
     RegisterFs(L);
     lua_setfield(L, -2, "fs");
+
+    RegisterCollision(L);
+    lua_setfield(L, -2, "collision");
 
     lua_pushcfunction(L, LuaQuit);
     lua_setfield(L, -2, "quit");

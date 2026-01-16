@@ -67,6 +67,15 @@ leo.window.setSize(1280, 720)
 local w, h = leo.window.getSize()
 ```
 
+### leo.collision
+Collision checks return boolean values.
+
+```lua
+local hit = leo.collision.checkRecs(10, 10, 32, 32, 20, 20, 10, 10)
+local inside = leo.collision.checkPointCircle(50, 50, 60, 60, 12)
+local poly_hit = leo.collision.checkPointPoly(40, 40, {20, 20, 80, 20, 70, 60, 30, 70})
+```
+
 ### leo.font
 Font loading and text rendering.
 

@@ -105,6 +105,14 @@ leo.draw = function()
   graphics.drawPolyFilled({380, 200, 450, 210, 470, 250, 420, 280, 360, 250}, 255, 220, 80, 220)
   graphics.drawPolyOutline({520, 200, 600, 210, 620, 250, 570, 280, 500, 250}, 255, 255, 255, 255)
 
+  -- Collision demo.
+  local rect_x, rect_y, rect_w, rect_h = 620, 200, 120, 80
+  local circle_x, circle_y, circle_r = 700, 240, 36
+  local rec_hit = leo.collision.checkCircleRec(circle_x, circle_y, circle_r, rect_x, rect_y, rect_w, rect_h)
+  local color = rec_hit and {60, 220, 120, 220} or {220, 60, 60, 220}
+  graphics.drawRectangleOutline(rect_x, rect_y, rect_w, rect_h, color[1], color[2], color[3], color[4])
+  graphics.drawCircleOutline(circle_x, circle_y, circle_r, color[1], color[2], color[3], color[4])
+
   font.print(fps_text, 16, 16)
 end
 
