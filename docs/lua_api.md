@@ -47,7 +47,16 @@ Rendering and textures, similar to Love2D's drawing API.
 local tex = leo.graphics.newImage("images/character_64x64.png")
 leo.graphics.draw(tex, x, y, angle, sx, sy)
 leo.graphics.setColor(255, 255, 255, 255)
+leo.graphics.drawRectangleFilled(20, 20, 80, 40, 255, 64, 64, 200)
+leo.graphics.drawCircleOutline(160, 90, 20, 64, 200, 255, 255)
+leo.graphics.drawPolyFilled({20, 140, 80, 160, 60, 200, 10, 180}, 255, 220, 80, 255)
 ```
+
+Primitive helpers (RGBA per call):
+`drawPixel`, `drawLine`, `drawCircleFilled`, `drawCircleOutline`,
+`drawRectangleFilled`, `drawRectangleOutline`, `drawRectangleRoundedFilled`,
+`drawRectangleRoundedOutline`, `drawTriangleFilled`, `drawTriangleOutline`,
+`drawPolyFilled`, `drawPolyOutline`.
 
 ### leo.window
 Window sizing and mode helpers.

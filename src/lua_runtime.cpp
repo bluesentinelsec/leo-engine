@@ -3,6 +3,7 @@
 #include "leo/audio.h"
 #include "leo/font.h"
 #include "leo/gamepad.h"
+#include "leo/graphics.h"
 #include "leo/keyboard.h"
 #include "leo/mouse.h"
 #include "leo/texture_loader.h"
@@ -12,6 +13,7 @@
 #include <lua.hpp>
 #include <stdexcept>
 #include <string>
+#include <vector>
 
 namespace
 {
@@ -386,6 +388,52 @@ engine::AxisDirection ParseAxisDirection(const char *name)
     return engine::AxisDirection::Positive;
 }
 
+Uint8 ClampColorComponent(lua_Number value)
+{
+    int v = static_cast<int>(value);
+    if (v < 0)
+    {
+        return 0;
+    }
+    if (v > 255)
+    {
+        return 255;
+    }
+    return static_cast<Uint8>(v);
+}
+
+leo::Graphics::Color ReadColor(lua_State *L, int index)
+{
+    Uint8 r = ClampColorComponent(luaL_checknumber(L, index));
+    Uint8 g = ClampColorComponent(luaL_checknumber(L, index + 1));
+    Uint8 b = ClampColorComponent(luaL_checknumber(L, index + 2));
+    Uint8 a = ClampColorComponent(luaL_optnumber(L, index + 3, 255));
+    return {r, g, b, a};
+}
+
+void ReadPointList(lua_State *L, int index, std::vector<SDL_FPoint> *out_points)
+{
+    luaL_checktype(L, index, LUA_TTABLE);
+    size_t len = lua_rawlen(L, index);
+    if (len < 6 || (len % 2) != 0)
+    {
+        luaL_error(L, "Point list must be an even-length table with at least 3 points");
+    }
+
+    out_points->clear();
+    out_points->reserve(len / 2);
+
+    for (size_t i = 1; i <= len; i += 2)
+    {
+        lua_rawgeti(L, index, static_cast<int>(i));
+        lua_rawgeti(L, index, static_cast<int>(i + 1));
+        float x = static_cast<float>(luaL_checknumber(L, -2));
+        float y = static_cast<float>(luaL_checknumber(L, -1));
+        lua_pop(L, 2);
+        out_points->push_back({x, y});
+    }
+}
+
 LuaTexture *CheckTexture(lua_State *L, int index)
 {
     return static_cast<LuaTexture *>(luaL_checkudata(L, index, kTextureMeta));
@@ -598,6 +646,142 @@ int LuaWindowGetSize(lua_State *L)
     lua_pushinteger(L, width);
     lua_pushinteger(L, height);
     return 2;
+}
+
+int LuaGraphicsDrawPixel(lua_State *L)
+{
+    engine::LuaRuntime *runtime = GetRuntime(L);
+    float x = static_cast<float>(luaL_checknumber(L, 1));
+    float y = static_cast<float>(luaL_checknumber(L, 2));
+    leo::Graphics::Color color = ReadColor(L, 3);
+    leo::Graphics::DrawPixel(runtime->GetRenderer(), x, y, color);
+    return 0;
+}
+
+int LuaGraphicsDrawLine(lua_State *L)
+{
+    engine::LuaRuntime *runtime = GetRuntime(L);
+    float x1 = static_cast<float>(luaL_checknumber(L, 1));
+    float y1 = static_cast<float>(luaL_checknumber(L, 2));
+    float x2 = static_cast<float>(luaL_checknumber(L, 3));
+    float y2 = static_cast<float>(luaL_checknumber(L, 4));
+    leo::Graphics::Color color = ReadColor(L, 5);
+    leo::Graphics::DrawLine(runtime->GetRenderer(), x1, y1, x2, y2, color);
+    return 0;
+}
+
+int LuaGraphicsDrawCircleFilled(lua_State *L)
+{
+    engine::LuaRuntime *runtime = GetRuntime(L);
+    float cx = static_cast<float>(luaL_checknumber(L, 1));
+    float cy = static_cast<float>(luaL_checknumber(L, 2));
+    float radius = static_cast<float>(luaL_checknumber(L, 3));
+    leo::Graphics::Color color = ReadColor(L, 4);
+    leo::Graphics::DrawCircleFilled(runtime->GetRenderer(), cx, cy, radius, color);
+    return 0;
+}
+
+int LuaGraphicsDrawCircleOutline(lua_State *L)
+{
+    engine::LuaRuntime *runtime = GetRuntime(L);
+    float cx = static_cast<float>(luaL_checknumber(L, 1));
+    float cy = static_cast<float>(luaL_checknumber(L, 2));
+    float radius = static_cast<float>(luaL_checknumber(L, 3));
+    leo::Graphics::Color color = ReadColor(L, 4);
+    leo::Graphics::DrawCircleOutline(runtime->GetRenderer(), cx, cy, radius, color);
+    return 0;
+}
+
+int LuaGraphicsDrawRectangleFilled(lua_State *L)
+{
+    engine::LuaRuntime *runtime = GetRuntime(L);
+    float x = static_cast<float>(luaL_checknumber(L, 1));
+    float y = static_cast<float>(luaL_checknumber(L, 2));
+    float w = static_cast<float>(luaL_checknumber(L, 3));
+    float h = static_cast<float>(luaL_checknumber(L, 4));
+    leo::Graphics::Color color = ReadColor(L, 5);
+    leo::Graphics::DrawRectangleFilled(runtime->GetRenderer(), x, y, w, h, color);
+    return 0;
+}
+
+int LuaGraphicsDrawRectangleOutline(lua_State *L)
+{
+    engine::LuaRuntime *runtime = GetRuntime(L);
+    float x = static_cast<float>(luaL_checknumber(L, 1));
+    float y = static_cast<float>(luaL_checknumber(L, 2));
+    float w = static_cast<float>(luaL_checknumber(L, 3));
+    float h = static_cast<float>(luaL_checknumber(L, 4));
+    leo::Graphics::Color color = ReadColor(L, 5);
+    leo::Graphics::DrawRectangleOutline(runtime->GetRenderer(), x, y, w, h, color);
+    return 0;
+}
+
+int LuaGraphicsDrawRectangleRoundedFilled(lua_State *L)
+{
+    engine::LuaRuntime *runtime = GetRuntime(L);
+    float x = static_cast<float>(luaL_checknumber(L, 1));
+    float y = static_cast<float>(luaL_checknumber(L, 2));
+    float w = static_cast<float>(luaL_checknumber(L, 3));
+    float h = static_cast<float>(luaL_checknumber(L, 4));
+    float radius = static_cast<float>(luaL_checknumber(L, 5));
+    leo::Graphics::Color color = ReadColor(L, 6);
+    leo::Graphics::DrawRectangleRoundedFilled(runtime->GetRenderer(), x, y, w, h, radius, color);
+    return 0;
+}
+
+int LuaGraphicsDrawRectangleRoundedOutline(lua_State *L)
+{
+    engine::LuaRuntime *runtime = GetRuntime(L);
+    float x = static_cast<float>(luaL_checknumber(L, 1));
+    float y = static_cast<float>(luaL_checknumber(L, 2));
+    float w = static_cast<float>(luaL_checknumber(L, 3));
+    float h = static_cast<float>(luaL_checknumber(L, 4));
+    float radius = static_cast<float>(luaL_checknumber(L, 5));
+    leo::Graphics::Color color = ReadColor(L, 6);
+    leo::Graphics::DrawRectangleRoundedOutline(runtime->GetRenderer(), x, y, w, h, radius, color);
+    return 0;
+}
+
+int LuaGraphicsDrawTriangleFilled(lua_State *L)
+{
+    engine::LuaRuntime *runtime = GetRuntime(L);
+    SDL_FPoint a = {static_cast<float>(luaL_checknumber(L, 1)), static_cast<float>(luaL_checknumber(L, 2))};
+    SDL_FPoint b = {static_cast<float>(luaL_checknumber(L, 3)), static_cast<float>(luaL_checknumber(L, 4))};
+    SDL_FPoint c = {static_cast<float>(luaL_checknumber(L, 5)), static_cast<float>(luaL_checknumber(L, 6))};
+    leo::Graphics::Color color = ReadColor(L, 7);
+    leo::Graphics::DrawTriangleFilled(runtime->GetRenderer(), a, b, c, color);
+    return 0;
+}
+
+int LuaGraphicsDrawTriangleOutline(lua_State *L)
+{
+    engine::LuaRuntime *runtime = GetRuntime(L);
+    SDL_FPoint a = {static_cast<float>(luaL_checknumber(L, 1)), static_cast<float>(luaL_checknumber(L, 2))};
+    SDL_FPoint b = {static_cast<float>(luaL_checknumber(L, 3)), static_cast<float>(luaL_checknumber(L, 4))};
+    SDL_FPoint c = {static_cast<float>(luaL_checknumber(L, 5)), static_cast<float>(luaL_checknumber(L, 6))};
+    leo::Graphics::Color color = ReadColor(L, 7);
+    leo::Graphics::DrawTriangleOutline(runtime->GetRenderer(), a, b, c, color);
+    return 0;
+}
+
+int LuaGraphicsDrawPolyFilled(lua_State *L)
+{
+    engine::LuaRuntime *runtime = GetRuntime(L);
+    std::vector<SDL_FPoint> points;
+    ReadPointList(L, 1, &points);
+    leo::Graphics::Color color = ReadColor(L, 2);
+    leo::Graphics::DrawPolyFilled(runtime->GetRenderer(), points.data(), static_cast<int>(points.size()), color);
+    return 0;
+}
+
+int LuaGraphicsDrawPolyOutline(lua_State *L)
+{
+    engine::LuaRuntime *runtime = GetRuntime(L);
+    std::vector<SDL_FPoint> points;
+    ReadPointList(L, 1, &points);
+    leo::Graphics::Color color = ReadColor(L, 2);
+    leo::Graphics::DrawPolyOutline(runtime->GetRenderer(), points.data(), static_cast<int>(points.size()), color);
+    return 0;
 }
 
 int LuaTextureGc(lua_State *L)
@@ -1236,6 +1420,30 @@ void RegisterGraphics(lua_State *L)
     lua_setfield(L, -2, "clear");
     lua_pushcfunction(L, LuaGraphicsGetSize);
     lua_setfield(L, -2, "getSize");
+    lua_pushcfunction(L, LuaGraphicsDrawPixel);
+    lua_setfield(L, -2, "drawPixel");
+    lua_pushcfunction(L, LuaGraphicsDrawLine);
+    lua_setfield(L, -2, "drawLine");
+    lua_pushcfunction(L, LuaGraphicsDrawCircleFilled);
+    lua_setfield(L, -2, "drawCircleFilled");
+    lua_pushcfunction(L, LuaGraphicsDrawCircleOutline);
+    lua_setfield(L, -2, "drawCircleOutline");
+    lua_pushcfunction(L, LuaGraphicsDrawRectangleFilled);
+    lua_setfield(L, -2, "drawRectangleFilled");
+    lua_pushcfunction(L, LuaGraphicsDrawRectangleOutline);
+    lua_setfield(L, -2, "drawRectangleOutline");
+    lua_pushcfunction(L, LuaGraphicsDrawRectangleRoundedFilled);
+    lua_setfield(L, -2, "drawRectangleRoundedFilled");
+    lua_pushcfunction(L, LuaGraphicsDrawRectangleRoundedOutline);
+    lua_setfield(L, -2, "drawRectangleRoundedOutline");
+    lua_pushcfunction(L, LuaGraphicsDrawTriangleFilled);
+    lua_setfield(L, -2, "drawTriangleFilled");
+    lua_pushcfunction(L, LuaGraphicsDrawTriangleOutline);
+    lua_setfield(L, -2, "drawTriangleOutline");
+    lua_pushcfunction(L, LuaGraphicsDrawPolyFilled);
+    lua_setfield(L, -2, "drawPolyFilled");
+    lua_pushcfunction(L, LuaGraphicsDrawPolyOutline);
+    lua_setfield(L, -2, "drawPolyOutline");
 }
 
 void RegisterWindow(lua_State *L)

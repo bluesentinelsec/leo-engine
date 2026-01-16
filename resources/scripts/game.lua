@@ -91,6 +91,20 @@ leo.draw = function()
     graphics.draw(character, cx, cy, angle, 1, 1, char_w * 0.5, char_h * 0.5)
   end
 
+  -- Primitive demos (RGBA per call).
+  graphics.drawPixel(16, screen_h - 16, 255, 255, 0, 255)
+  graphics.drawLine(20, 40, 200, 40, 0, 220, 255, 255)
+  graphics.drawCircleFilled(80, 120, 32, 80, 200, 120, 200)
+  graphics.drawCircleOutline(160, 120, 32, 255, 255, 255, 255)
+  graphics.drawRectangleFilled(220, 90, 80, 60, 255, 120, 80, 200)
+  graphics.drawRectangleOutline(320, 90, 80, 60, 255, 255, 255, 255)
+  graphics.drawRectangleRoundedFilled(420, 90, 100, 60, 12, 120, 180, 255, 200)
+  graphics.drawRectangleRoundedOutline(540, 90, 100, 60, 12, 255, 255, 255, 255)
+  graphics.drawTriangleFilled(120, 200, 180, 260, 60, 260, 120, 255, 120, 220)
+  graphics.drawTriangleOutline(260, 200, 320, 260, 200, 260, 255, 255, 255, 255)
+  graphics.drawPolyFilled({380, 200, 450, 210, 470, 250, 420, 280, 360, 250}, 255, 220, 80, 220)
+  graphics.drawPolyOutline({520, 200, 600, 210, 620, 250, 570, 280, 500, 250}, 255, 255, 255, 255)
+
   font.print(fps_text, 16, 16)
 end
 
