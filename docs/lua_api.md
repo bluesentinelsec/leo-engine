@@ -145,6 +145,29 @@ VFS helpers (read-only by default).
 local data = leo.fs.read("maps/map.json")
 ```
 
+### leo.tiled
+Load and draw Tiled (.tmj/.tmx) maps via tmxlite.
+
+```lua
+local map = leo.tiled.load("maps/map.tmx")
+local tiles_w, tiles_h = map:getSize()
+local tile_w, tile_h = map:getTileSize()
+local pixel_w, pixel_h = map:getPixelSize()
+
+leo.graphics.beginCamera(cam)
+map:draw(0, 0)
+leo.graphics.endCamera()
+```
+
+Map methods:
+- `map:draw(x, y)` -> draw all tile layers at offset
+- `map:drawLayer(index, x, y)` -> draw a single tile layer (1-based index)
+- `map:getSize()` -> tile dimensions (width, height)
+- `map:getTileSize()` -> tile size in pixels (width, height)
+- `map:getPixelSize()` -> map size in pixels (width, height)
+- `map:getLayerCount()` -> number of tile layers
+- `map:getLayerName(index)` -> layer name or nil
+
 ## Input Frame Shape (Lua)
 
 The Lua `input` object mirrors the C++ `InputFrame`:

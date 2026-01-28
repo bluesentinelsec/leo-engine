@@ -84,6 +84,7 @@ set(CORE_SOURCES
     src/audio.cpp
     src/miniaudio_impl.cpp
     src/lua_runtime.cpp
+    src/tiled_map.cpp
 )
 
 # Main executable
@@ -120,10 +121,12 @@ add_executable(leo-engine-tests
 target_include_directories(leo-engine-tests PRIVATE
     ${CMAKE_CURRENT_SOURCE_DIR}/include
     ${CMAKE_CURRENT_SOURCE_DIR}/external/stb-10jan2026
+    ${tmxlite_SOURCE_DIR}/tmxlite/include
     ${miniaudio_SOURCE_DIR}
 )
 
-target_link_libraries(leo-engine-tests PRIVATE Catch2::Catch2WithMain SDL3::SDL3 lua::lua physfs-static)
+target_link_libraries(leo-engine-tests PRIVATE Catch2::Catch2WithMain SDL3::SDL3 tmxlite lua::lua physfs-static)
+
 
 enable_testing()
 add_test(NAME leo-engine-tests COMMAND leo-engine-tests)

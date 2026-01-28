@@ -8,6 +8,7 @@
 #include "leo/graphics.h"
 #include "leo/keyboard.h"
 #include "leo/mouse.h"
+#include "leo/tiled_map.h"
 #include "leo/texture_loader.h"
 #include "leo/vfs.h"
 #include <SDL3/SDL.h>
@@ -15,6 +16,7 @@
 #include <lua.hpp>
 #include <stdexcept>
 #include <string>
+#include <utility>
 #include <vector>
 
 namespace
@@ -29,6 +31,7 @@ constexpr const char *kKeyboardMeta = "leo.keyboard";
 constexpr const char *kMouseMeta = "leo.mouse";
 constexpr const char *kGamepadMeta = "leo.gamepad";
 constexpr const char *kCameraMeta = "leo.camera";
+constexpr const char *kTiledMapMeta = "leo.tiled_map";
 
 struct LuaTexture
 {
@@ -69,6 +72,11 @@ struct LuaGamepad
 struct LuaCamera
 {
     leo::Camera::Camera2D camera;
+};
+
+struct LuaTiledMap
+{
+    engine::TiledMap map;
 };
 
 engine::LuaRuntime *GetRuntime(lua_State *L)
@@ -461,6 +469,11 @@ SDL_FRect ReadRect(lua_State *L, int index)
 LuaCamera *CheckCamera(lua_State *L, int index)
 {
     return static_cast<LuaCamera *>(luaL_checkudata(L, index, kCameraMeta));
+}
+
+LuaTiledMap *CheckTiledMap(lua_State *L, int index)
+{
+    return static_cast<LuaTiledMap *>(luaL_checkudata(L, index, kTiledMapMeta));
 }
 
 SDL_FPoint ApplyCameraPoint(const leo::Camera::Camera2D *camera, SDL_FPoint point)
@@ -1155,6 +1168,100 @@ int LuaGraphicsEndCamera(lua_State *L)
     return 0;
 }
 
+int LuaTiledLoad(lua_State *L)
+{
+    engine::LuaRuntime *runtime = GetRuntime(L);
+    const char *path = luaL_checkstring(L, 1);
+
+    try
+    {
+        LuaTiledMap *ud = static_cast<LuaTiledMap *>(lua_newuserdata(L, sizeof(LuaTiledMap)));
+        engine::TiledMap loaded = engine::TiledMap::LoadFromVfs(runtime->GetVfs(), runtime->GetRenderer(), path);
+        new (&ud->map) engine::TiledMap(std::move(loaded));
+        luaL_getmetatable(L, kTiledMapMeta);
+        lua_setmetatable(L, -2);
+        return 1;
+    }
+    catch (const std::exception &e)
+    {
+        return luaL_error(L, "%s", e.what());
+    }
+}
+
+int LuaTiledMapGc(lua_State *L)
+{
+    LuaTiledMap *ud = CheckTiledMap(L, 1);
+    ud->map.Reset();
+    return 0;
+}
+
+int LuaTiledMapDraw(lua_State *L)
+{
+    engine::LuaRuntime *runtime = GetRuntime(L);
+    LuaTiledMap *ud = CheckTiledMap(L, 1);
+    float x = static_cast<float>(luaL_optnumber(L, 2, 0.0));
+    float y = static_cast<float>(luaL_optnumber(L, 3, 0.0));
+    ud->map.Draw(runtime->GetRenderer(), x, y, runtime->GetActiveCamera());
+    return 0;
+}
+
+int LuaTiledMapDrawLayer(lua_State *L)
+{
+    engine::LuaRuntime *runtime = GetRuntime(L);
+    LuaTiledMap *ud = CheckTiledMap(L, 1);
+    int layer_index = static_cast<int>(luaL_checkinteger(L, 2)) - 1;
+    float x = static_cast<float>(luaL_optnumber(L, 3, 0.0));
+    float y = static_cast<float>(luaL_optnumber(L, 4, 0.0));
+    ud->map.DrawLayer(runtime->GetRenderer(), layer_index, x, y, runtime->GetActiveCamera());
+    return 0;
+}
+
+int LuaTiledMapGetSize(lua_State *L)
+{
+    LuaTiledMap *ud = CheckTiledMap(L, 1);
+    lua_pushinteger(L, ud->map.GetWidth());
+    lua_pushinteger(L, ud->map.GetHeight());
+    return 2;
+}
+
+int LuaTiledMapGetTileSize(lua_State *L)
+{
+    LuaTiledMap *ud = CheckTiledMap(L, 1);
+    lua_pushinteger(L, ud->map.GetTileWidth());
+    lua_pushinteger(L, ud->map.GetTileHeight());
+    return 2;
+}
+
+int LuaTiledMapGetPixelSize(lua_State *L)
+{
+    LuaTiledMap *ud = CheckTiledMap(L, 1);
+    SDL_FRect bounds = ud->map.GetPixelBounds();
+    lua_pushinteger(L, static_cast<lua_Integer>(bounds.w));
+    lua_pushinteger(L, static_cast<lua_Integer>(bounds.h));
+    return 2;
+}
+
+int LuaTiledMapGetLayerCount(lua_State *L)
+{
+    LuaTiledMap *ud = CheckTiledMap(L, 1);
+    lua_pushinteger(L, ud->map.GetLayerCount());
+    return 1;
+}
+
+int LuaTiledMapGetLayerName(lua_State *L)
+{
+    LuaTiledMap *ud = CheckTiledMap(L, 1);
+    int layer_index = static_cast<int>(luaL_checkinteger(L, 2)) - 1;
+    const char *name = ud->map.GetLayerName(layer_index);
+    if (!name)
+    {
+        lua_pushnil(L);
+        return 1;
+    }
+    lua_pushstring(L, name);
+    return 1;
+}
+
 int LuaTextureGc(lua_State *L)
 {
     LuaTexture *ud = CheckTexture(L, 1);
@@ -1657,6 +1764,31 @@ void RegisterTextureMeta(lua_State *L)
     lua_pop(L, 1);
 }
 
+void RegisterTiledMapMeta(lua_State *L)
+{
+    luaL_newmetatable(L, kTiledMapMeta);
+    lua_pushcfunction(L, LuaTiledMapGc);
+    lua_setfield(L, -2, "__gc");
+
+    lua_newtable(L);
+    lua_pushcfunction(L, LuaTiledMapDraw);
+    lua_setfield(L, -2, "draw");
+    lua_pushcfunction(L, LuaTiledMapDrawLayer);
+    lua_setfield(L, -2, "drawLayer");
+    lua_pushcfunction(L, LuaTiledMapGetSize);
+    lua_setfield(L, -2, "getSize");
+    lua_pushcfunction(L, LuaTiledMapGetTileSize);
+    lua_setfield(L, -2, "getTileSize");
+    lua_pushcfunction(L, LuaTiledMapGetPixelSize);
+    lua_setfield(L, -2, "getPixelSize");
+    lua_pushcfunction(L, LuaTiledMapGetLayerCount);
+    lua_setfield(L, -2, "getLayerCount");
+    lua_pushcfunction(L, LuaTiledMapGetLayerName);
+    lua_setfield(L, -2, "getLayerName");
+    lua_setfield(L, -2, "__index");
+    lua_pop(L, 1);
+}
+
 void RegisterFontMeta(lua_State *L)
 {
     luaL_newmetatable(L, kFontMeta);
@@ -1868,6 +2000,13 @@ void RegisterFs(lua_State *L)
     lua_setfield(L, -2, "read");
 }
 
+void RegisterTiled(lua_State *L)
+{
+    lua_newtable(L);
+    lua_pushcfunction(L, LuaTiledLoad);
+    lua_setfield(L, -2, "load");
+}
+
 void RegisterCamera(lua_State *L)
 {
     luaL_newmetatable(L, kCameraMeta);
@@ -1979,6 +2118,7 @@ void PushInputFrame(lua_State *L, const leo::Engine::InputFrame &input)
 void RegisterLeo(lua_State *L)
 {
     RegisterTextureMeta(L);
+    RegisterTiledMapMeta(L);
     RegisterFontMeta(L);
     RegisterSoundMeta(L);
     RegisterMusicMeta(L);
@@ -2005,6 +2145,9 @@ void RegisterLeo(lua_State *L)
 
     RegisterFs(L);
     lua_setfield(L, -2, "fs");
+
+    RegisterTiled(L);
+    lua_setfield(L, -2, "tiled");
 
     RegisterCamera(L);
     lua_setfield(L, -2, "camera");
