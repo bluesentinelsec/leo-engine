@@ -1,6 +1,7 @@
 #include "leo/lua_runtime.h"
 #include "leo/engine_core.h"
 #include "leo/audio.h"
+#include "leo/camera.h"
 #include "leo/collision.h"
 #include "leo/font.h"
 #include "leo/gamepad.h"
@@ -27,6 +28,7 @@ constexpr const char *kMusicMeta = "leo.music";
 constexpr const char *kKeyboardMeta = "leo.keyboard";
 constexpr const char *kMouseMeta = "leo.mouse";
 constexpr const char *kGamepadMeta = "leo.gamepad";
+constexpr const char *kCameraMeta = "leo.camera";
 
 struct LuaTexture
 {
@@ -62,6 +64,11 @@ struct LuaMouse
 struct LuaGamepad
 {
     engine::GamepadState state;
+};
+
+struct LuaCamera
+{
+    leo::Camera::Camera2D camera;
 };
 
 engine::LuaRuntime *GetRuntime(lua_State *L)
@@ -451,6 +458,30 @@ SDL_FRect ReadRect(lua_State *L, int index)
     return {x, y, w, h};
 }
 
+LuaCamera *CheckCamera(lua_State *L, int index)
+{
+    return static_cast<LuaCamera *>(luaL_checkudata(L, index, kCameraMeta));
+}
+
+SDL_FPoint ApplyCameraPoint(const leo::Camera::Camera2D *camera, SDL_FPoint point)
+{
+    if (!camera)
+    {
+        return point;
+    }
+    return leo::Camera::WorldToScreen(*camera, point);
+}
+
+float ApplyCameraScale(const leo::Camera::Camera2D *camera, float value)
+{
+    return camera ? value * camera->zoom : value;
+}
+
+float ApplyCameraRotation(const leo::Camera::Camera2D *camera, float angle)
+{
+    return camera ? angle + camera->rotation : angle;
+}
+
 LuaTexture *CheckTexture(lua_State *L, int index)
 {
     return static_cast<LuaTexture *>(luaL_checkudata(L, index, kTextureMeta));
@@ -523,16 +554,24 @@ int LuaGraphicsDraw(lua_State *L)
         return 0;
     }
 
+    const leo::Camera::Camera2D *camera = runtime->GetActiveCamera();
+    SDL_FPoint screen = ApplyCameraPoint(camera, {static_cast<float>(x), static_cast<float>(y)});
+    float zoom = camera ? camera->zoom : 1.0f;
+    double render_angle = ApplyCameraRotation(camera, static_cast<float>(angle));
+
     SDL_Color color = runtime->GetDrawColor();
     SDL_SetTextureColorMod(ud->texture.handle, color.r, color.g, color.b);
     SDL_SetTextureAlphaMod(ud->texture.handle, color.a);
 
-    float w = static_cast<float>(ud->texture.width) * static_cast<float>(sx);
-    float h = static_cast<float>(ud->texture.height) * static_cast<float>(sy);
-    SDL_FRect dst = {static_cast<float>(x - ox * sx), static_cast<float>(y - oy * sy), w, h};
-    SDL_FPoint center = {static_cast<float>(ox * sx), static_cast<float>(oy * sy)};
+    float render_sx = static_cast<float>(sx) * zoom;
+    float render_sy = static_cast<float>(sy) * zoom;
+    float w = static_cast<float>(ud->texture.width) * render_sx;
+    float h = static_cast<float>(ud->texture.height) * render_sy;
+    SDL_FRect dst = {screen.x - static_cast<float>(ox * render_sx),
+                     screen.y - static_cast<float>(oy * render_sy), w, h};
+    SDL_FPoint center = {static_cast<float>(ox * render_sx), static_cast<float>(oy * render_sy)};
     constexpr double kRadToDeg = 57.29577951308232;
-    double degrees = angle * kRadToDeg;
+    double degrees = render_angle * kRadToDeg;
 
     SDL_RenderTextureRotated(runtime->GetRenderer(), ud->texture.handle, nullptr, &dst, degrees, &center,
                              SDL_FLIP_NONE);
@@ -668,104 +707,177 @@ int LuaWindowGetSize(lua_State *L)
 int LuaGraphicsDrawPixel(lua_State *L)
 {
     engine::LuaRuntime *runtime = GetRuntime(L);
-    float x = static_cast<float>(luaL_checknumber(L, 1));
-    float y = static_cast<float>(luaL_checknumber(L, 2));
+    SDL_FPoint point = ReadPointPair(L, 1);
     leo::Graphics::Color color = ReadColor(L, 3);
-    leo::Graphics::DrawPixel(runtime->GetRenderer(), x, y, color);
+    const leo::Camera::Camera2D *camera = runtime->GetActiveCamera();
+    SDL_FPoint screen = ApplyCameraPoint(camera, point);
+    leo::Graphics::DrawPixel(runtime->GetRenderer(), screen.x, screen.y, color);
     return 0;
 }
 
 int LuaGraphicsDrawLine(lua_State *L)
 {
     engine::LuaRuntime *runtime = GetRuntime(L);
-    float x1 = static_cast<float>(luaL_checknumber(L, 1));
-    float y1 = static_cast<float>(luaL_checknumber(L, 2));
-    float x2 = static_cast<float>(luaL_checknumber(L, 3));
-    float y2 = static_cast<float>(luaL_checknumber(L, 4));
+    SDL_FPoint p1 = ReadPointPair(L, 1);
+    SDL_FPoint p2 = ReadPointPair(L, 3);
     leo::Graphics::Color color = ReadColor(L, 5);
-    leo::Graphics::DrawLine(runtime->GetRenderer(), x1, y1, x2, y2, color);
+    const leo::Camera::Camera2D *camera = runtime->GetActiveCamera();
+    SDL_FPoint s1 = ApplyCameraPoint(camera, p1);
+    SDL_FPoint s2 = ApplyCameraPoint(camera, p2);
+    leo::Graphics::DrawLine(runtime->GetRenderer(), s1.x, s1.y, s2.x, s2.y, color);
     return 0;
 }
 
 int LuaGraphicsDrawCircleFilled(lua_State *L)
 {
     engine::LuaRuntime *runtime = GetRuntime(L);
-    float cx = static_cast<float>(luaL_checknumber(L, 1));
-    float cy = static_cast<float>(luaL_checknumber(L, 2));
+    SDL_FPoint center = ReadPointPair(L, 1);
     float radius = static_cast<float>(luaL_checknumber(L, 3));
     leo::Graphics::Color color = ReadColor(L, 4);
-    leo::Graphics::DrawCircleFilled(runtime->GetRenderer(), cx, cy, radius, color);
+    const leo::Camera::Camera2D *camera = runtime->GetActiveCamera();
+    SDL_FPoint screen = ApplyCameraPoint(camera, center);
+    float scaled_radius = ApplyCameraScale(camera, radius);
+    leo::Graphics::DrawCircleFilled(runtime->GetRenderer(), screen.x, screen.y, scaled_radius, color);
     return 0;
 }
 
 int LuaGraphicsDrawCircleOutline(lua_State *L)
 {
     engine::LuaRuntime *runtime = GetRuntime(L);
-    float cx = static_cast<float>(luaL_checknumber(L, 1));
-    float cy = static_cast<float>(luaL_checknumber(L, 2));
+    SDL_FPoint center = ReadPointPair(L, 1);
     float radius = static_cast<float>(luaL_checknumber(L, 3));
     leo::Graphics::Color color = ReadColor(L, 4);
-    leo::Graphics::DrawCircleOutline(runtime->GetRenderer(), cx, cy, radius, color);
+    const leo::Camera::Camera2D *camera = runtime->GetActiveCamera();
+    SDL_FPoint screen = ApplyCameraPoint(camera, center);
+    float scaled_radius = ApplyCameraScale(camera, radius);
+    leo::Graphics::DrawCircleOutline(runtime->GetRenderer(), screen.x, screen.y, scaled_radius, color);
     return 0;
 }
 
 int LuaGraphicsDrawRectangleFilled(lua_State *L)
 {
     engine::LuaRuntime *runtime = GetRuntime(L);
-    float x = static_cast<float>(luaL_checknumber(L, 1));
-    float y = static_cast<float>(luaL_checknumber(L, 2));
-    float w = static_cast<float>(luaL_checknumber(L, 3));
-    float h = static_cast<float>(luaL_checknumber(L, 4));
+    SDL_FRect rect = ReadRect(L, 1);
     leo::Graphics::Color color = ReadColor(L, 5);
-    leo::Graphics::DrawRectangleFilled(runtime->GetRenderer(), x, y, w, h, color);
+    const leo::Camera::Camera2D *camera = runtime->GetActiveCamera();
+    if (camera && camera->rotation != 0.0f)
+    {
+        SDL_FPoint corners[4] = {{rect.x, rect.y},
+                                 {rect.x + rect.w, rect.y},
+                                 {rect.x + rect.w, rect.y + rect.h},
+                                 {rect.x, rect.y + rect.h}};
+        for (SDL_FPoint &corner : corners)
+        {
+            corner = ApplyCameraPoint(camera, corner);
+        }
+        leo::Graphics::DrawPolyFilled(runtime->GetRenderer(), corners, 4, color);
+        return 0;
+    }
+
+    SDL_FPoint screen = ApplyCameraPoint(camera, {rect.x, rect.y});
+    float w = ApplyCameraScale(camera, rect.w);
+    float h = ApplyCameraScale(camera, rect.h);
+    leo::Graphics::DrawRectangleFilled(runtime->GetRenderer(), screen.x, screen.y, w, h, color);
     return 0;
 }
 
 int LuaGraphicsDrawRectangleOutline(lua_State *L)
 {
     engine::LuaRuntime *runtime = GetRuntime(L);
-    float x = static_cast<float>(luaL_checknumber(L, 1));
-    float y = static_cast<float>(luaL_checknumber(L, 2));
-    float w = static_cast<float>(luaL_checknumber(L, 3));
-    float h = static_cast<float>(luaL_checknumber(L, 4));
+    SDL_FRect rect = ReadRect(L, 1);
     leo::Graphics::Color color = ReadColor(L, 5);
-    leo::Graphics::DrawRectangleOutline(runtime->GetRenderer(), x, y, w, h, color);
+    const leo::Camera::Camera2D *camera = runtime->GetActiveCamera();
+    if (camera && camera->rotation != 0.0f)
+    {
+        SDL_FPoint corners[4] = {{rect.x, rect.y},
+                                 {rect.x + rect.w, rect.y},
+                                 {rect.x + rect.w, rect.y + rect.h},
+                                 {rect.x, rect.y + rect.h}};
+        for (SDL_FPoint &corner : corners)
+        {
+            corner = ApplyCameraPoint(camera, corner);
+        }
+        leo::Graphics::DrawPolyOutline(runtime->GetRenderer(), corners, 4, color);
+        return 0;
+    }
+
+    SDL_FPoint screen = ApplyCameraPoint(camera, {rect.x, rect.y});
+    float w = ApplyCameraScale(camera, rect.w);
+    float h = ApplyCameraScale(camera, rect.h);
+    leo::Graphics::DrawRectangleOutline(runtime->GetRenderer(), screen.x, screen.y, w, h, color);
     return 0;
 }
 
 int LuaGraphicsDrawRectangleRoundedFilled(lua_State *L)
 {
     engine::LuaRuntime *runtime = GetRuntime(L);
-    float x = static_cast<float>(luaL_checknumber(L, 1));
-    float y = static_cast<float>(luaL_checknumber(L, 2));
-    float w = static_cast<float>(luaL_checknumber(L, 3));
-    float h = static_cast<float>(luaL_checknumber(L, 4));
+    SDL_FRect rect = ReadRect(L, 1);
     float radius = static_cast<float>(luaL_checknumber(L, 5));
     leo::Graphics::Color color = ReadColor(L, 6);
-    leo::Graphics::DrawRectangleRoundedFilled(runtime->GetRenderer(), x, y, w, h, radius, color);
+    const leo::Camera::Camera2D *camera = runtime->GetActiveCamera();
+    if (camera && camera->rotation != 0.0f)
+    {
+        SDL_FPoint corners[4] = {{rect.x, rect.y},
+                                 {rect.x + rect.w, rect.y},
+                                 {rect.x + rect.w, rect.y + rect.h},
+                                 {rect.x, rect.y + rect.h}};
+        for (SDL_FPoint &corner : corners)
+        {
+            corner = ApplyCameraPoint(camera, corner);
+        }
+        leo::Graphics::DrawPolyFilled(runtime->GetRenderer(), corners, 4, color);
+        return 0;
+    }
+
+    SDL_FPoint screen = ApplyCameraPoint(camera, {rect.x, rect.y});
+    float w = ApplyCameraScale(camera, rect.w);
+    float h = ApplyCameraScale(camera, rect.h);
+    float scaled_radius = ApplyCameraScale(camera, radius);
+    leo::Graphics::DrawRectangleRoundedFilled(runtime->GetRenderer(), screen.x, screen.y, w, h, scaled_radius, color);
     return 0;
 }
 
 int LuaGraphicsDrawRectangleRoundedOutline(lua_State *L)
 {
     engine::LuaRuntime *runtime = GetRuntime(L);
-    float x = static_cast<float>(luaL_checknumber(L, 1));
-    float y = static_cast<float>(luaL_checknumber(L, 2));
-    float w = static_cast<float>(luaL_checknumber(L, 3));
-    float h = static_cast<float>(luaL_checknumber(L, 4));
+    SDL_FRect rect = ReadRect(L, 1);
     float radius = static_cast<float>(luaL_checknumber(L, 5));
     leo::Graphics::Color color = ReadColor(L, 6);
-    leo::Graphics::DrawRectangleRoundedOutline(runtime->GetRenderer(), x, y, w, h, radius, color);
+    const leo::Camera::Camera2D *camera = runtime->GetActiveCamera();
+    if (camera && camera->rotation != 0.0f)
+    {
+        SDL_FPoint corners[4] = {{rect.x, rect.y},
+                                 {rect.x + rect.w, rect.y},
+                                 {rect.x + rect.w, rect.y + rect.h},
+                                 {rect.x, rect.y + rect.h}};
+        for (SDL_FPoint &corner : corners)
+        {
+            corner = ApplyCameraPoint(camera, corner);
+        }
+        leo::Graphics::DrawPolyOutline(runtime->GetRenderer(), corners, 4, color);
+        return 0;
+    }
+
+    SDL_FPoint screen = ApplyCameraPoint(camera, {rect.x, rect.y});
+    float w = ApplyCameraScale(camera, rect.w);
+    float h = ApplyCameraScale(camera, rect.h);
+    float scaled_radius = ApplyCameraScale(camera, radius);
+    leo::Graphics::DrawRectangleRoundedOutline(runtime->GetRenderer(), screen.x, screen.y, w, h, scaled_radius,
+                                               color);
     return 0;
 }
 
 int LuaGraphicsDrawTriangleFilled(lua_State *L)
 {
     engine::LuaRuntime *runtime = GetRuntime(L);
-    SDL_FPoint a = {static_cast<float>(luaL_checknumber(L, 1)), static_cast<float>(luaL_checknumber(L, 2))};
-    SDL_FPoint b = {static_cast<float>(luaL_checknumber(L, 3)), static_cast<float>(luaL_checknumber(L, 4))};
-    SDL_FPoint c = {static_cast<float>(luaL_checknumber(L, 5)), static_cast<float>(luaL_checknumber(L, 6))};
+    SDL_FPoint a = ReadPointPair(L, 1);
+    SDL_FPoint b = ReadPointPair(L, 3);
+    SDL_FPoint c = ReadPointPair(L, 5);
     leo::Graphics::Color color = ReadColor(L, 7);
+    const leo::Camera::Camera2D *camera = runtime->GetActiveCamera();
+    a = ApplyCameraPoint(camera, a);
+    b = ApplyCameraPoint(camera, b);
+    c = ApplyCameraPoint(camera, c);
     leo::Graphics::DrawTriangleFilled(runtime->GetRenderer(), a, b, c, color);
     return 0;
 }
@@ -773,10 +885,14 @@ int LuaGraphicsDrawTriangleFilled(lua_State *L)
 int LuaGraphicsDrawTriangleOutline(lua_State *L)
 {
     engine::LuaRuntime *runtime = GetRuntime(L);
-    SDL_FPoint a = {static_cast<float>(luaL_checknumber(L, 1)), static_cast<float>(luaL_checknumber(L, 2))};
-    SDL_FPoint b = {static_cast<float>(luaL_checknumber(L, 3)), static_cast<float>(luaL_checknumber(L, 4))};
-    SDL_FPoint c = {static_cast<float>(luaL_checknumber(L, 5)), static_cast<float>(luaL_checknumber(L, 6))};
+    SDL_FPoint a = ReadPointPair(L, 1);
+    SDL_FPoint b = ReadPointPair(L, 3);
+    SDL_FPoint c = ReadPointPair(L, 5);
     leo::Graphics::Color color = ReadColor(L, 7);
+    const leo::Camera::Camera2D *camera = runtime->GetActiveCamera();
+    a = ApplyCameraPoint(camera, a);
+    b = ApplyCameraPoint(camera, b);
+    c = ApplyCameraPoint(camera, c);
     leo::Graphics::DrawTriangleOutline(runtime->GetRenderer(), a, b, c, color);
     return 0;
 }
@@ -787,6 +903,14 @@ int LuaGraphicsDrawPolyFilled(lua_State *L)
     std::vector<SDL_FPoint> points;
     ReadPointList(L, 1, &points);
     leo::Graphics::Color color = ReadColor(L, 2);
+    const leo::Camera::Camera2D *camera = runtime->GetActiveCamera();
+    if (camera)
+    {
+        for (SDL_FPoint &point : points)
+        {
+            point = ApplyCameraPoint(camera, point);
+        }
+    }
     leo::Graphics::DrawPolyFilled(runtime->GetRenderer(), points.data(), static_cast<int>(points.size()), color);
     return 0;
 }
@@ -797,6 +921,14 @@ int LuaGraphicsDrawPolyOutline(lua_State *L)
     std::vector<SDL_FPoint> points;
     ReadPointList(L, 1, &points);
     leo::Graphics::Color color = ReadColor(L, 2);
+    const leo::Camera::Camera2D *camera = runtime->GetActiveCamera();
+    if (camera)
+    {
+        for (SDL_FPoint &point : points)
+        {
+            point = ApplyCameraPoint(camera, point);
+        }
+    }
     leo::Graphics::DrawPolyOutline(runtime->GetRenderer(), points.data(), static_cast<int>(points.size()), color);
     return 0;
 }
@@ -892,6 +1024,135 @@ int LuaCollisionCheckLines(lua_State *L)
     SDL_FPoint p4 = ReadPointPair(L, 7);
     lua_pushboolean(L, leo::Collision::CheckCollisionLines(p1, p2, p3, p4));
     return 1;
+}
+
+int LuaCameraNew(lua_State *L)
+{
+    engine::LuaRuntime *runtime = GetRuntime(L);
+    const engine::Config *config = runtime->GetConfig();
+    LuaCamera *ud = static_cast<LuaCamera *>(lua_newuserdata(L, sizeof(LuaCamera)));
+    if (config)
+    {
+        ud->camera = leo::Camera::CreateDefault(*config);
+    }
+    else
+    {
+        ud->camera = leo::Camera::CreateDefault(0.0f, 0.0f);
+    }
+    luaL_getmetatable(L, kCameraMeta);
+    lua_setmetatable(L, -2);
+    return 1;
+}
+
+int LuaCameraSetTarget(lua_State *L)
+{
+    LuaCamera *ud = CheckCamera(L, 1);
+    ud->camera.target = ReadPointPair(L, 2);
+    return 0;
+}
+
+int LuaCameraSetPosition(lua_State *L)
+{
+    LuaCamera *ud = CheckCamera(L, 1);
+    ud->camera.position = ReadPointPair(L, 2);
+    return 0;
+}
+
+int LuaCameraSetOffset(lua_State *L)
+{
+    LuaCamera *ud = CheckCamera(L, 1);
+    ud->camera.offset = ReadPointPair(L, 2);
+    return 0;
+}
+
+int LuaCameraSetDeadzone(lua_State *L)
+{
+    LuaCamera *ud = CheckCamera(L, 1);
+    float w = static_cast<float>(luaL_checknumber(L, 2));
+    float h = static_cast<float>(luaL_checknumber(L, 3));
+    ud->camera.deadzone = {0.0f, 0.0f, w, h};
+    ud->camera.use_deadzone = (w > 0.0f && h > 0.0f);
+    return 0;
+}
+
+int LuaCameraSetSmoothTime(lua_State *L)
+{
+    LuaCamera *ud = CheckCamera(L, 1);
+    float seconds = static_cast<float>(luaL_checknumber(L, 2));
+    ud->camera.smooth_time = seconds < 0.0f ? 0.0f : seconds;
+    return 0;
+}
+
+int LuaCameraSetBounds(lua_State *L)
+{
+    LuaCamera *ud = CheckCamera(L, 1);
+    ud->camera.bounds = ReadRect(L, 2);
+    return 0;
+}
+
+int LuaCameraSetClamp(lua_State *L)
+{
+    LuaCamera *ud = CheckCamera(L, 1);
+    ud->camera.clamp_to_bounds = lua_toboolean(L, 2);
+    return 0;
+}
+
+int LuaCameraSetZoom(lua_State *L)
+{
+    LuaCamera *ud = CheckCamera(L, 1);
+    float zoom = static_cast<float>(luaL_checknumber(L, 2));
+    ud->camera.zoom = zoom > 0.0f ? zoom : ud->camera.zoom;
+    return 0;
+}
+
+int LuaCameraSetRotation(lua_State *L)
+{
+    LuaCamera *ud = CheckCamera(L, 1);
+    ud->camera.rotation = static_cast<float>(luaL_checknumber(L, 2));
+    return 0;
+}
+
+int LuaCameraUpdate(lua_State *L)
+{
+    LuaCamera *ud = CheckCamera(L, 1);
+    float dt = static_cast<float>(luaL_checknumber(L, 2));
+    leo::Camera::Update(ud->camera, dt);
+    return 0;
+}
+
+int LuaCameraWorldToScreen(lua_State *L)
+{
+    LuaCamera *ud = CheckCamera(L, 1);
+    SDL_FPoint world = ReadPointPair(L, 2);
+    SDL_FPoint screen = leo::Camera::WorldToScreen(ud->camera, world);
+    lua_pushnumber(L, screen.x);
+    lua_pushnumber(L, screen.y);
+    return 2;
+}
+
+int LuaCameraScreenToWorld(lua_State *L)
+{
+    LuaCamera *ud = CheckCamera(L, 1);
+    SDL_FPoint screen = ReadPointPair(L, 2);
+    SDL_FPoint world = leo::Camera::ScreenToWorld(ud->camera, screen);
+    lua_pushnumber(L, world.x);
+    lua_pushnumber(L, world.y);
+    return 2;
+}
+
+int LuaGraphicsBeginCamera(lua_State *L)
+{
+    engine::LuaRuntime *runtime = GetRuntime(L);
+    LuaCamera *ud = CheckCamera(L, 1);
+    runtime->SetActiveCamera(&ud->camera);
+    return 0;
+}
+
+int LuaGraphicsEndCamera(lua_State *L)
+{
+    engine::LuaRuntime *runtime = GetRuntime(L);
+    runtime->SetActiveCamera(nullptr);
+    return 0;
 }
 
 int LuaTextureGc(lua_State *L)
@@ -1554,6 +1815,10 @@ void RegisterGraphics(lua_State *L)
     lua_setfield(L, -2, "drawPolyFilled");
     lua_pushcfunction(L, LuaGraphicsDrawPolyOutline);
     lua_setfield(L, -2, "drawPolyOutline");
+    lua_pushcfunction(L, LuaGraphicsBeginCamera);
+    lua_setfield(L, -2, "beginCamera");
+    lua_pushcfunction(L, LuaGraphicsEndCamera);
+    lua_setfield(L, -2, "endCamera");
 }
 
 void RegisterWindow(lua_State *L)
@@ -1601,6 +1866,42 @@ void RegisterFs(lua_State *L)
     lua_newtable(L);
     lua_pushcfunction(L, LuaFsRead);
     lua_setfield(L, -2, "read");
+}
+
+void RegisterCamera(lua_State *L)
+{
+    luaL_newmetatable(L, kCameraMeta);
+    lua_newtable(L);
+    lua_pushcfunction(L, LuaCameraSetTarget);
+    lua_setfield(L, -2, "setTarget");
+    lua_pushcfunction(L, LuaCameraSetPosition);
+    lua_setfield(L, -2, "setPosition");
+    lua_pushcfunction(L, LuaCameraSetOffset);
+    lua_setfield(L, -2, "setOffset");
+    lua_pushcfunction(L, LuaCameraSetDeadzone);
+    lua_setfield(L, -2, "setDeadzone");
+    lua_pushcfunction(L, LuaCameraSetSmoothTime);
+    lua_setfield(L, -2, "setSmoothTime");
+    lua_pushcfunction(L, LuaCameraSetBounds);
+    lua_setfield(L, -2, "setBounds");
+    lua_pushcfunction(L, LuaCameraSetClamp);
+    lua_setfield(L, -2, "setClamp");
+    lua_pushcfunction(L, LuaCameraSetZoom);
+    lua_setfield(L, -2, "setZoom");
+    lua_pushcfunction(L, LuaCameraSetRotation);
+    lua_setfield(L, -2, "setRotation");
+    lua_pushcfunction(L, LuaCameraUpdate);
+    lua_setfield(L, -2, "update");
+    lua_pushcfunction(L, LuaCameraWorldToScreen);
+    lua_setfield(L, -2, "worldToScreen");
+    lua_pushcfunction(L, LuaCameraScreenToWorld);
+    lua_setfield(L, -2, "screenToWorld");
+    lua_setfield(L, -2, "__index");
+    lua_pop(L, 1);
+
+    lua_newtable(L);
+    lua_pushcfunction(L, LuaCameraNew);
+    lua_setfield(L, -2, "new");
 }
 
 void RegisterCollision(lua_State *L)
@@ -1705,6 +2006,9 @@ void RegisterLeo(lua_State *L)
     RegisterFs(L);
     lua_setfield(L, -2, "fs");
 
+    RegisterCamera(L);
+    lua_setfield(L, -2, "camera");
+
     RegisterCollision(L);
     lua_setfield(L, -2, "collision");
 
@@ -1721,8 +2025,9 @@ namespace engine
 
 LuaRuntime::LuaRuntime() noexcept
     : L(nullptr), vfs(nullptr), window(nullptr), renderer(nullptr), config(nullptr), tick_index(0), tick_dt(0.0f),
-      loaded(false), quit_requested(false), draw_color({255, 255, 255, 255}), window_mode(WindowMode::Windowed),
-      current_font_ref(LUA_NOREF), current_font_ptr(nullptr), current_font_size(0)
+      loaded(false), quit_requested(false), draw_color({255, 255, 255, 255}), active_camera(nullptr),
+      window_mode(WindowMode::Windowed), current_font_ref(LUA_NOREF), current_font_ptr(nullptr),
+      current_font_size(0)
 {
 }
 
@@ -1928,6 +2233,16 @@ WindowMode LuaRuntime::GetWindowMode() const noexcept
 void LuaRuntime::SetWindowMode(WindowMode mode) noexcept
 {
     window_mode = mode;
+}
+
+const ::leo::Camera::Camera2D *LuaRuntime::GetActiveCamera() const noexcept
+{
+    return active_camera;
+}
+
+void LuaRuntime::SetActiveCamera(const ::leo::Camera::Camera2D *camera) noexcept
+{
+    active_camera = camera;
 }
 
 VFS &LuaRuntime::GetVfs() const

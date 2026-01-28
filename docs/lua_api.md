@@ -58,6 +58,9 @@ Primitive helpers (RGBA per call):
 `drawRectangleRoundedOutline`, `drawTriangleFilled`, `drawTriangleOutline`,
 `drawPolyFilled`, `drawPolyOutline`.
 
+Camera helpers:
+`beginCamera(camera)`, `endCamera()`.
+
 ### leo.window
 Window sizing and mode helpers.
 
@@ -65,6 +68,21 @@ Window sizing and mode helpers.
 leo.window.setMode("borderless")
 leo.window.setSize(1280, 720)
 local w, h = leo.window.getSize()
+```
+
+### leo.camera
+2D camera with Zelda-style follow, using logical coordinates.
+
+```lua
+local cam = leo.camera.new()
+cam:setTarget(player_x, player_y)
+cam:setDeadzone(64, 48)
+cam:setSmoothTime(0.12)
+cam:update(dt)
+
+leo.graphics.beginCamera(cam)
+-- draw world here
+leo.graphics.endCamera()
 ```
 
 ### leo.collision

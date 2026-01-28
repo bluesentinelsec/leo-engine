@@ -1,123 +1,155 @@
 local graphics = leo.graphics
-local window = leo.window
-local audio = leo.audio
-local font = leo.font
+local collision = leo.collision
+local camera_api = leo.camera
 
-local background = nil
-local character = nil
-local main_font = nil
-local coin_sfx = nil
-local ogre_sfx = nil
-local music = nil
+local WORLD_W = 4096
+local WORLD_H = 4096
 
-local bg_w = 0
-local bg_h = 0
-local char_w = 0
-local char_h = 0
+local player = {
+  x = 256,
+  y = 256,
+  w = 32,
+  h = 32,
+  speed = 180
+}
 
-local frame_index = 0
-local fps_timer = 0
-local fps_frames = 0
-local fps_text = "FPS: 0.0"
-local sfx_ticks = 0
+local trees = {}
+local water = {}
+local dirt_patches = {}
+local solids = {}
 
-leo.load = function()
-  background = graphics.newImage("images/background_1920x1080.png")
-  character = graphics.newImage("images/character_64x64.png")
-  bg_w, bg_h = background:getSize()
-  char_w, char_h = character:getSize()
+local cam = nil
 
-  main_font = font.new("font/font.ttf", 24)
-  font.set(main_font)
-
-  coin_sfx = audio.newSound("sound/coin.wav")
-  ogre_sfx = audio.newSound("sound/ogre3.wav")
-  music = audio.newMusic("music/music.wav")
-  music:setLooping(true)
-  music:play()
-  coin_sfx:play()
+local function add_rect(list, x, y, w, h)
+  list[#list + 1] = { x = x, y = y, w = w, h = h }
 end
 
-leo.update = function(dt, input)
-  frame_index = input.frame
+local function build_world()
+  add_rect(water, 700, 600, 500, 380)
+  add_rect(water, 1600, 1300, 700, 520)
+  add_rect(water, 2800, 900, 520, 720)
+  add_rect(water, 2600, 2500, 800, 500)
 
-  if dt > 0 then
-    fps_timer = fps_timer + dt
-    fps_frames = fps_frames + 1
-    if fps_timer >= 1.0 then
-      local fps = fps_frames / fps_timer
-      fps_text = string.format("FPS: %.1f", fps)
-      fps_timer = 0
-      fps_frames = 0
+  for x = 200, 1800, 200 do
+    add_rect(trees, x, 360, 48, 48)
+    add_rect(trees, x, 760, 48, 48)
+  end
+
+  for y = 1200, 2400, 200 do
+    add_rect(trees, 520, y, 48, 48)
+    add_rect(trees, 920, y, 48, 48)
+  end
+
+  for i = 0, 10 do
+    add_rect(dirt_patches, 2200 + i * 120, 3000 + (i % 3) * 60, 80, 50)
+  end
+
+  for i = 1, #trees do
+    solids[#solids + 1] = trees[i]
+  end
+  for i = 1, #water do
+    solids[#solids + 1] = water[i]
+  end
+end
+
+local function clamp_player()
+  if player.x < 0 then
+    player.x = 0
+  end
+  if player.y < 0 then
+    player.y = 0
+  end
+  if player.x + player.w > WORLD_W then
+    player.x = WORLD_W - player.w
+  end
+  if player.y + player.h > WORLD_H then
+    player.y = WORLD_H - player.h
+  end
+end
+
+local function collides(rect)
+  for i = 1, #solids do
+    local s = solids[i]
+    if collision.checkRecs(rect.x, rect.y, rect.w, rect.h, s.x, s.y, s.w, s.h) then
+      return true
+    end
+  end
+  return false
+end
+
+local function move_player(dx, dy)
+  if dx ~= 0 then
+    local test = { x = player.x + dx, y = player.y, w = player.w, h = player.h }
+    if not collides(test) then
+      player.x = test.x
     end
   end
 
-  sfx_ticks = sfx_ticks + 1
-  if sfx_ticks % 120 == 0 then
-    coin_sfx:play()
-  end
-  if sfx_ticks % 300 == 0 then
-    ogre_sfx:play()
-  end
-
-  if input.keyboard:isPressed("escape") then
-    leo.quit()
+  if dy ~= 0 then
+    local test = { x = player.x, y = player.y + dy, w = player.w, h = player.h }
+    if not collides(test) then
+      player.y = test.y
+    end
   end
 
-  if input.keyboard:isPressed("1") then
-    window.setMode("borderless")
-  elseif input.keyboard:isPressed("2") then
-    window.setMode("windowed")
-  elseif input.keyboard:isPressed("3") then
-    window.setMode("fullscreen")
+  clamp_player()
+end
+
+local function draw_rects(list, r, g, b, a)
+  for i = 1, #list do
+    local rect = list[i]
+    graphics.drawRectangleFilled(rect.x, rect.y, rect.w, rect.h, r, g, b, a)
   end
+end
+
+leo.load = function()
+  build_world()
+  cam = camera_api.new()
+  cam:setBounds(0, 0, WORLD_W, WORLD_H)
+  cam:setClamp(true)
+  cam:setDeadzone(0, 0)
+  cam:setSmoothTime(0.08)
+end
+
+leo.update = function(dt, input)
+  local move_x = 0
+  local move_y = 0
+
+  if input.keyboard:isDown("a") or input.keyboard:isDown("left") then
+    move_x = move_x - 1
+  end
+  if input.keyboard:isDown("d") or input.keyboard:isDown("right") then
+    move_x = move_x + 1
+  end
+  if input.keyboard:isDown("w") or input.keyboard:isDown("up") then
+    move_y = move_y - 1
+  end
+  if input.keyboard:isDown("s") or input.keyboard:isDown("down") then
+    move_y = move_y + 1
+  end
+
+  if move_x ~= 0 or move_y ~= 0 then
+    local length = math.sqrt(move_x * move_x + move_y * move_y)
+    local speed = player.speed * dt
+    move_x = (move_x / length) * speed
+    move_y = (move_y / length) * speed
+    move_player(move_x, move_y)
+  end
+
+  cam:setTarget(player.x + player.w * 0.5, player.y + player.h * 0.5)
+  cam:update(dt)
 end
 
 leo.draw = function()
-  graphics.clear(0, 0, 0, 255)
-  graphics.setColor(255, 255, 255, 255)
+  graphics.clear(32, 28, 24, 255)
 
-  local screen_w, screen_h = graphics.getSize()
-  if background and bg_w > 0 and bg_h > 0 then
-    local sx = screen_w / bg_w
-    local sy = screen_h / bg_h
-    graphics.draw(background, 0, 0, 0, sx, sy, 0, 0)
-  end
+  graphics.beginCamera(cam)
 
-  if character and char_w > 0 and char_h > 0 then
-    local cx = screen_w * 0.5
-    local cy = screen_h * 0.5
-    local angle = (frame_index % 360) * (math.pi / 180)
-    graphics.draw(character, cx, cy, angle, 1, 1, char_w * 0.5, char_h * 0.5)
-  end
+  graphics.drawRectangleFilled(0, 0, WORLD_W, WORLD_H, 120, 92, 64, 255)
+  draw_rects(dirt_patches, 140, 106, 74, 255)
+  draw_rects(water, 48, 96, 180, 220)
+  draw_rects(trees, 24, 92, 48, 255)
+  graphics.drawRectangleFilled(player.x, player.y, player.w, player.h, 220, 200, 80, 255)
 
-  -- Primitive demos (RGBA per call).
-  graphics.drawPixel(16, screen_h - 16, 255, 255, 0, 255)
-  graphics.drawLine(20, 40, 200, 40, 0, 220, 255, 255)
-  graphics.drawCircleFilled(80, 120, 32, 80, 200, 120, 200)
-  graphics.drawCircleOutline(160, 120, 32, 255, 255, 255, 255)
-  graphics.drawRectangleFilled(220, 90, 80, 60, 255, 120, 80, 200)
-  graphics.drawRectangleOutline(320, 90, 80, 60, 255, 255, 255, 255)
-  graphics.drawRectangleRoundedFilled(420, 90, 100, 60, 12, 120, 180, 255, 200)
-  graphics.drawRectangleRoundedOutline(540, 90, 100, 60, 12, 255, 255, 255, 255)
-  graphics.drawTriangleFilled(120, 200, 180, 260, 60, 260, 120, 255, 120, 220)
-  graphics.drawTriangleOutline(260, 200, 320, 260, 200, 260, 255, 255, 255, 255)
-  graphics.drawPolyFilled({380, 200, 450, 210, 470, 250, 420, 280, 360, 250}, 255, 220, 80, 220)
-  graphics.drawPolyOutline({520, 200, 600, 210, 620, 250, 570, 280, 500, 250}, 255, 255, 255, 255)
-
-  -- Collision demo.
-  local rect_x, rect_y, rect_w, rect_h = 620, 200, 120, 80
-  local circle_x, circle_y, circle_r = 700, 240, 36
-  local rec_hit = leo.collision.checkCircleRec(circle_x, circle_y, circle_r, rect_x, rect_y, rect_w, rect_h)
-  local color = rec_hit and {60, 220, 120, 220} or {220, 60, 60, 220}
-  graphics.drawRectangleOutline(rect_x, rect_y, rect_w, rect_h, color[1], color[2], color[3], color[4])
-  graphics.drawCircleOutline(circle_x, circle_y, circle_r, color[1], color[2], color[3], color[4])
-
-  font.print(fps_text, 16, 16)
-end
-
-leo.shutdown = function()
-  if music then
-    music:stop()
-  end
+  graphics.endCamera()
 end

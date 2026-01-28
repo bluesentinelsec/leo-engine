@@ -16,6 +16,16 @@ class Font;
 
 namespace leo
 {
+namespace Camera
+{
+
+struct Camera2D;
+
+} // namespace Camera
+} // namespace leo
+
+namespace leo
+{
 namespace Engine
 {
 
@@ -51,6 +61,8 @@ class LuaRuntime
     void RequestQuit() noexcept;
     WindowMode GetWindowMode() const noexcept;
     void SetWindowMode(WindowMode mode) noexcept;
+    const ::leo::Camera::Camera2D *GetActiveCamera() const noexcept;
+    void SetActiveCamera(const ::leo::Camera::Camera2D *camera) noexcept;
 
     VFS &GetVfs() const;
     SDL_Window *GetWindow() const noexcept;
@@ -77,6 +89,7 @@ class LuaRuntime
     bool loaded;
     bool quit_requested;
     SDL_Color draw_color;
+    const ::leo::Camera::Camera2D *active_camera;
     WindowMode window_mode;
     int current_font_ref;
     engine::Font *current_font_ptr;

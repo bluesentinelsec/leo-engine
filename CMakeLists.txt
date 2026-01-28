@@ -72,6 +72,7 @@ FetchContent_MakeAvailable(miniaudio)
 
 # Shared source files
 set(CORE_SOURCES
+    src/camera.cpp
     src/collision.cpp
     src/graphics.cpp
     src/math_utils.cpp
