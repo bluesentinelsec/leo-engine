@@ -24,7 +24,7 @@ struct SDLVideoGuard
 engine::Config MakeConfig()
 {
     return {.argv0 = "test",
-            .resource_path = nullptr,
+            .resource_path = ".",
             .script_path = nullptr,
             .organization = "bluesentinelsec",
             .app_name = "leo-engine",
@@ -51,7 +51,7 @@ TEST_CASE("Font loads from VFS and reports line height", "[font]")
     SDL_Renderer *renderer = SDL_CreateRenderer(window, nullptr);
     REQUIRE(renderer != nullptr);
 
-    engine::Font font = engine::Font::LoadFromVfs(vfs, renderer, "font/font.ttf", 24);
+    engine::Font font = engine::Font::LoadFromVfs(vfs, renderer, "resources/font/font.ttf", 24);
     REQUIRE(font.IsReady());
     REQUIRE(font.GetLineHeight() > 0);
 
@@ -70,7 +70,7 @@ TEST_CASE("Text can update string and draw", "[font]")
     SDL_Renderer *renderer = SDL_CreateRenderer(window, nullptr);
     REQUIRE(renderer != nullptr);
 
-    engine::Font font = engine::Font::LoadFromVfs(vfs, renderer, "font/font.ttf", 24);
+    engine::Font font = engine::Font::LoadFromVfs(vfs, renderer, "resources/font/font.ttf", 24);
     engine::TextDesc desc = {
         .font = &font, .text = "FPS: 60", .pixel_size = 24, .position = {0.0f, 0.0f}, .color = {255, 255, 255, 255}};
     engine::Text text(desc);
@@ -92,7 +92,8 @@ TEST_CASE("Font loader throws when file is missing", "[font]")
     SDL_Renderer *renderer = SDL_CreateRenderer(window, nullptr);
     REQUIRE(renderer != nullptr);
 
-    REQUIRE_THROWS_AS(engine::Font::LoadFromVfs(vfs, renderer, "font/missing.ttf", 24), std::runtime_error);
+    REQUIRE_THROWS_AS(engine::Font::LoadFromVfs(vfs, renderer, "resources/font/missing.ttf", 24),
+                      std::runtime_error);
 
     SDL_DestroyRenderer(renderer);
     SDL_DestroyWindow(window);

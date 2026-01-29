@@ -107,8 +107,8 @@ struct GameState {
 
 void OnInit(leo::Engine::Context &ctx, GameState &state)
 {
-    state.coin = engine::Sound::LoadFromVfs(*ctx.vfs, "sound/coin.wav");
-    state.music = engine::Music::LoadFromVfs(*ctx.vfs, "music/music.wav");
+    state.coin = engine::Sound::LoadFromVfs(*ctx.vfs, "resources/sound/coin.wav");
+    state.music = engine::Music::LoadFromVfs(*ctx.vfs, "resources/music/music.wav");
     state.music.SetLooping(true);
     state.music.Play();
 }

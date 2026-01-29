@@ -19,8 +19,8 @@ int main(int argc, char** argv)
 {
     leo::Engine::Config config = {
         .argv0 = argv[0],
-        .resource_path = nullptr,
-        .script_path = "scripts/game.lua",
+        .resource_path = ".",
+        .script_path = "resources/scripts/game.lua",
         .organization = "bluesentinelsec",
         .app_name = "leo-engine",
         .window_title = "Leo Engine",

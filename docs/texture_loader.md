@@ -84,8 +84,8 @@ struct GameState {
 void OnInit(leo::Engine::Context &ctx, GameState &state)
 {
     engine::TextureLoader loader(*ctx.vfs, ctx.renderer);
-    state.background = loader.Load("images/background_1920x1080.png");
-    state.character = loader.Load("images/character_64x64.png");
+    state.background = loader.Load("resources/images/background_1920x1080.png");
+    state.character = loader.Load("resources/images/character_64x64.png");
 }
 ```
 

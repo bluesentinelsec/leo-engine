@@ -24,7 +24,7 @@ struct SDLVideoGuard
 engine::Config MakeConfig()
 {
     return {.argv0 = "test",
-            .resource_path = nullptr,
+            .resource_path = ".",
             .script_path = nullptr,
             .organization = "bluesentinelsec",
             .app_name = "leo-engine",
@@ -55,7 +55,7 @@ TEST_CASE("TextureLoader loads background texture from VFS", "[texture_loader]")
 
     engine::TextureLoader loader(vfs, renderer);
     {
-        engine::Texture texture = loader.Load("images/background_1920x1080.png");
+        engine::Texture texture = loader.Load("resources/images/background_1920x1080.png");
         REQUIRE(texture.handle != nullptr);
         REQUIRE(texture.width == 1920);
         REQUIRE(texture.height == 1080);
@@ -86,7 +86,7 @@ TEST_CASE("TextureLoader loads character texture from VFS", "[texture_loader]")
 
     engine::TextureLoader loader(vfs, renderer);
     {
-        engine::Texture texture = loader.Load("images/character_64x64.png");
+        engine::Texture texture = loader.Load("resources/images/character_64x64.png");
         REQUIRE(texture.handle != nullptr);
         REQUIRE(texture.width == 64);
         REQUIRE(texture.height == 64);
@@ -110,7 +110,7 @@ TEST_CASE("TextureLoader throws when file is missing", "[texture_loader]")
     REQUIRE(renderer != nullptr);
 
     engine::TextureLoader loader(vfs, renderer);
-    REQUIRE_THROWS_AS(loader.Load("images/missing.png"), std::runtime_error);
+    REQUIRE_THROWS_AS(loader.Load("resources/images/missing.png"), std::runtime_error);
 
     SDL_DestroyRenderer(renderer);
     SDL_DestroyWindow(window);

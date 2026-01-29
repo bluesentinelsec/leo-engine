@@ -20,7 +20,7 @@ struct SDLGuard
     }
 };
 
-engine::Config MakeConfig(const char *resource_path = nullptr)
+engine::Config MakeConfig(const char *resource_path = ".")
 {
     return {.argv0 = "test",
             .resource_path = resource_path,
@@ -34,7 +34,7 @@ engine::Config MakeConfig(const char *resource_path = nullptr)
 
 } // namespace
 
-TEST_CASE("VFS mounts resources directory", "[vfs]")
+TEST_CASE("VFS mounts configured resource root", "[vfs]")
 {
     SDLGuard sdl;
     engine::Config config = MakeConfig();
@@ -43,7 +43,7 @@ TEST_CASE("VFS mounts resources directory", "[vfs]")
         engine::VFS vfs(config);
 
         REQUIRE(config.resource_path != nullptr);
-        REQUIRE(SDL_strcmp(config.resource_path, "resources/") == 0);
+        REQUIRE(SDL_strcmp(config.resource_path, ".") == 0);
     }
 }
 
@@ -57,7 +57,7 @@ TEST_CASE("VFS can read file from mounted resources", "[vfs]")
 
         void *data = nullptr;
         size_t size = 0;
-        vfs.ReadAll("maps/map.json", &data, &size);
+        vfs.ReadAll("resources/maps/map.json", &data, &size);
         REQUIRE(data != nullptr);
         REQUIRE(size > 0);
         SDL_free(data);
@@ -187,7 +187,7 @@ TEST_CASE("VFS can delete files and directories in write dir", "[vfs]")
         vfs.DeleteDirRecursive("delete_test");
         REQUIRE_THROWS_AS(vfs.ListWriteDir("delete_test", &entries), std::runtime_error);
 
-        REQUIRE_THROWS_AS(vfs.DeleteFile("maps/map.json"), std::runtime_error);
+        REQUIRE_THROWS_AS(vfs.DeleteFile("resources/maps/map.json"), std::runtime_error);
     }
 }
 

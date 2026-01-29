@@ -170,7 +170,7 @@ std::vector<std::string> BuildImageCandidates(const std::string &raw_path, const
     std::string base = BaseName(normalized);
     if (!base.empty())
     {
-        AppendCandidate(&candidates, NormalizePath("images/" + base));
+        AppendCandidate(&candidates, NormalizePath("resources/images/" + base));
     }
 
     return candidates;

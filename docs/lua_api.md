@@ -44,7 +44,7 @@ Notes:
 Rendering and textures, similar to Love2D's drawing API.
 
 ```lua
-local tex = leo.graphics.newImage("images/character_64x64.png")
+local tex = leo.graphics.newImage("resources/images/character_64x64.png")
 leo.graphics.draw(tex, x, y, angle, sx, sy)
 leo.graphics.setColor(255, 255, 255, 255)
 leo.graphics.drawRectangleFilled(20, 20, 80, 40, 255, 64, 64, 200)
@@ -98,7 +98,7 @@ local poly_hit = leo.collision.checkPointPoly(40, 40, {20, 20, 80, 20, 70, 60, 3
 Font loading and text rendering.
 
 ```lua
-local font = leo.font.new("font/font.ttf", 24)
+local font = leo.font.new("resources/font/font.ttf", 24)
 leo.font.set(font)
 leo.font.print("FPS: 60", 16, 16)
 ```
@@ -107,8 +107,8 @@ leo.font.print("FPS: 60", 16, 16)
 Sound and music, SFML-style behavior.
 
 ```lua
-local sfx = leo.audio.newSound("sound/coin.wav")
-local music = leo.audio.newMusic("music/music.wav")
+local sfx = leo.audio.newSound("resources/sound/coin.wav")
+local music = leo.audio.newMusic("resources/music/music.wav")
 music:setLooping(true)
 music:play()
 ```
@@ -142,14 +142,14 @@ local dt = leo.time.tickDelta()  -- fixed dt
 VFS helpers (read-only by default).
 
 ```lua
-local data = leo.fs.read("maps/map.json")
+local data = leo.fs.read("resources/maps/map.json")
 ```
 
 ### leo.tiled
 Load and draw Tiled (.tmj/.tmx) maps via tmxlite.
 
 ```lua
-local map = leo.tiled.load("maps/map.tmx")
+local map = leo.tiled.load("resources/maps/map.tmx")
 local tiles_w, tiles_h = map:getSize()
 local tile_w, tile_h = map:getTileSize()
 local pixel_w, pixel_h = map:getPixelSize()

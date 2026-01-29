@@ -10,7 +10,7 @@ namespace
 engine::Config MakeConfig()
 {
     return {.argv0 = "test",
-            .resource_path = nullptr,
+            .resource_path = ".",
             .script_path = nullptr,
             .organization = "bluesentinelsec",
             .app_name = "leo-engine",
@@ -26,7 +26,7 @@ TEST_CASE("Sound loads from VFS and can be configured", "[audio]")
     engine::Config config = MakeConfig();
     engine::VFS vfs(config);
 
-    engine::Sound sound = engine::Sound::LoadFromVfs(vfs, "sound/coin.wav");
+    engine::Sound sound = engine::Sound::LoadFromVfs(vfs, "resources/sound/coin.wav");
     REQUIRE(sound.IsReady());
 
     sound.SetVolume(75.0f);
@@ -40,7 +40,7 @@ TEST_CASE("Music loads from VFS and can be configured", "[audio]")
     engine::Config config = MakeConfig();
     engine::VFS vfs(config);
 
-    engine::Music music = engine::Music::LoadFromVfs(vfs, "music/music.wav");
+    engine::Music music = engine::Music::LoadFromVfs(vfs, "resources/music/music.wav");
     REQUIRE(music.IsReady());
 
     music.SetVolume(40.0f);
@@ -54,6 +54,6 @@ TEST_CASE("Audio loaders throw when file is missing", "[audio]")
     engine::Config config = MakeConfig();
     engine::VFS vfs(config);
 
-    REQUIRE_THROWS_AS(engine::Sound::LoadFromVfs(vfs, "sound/missing.wav"), std::runtime_error);
-    REQUIRE_THROWS_AS(engine::Music::LoadFromVfs(vfs, "music/missing.wav"), std::runtime_error);
+    REQUIRE_THROWS_AS(engine::Sound::LoadFromVfs(vfs, "resources/sound/missing.wav"), std::runtime_error);
+    REQUIRE_THROWS_AS(engine::Music::LoadFromVfs(vfs, "resources/music/missing.wav"), std::runtime_error);
 }

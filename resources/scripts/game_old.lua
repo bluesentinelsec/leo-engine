@@ -22,17 +22,17 @@ local fps_text = "FPS: 0.0"
 local sfx_ticks = 0
 
 leo.load = function()
-  background = graphics.newImage("images/background_1920x1080.png")
-  character = graphics.newImage("images/character_64x64.png")
+  background = graphics.newImage("resources/images/background_1920x1080.png")
+  character = graphics.newImage("resources/images/character_64x64.png")
   bg_w, bg_h = background:getSize()
   char_w, char_h = character:getSize()
 
-  main_font = font.new("font/font.ttf", 24)
+  main_font = font.new("resources/font/font.ttf", 24)
   font.set(main_font)
 
-  coin_sfx = audio.newSound("sound/coin.wav")
-  ogre_sfx = audio.newSound("sound/ogre3.wav")
-  music = audio.newMusic("music/music.wav")
+  coin_sfx = audio.newSound("resources/sound/coin.wav")
+  ogre_sfx = audio.newSound("resources/sound/ogre3.wav")
+  music = audio.newMusic("resources/music/music.wav")
   music:setLooping(true)
   music:play()
   coin_sfx:play()

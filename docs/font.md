@@ -97,7 +97,7 @@ struct GameState {
 
 void OnInit(leo::Engine::Context &ctx, GameState &state)
 {
-    state.font = engine::Font::LoadFromVfs(*ctx.vfs, ctx.renderer, "font/font.ttf", 24);
+    state.font = engine::Font::LoadFromVfs(*ctx.vfs, ctx.renderer, "resources/font/font.ttf", 24);
 
     engine::TextDesc desc = {
         .font = &state.font,

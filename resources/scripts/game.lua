@@ -56,7 +56,7 @@ local function move_cursor(dt, input)
 end
 
 leo.load = function()
-  map = tiled.load("maps/map.tmx")
+  map = tiled.load("resources/maps/map.tmx")
   map_w, map_h = map:getPixelSize()
 
   cam = camera_api.new()

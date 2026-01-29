@@ -2,6 +2,7 @@
 #include <SDL3/SDL.h>
 #include <physfs.h>
 #include <stdexcept>
+#include <filesystem>
 
 namespace engine
 {
@@ -485,13 +486,23 @@ VFS::VFS(Config &cfg) : config(cfg), initialized_physfs(false)
     }
 
     // Try to mount resources in order of preference
-    static const char *kDefaultResourcePaths[] = {"resources/", "resources.zip"};
-    for (const char *path : kDefaultResourcePaths)
+    std::error_code ec;
+    bool has_resources_dir = std::filesystem::is_directory("resources", ec);
+    bool has_resources_zip = std::filesystem::exists("resources.zip", ec);
+
+    if (has_resources_dir && TryMount("."))
     {
-        if (TryMount(path))
-        {
-            return;
-        }
+        return;
+    }
+
+    if (has_resources_zip && TryMount("resources.zip"))
+    {
+        return;
+    }
+
+    if (TryMount("resources/"))
+    {
+        return;
     }
 
     // Neither found - fail
@@ -499,7 +510,7 @@ VFS::VFS(Config &cfg) : config(cfg), initialized_physfs(false)
     {
         PHYSFS_deinit();
     }
-    throw std::runtime_error("Failed to mount resources: tried 'resources/' and 'resources.zip'");
+    throw std::runtime_error("Failed to mount resources: tried '.', 'resources.zip', and 'resources/'");
 }
 
 VFS::~VFS()
@@ -522,7 +533,6 @@ void VFS::ReadAll(const char *vfs_path, void **out_data, size_t *out_size)
     PHYSFS_sint64 length = 0;
     const char *physfs_action = nullptr;
     bool alloc_failed = false;
-
     file = PHYSFS_openRead(vfs_path);
     if (!file)
     {

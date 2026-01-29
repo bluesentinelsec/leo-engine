@@ -698,25 +698,25 @@
          "tiles":[
                 {
                  "id":0,
-                 "image":"..\/..\/..\/leo-engine-examples\/resources\/images\/dirt_32x32.png",
+                "image":"resources\/images\/dirt_32x32.png",
                  "imageheight":32,
                  "imagewidth":32
                 }, 
                 {
                  "id":1,
-                 "image":"..\/..\/..\/leo-engine-examples\/resources\/images\/tree_32x32.png",
+                "image":"resources\/images\/tree_32x32.png",
                  "imageheight":32,
                  "imagewidth":32
                 }, 
                 {
                  "id":2,
-                 "image":"..\/..\/..\/leo-engine-examples\/resources\/images\/enemy_32x32.png",
+                "image":"resources\/images\/enemy_32x32.png",
                  "imageheight":32,
                  "imagewidth":32
                 }, 
                 {
                  "id":3,
-                 "image":"..\/..\/..\/leo-engine-examples\/resources\/images\/hero_32x32.png",
+                "image":"resources\/images\/hero_32x32.png",
                  "imageheight":32,
                  "imagewidth":32
                 }],

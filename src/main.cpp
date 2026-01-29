@@ -17,91 +17,48 @@
 
 namespace
 {
-bool StartsWithResourcesPrefix(const std::string &path)
+struct ResourceConfig
 {
-    return path.rfind("resources/", 0) == 0 || path.rfind("resources\\", 0) == 0;
-}
+    std::string mount_path;
+    std::string prefix;
+};
 
-bool IsDotDotPath(const std::filesystem::path &path)
+ResourceConfig ResolveResourceConfig(const std::string &resource_arg)
 {
-    std::string text = path.generic_string();
-    return text.rfind("..", 0) == 0;
-}
-
-std::string NormalizeScriptPath(const std::string &script_arg, std::string &resource_path)
-{
-    if (script_arg.empty())
+    ResourceConfig result{resource_arg, ""};
+    if (resource_arg.empty())
     {
-        return script_arg;
+        return result;
     }
 
-    std::string script_path = script_arg;
-
-    if (script_path.rfind("./", 0) == 0)
+    std::filesystem::path resource_fs(resource_arg);
+    std::error_code ec;
+    if (std::filesystem::is_directory(resource_fs, ec))
     {
-        script_path = script_path.substr(2);
+        std::filesystem::path normalized = resource_fs.lexically_normal();
+        std::string base = normalized.filename().string();
+        if (base.empty())
+        {
+            base = normalized.parent_path().filename().string();
+        }
+
+        std::filesystem::path parent = normalized.parent_path();
+        if (parent.empty())
+        {
+            parent = ".";
+        }
+
+        result.mount_path = parent.string();
+        result.prefix = base;
+        return result;
     }
 
-    if (StartsWithResourcesPrefix(script_path) &&
-        (resource_path.empty() || resource_path == "resources" || resource_path == "resources/"))
+    std::string stem = resource_fs.stem().string();
+    if (!stem.empty())
     {
-        if (resource_path.empty())
-        {
-            resource_path = "resources";
-        }
-        script_path = script_path.substr(std::string("resources/").size());
-        return script_path;
+        result.prefix = stem;
     }
-
-    if (!resource_path.empty())
-    {
-        std::filesystem::path root(resource_path);
-        std::filesystem::path rel = std::filesystem::path(script_path).lexically_relative(root);
-        if (!rel.empty() && !IsDotDotPath(rel))
-        {
-            return rel.generic_string();
-        }
-        return script_path;
-    }
-
-    std::filesystem::path script_fs(script_path);
-    if (script_fs.is_absolute())
-    {
-        std::filesystem::path inferred_root;
-        std::filesystem::path cursor;
-        bool found_resources_root = false;
-
-        for (const auto &part : script_fs)
-        {
-            cursor /= part;
-            if (part == "resources")
-            {
-                inferred_root = cursor;
-                found_resources_root = true;
-                break;
-            }
-        }
-
-        if (found_resources_root)
-        {
-            resource_path = inferred_root.string();
-            std::filesystem::path rel = script_fs.lexically_relative(inferred_root);
-            if (!rel.empty() && !IsDotDotPath(rel))
-            {
-                script_path = rel.generic_string();
-            }
-            return script_path;
-        }
-
-        std::filesystem::path parent = script_fs.parent_path();
-        if (!parent.empty())
-        {
-            resource_path = parent.string();
-            script_path = script_fs.filename().string();
-        }
-    }
-
-    return script_path;
+    return result;
 }
 } // namespace
 
@@ -113,7 +70,7 @@ int main(int argc, char *argv[])
     std::string script_path_arg;
     app.add_flag("--version", show_version, "Show version information");
     app.add_option("-r,--resources,--resource", resource_path_arg, "Resource directory/archive to mount");
-    app.add_option("-s,--script", script_path_arg, "Lua script path (VFS or filesystem path)");
+    app.add_option("-s,--script", script_path_arg, "Lua script path (VFS path)");
 
     try
     {
@@ -132,11 +89,16 @@ int main(int argc, char *argv[])
 
     try
     {
-        std::string resource_path = resource_path_arg;
-        std::string script_path = "scripts/game.lua";
+        ResourceConfig resource_config = ResolveResourceConfig(resource_path_arg);
+        std::string resource_path = resource_config.mount_path;
+        std::string script_path = "resources/scripts/game.lua";
+        if (!resource_config.prefix.empty())
+        {
+            script_path = resource_config.prefix + "/scripts/game.lua";
+        }
         if (!script_path_arg.empty())
         {
-            script_path = NormalizeScriptPath(script_path_arg, resource_path);
+            script_path = script_path_arg;
         }
 
         leo::Engine::Config config = {.argv0 = argv[0],

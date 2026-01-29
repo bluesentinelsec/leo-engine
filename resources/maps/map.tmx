@@ -3,16 +3,16 @@
  <tileset firstgid="1" name="test-tileset" tilewidth="32" tileheight="32" tilecount="4" columns="0">
   <grid orientation="orthogonal" width="1" height="1"/>
   <tile id="0">
-   <image source="../../../leo-engine-examples/resources/images/dirt_32x32.png" width="32" height="32"/>
+   <image source="resources/images/dirt_32x32.png" width="32" height="32"/>
   </tile>
   <tile id="1">
-   <image source="../../../leo-engine-examples/resources/images/tree_32x32.png" width="32" height="32"/>
+   <image source="resources/images/tree_32x32.png" width="32" height="32"/>
   </tile>
   <tile id="2">
-   <image source="../../../leo-engine-examples/resources/images/enemy_32x32.png" width="32" height="32"/>
+   <image source="resources/images/enemy_32x32.png" width="32" height="32"/>
   </tile>
   <tile id="3">
-   <image source="../../../leo-engine-examples/resources/images/hero_32x32.png" width="32" height="32"/>
+   <image source="resources/images/hero_32x32.png" width="32" height="32"/>
   </tile>
  </tileset>
  <layer id="1" name="dirt-layer" width="130" height="80">

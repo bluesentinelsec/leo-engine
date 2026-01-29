@@ -38,7 +38,8 @@ Constructor behavior (`engine::VFS::VFS`):
    and sets it as the write dir with `PHYSFS_setWriteDir`.
 3. Mounts resources at `/`:
    - If `config.resource_path` is set, it is mounted.
-   - Otherwise it tries `resources/`, then `resources.zip`.
+   - Otherwise it prefers `.` when a `resources/` directory exists,
+     then `resources.zip`, then `resources/` as a final fallback.
 4. If no resources mount succeeds, the constructor throws.
 
 ## Read API
@@ -107,7 +108,7 @@ available.
 ```cpp
 engine::Config config = {
     .argv0 = argv[0],
-    .resource_path = nullptr, // or set to a custom resource root
+    .resource_path = ".", // mount the parent directory that contains resources/
     .organization = "bluesentinelsec",
     .app_name = "leo-engine",
     .malloc_fn = SDL_malloc,
@@ -122,7 +123,7 @@ engine::VFS vfs(config);
 ```cpp
 void* data = nullptr;
 size_t size = 0;
-vfs.ReadAll("maps/map.json", &data, &size);
+    vfs.ReadAll("resources/maps/map.json", &data, &size);
 // ... use data/size ...
 SDL_free(data);
 ```
