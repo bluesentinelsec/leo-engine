@@ -1705,6 +1705,41 @@ int LuaGamepadAxisReleased(lua_State *L)
     return 1;
 }
 
+int LuaLogDebug(lua_State *L)
+{
+    const char *message = luaL_checkstring(L, 1);
+    SDL_LogDebug(SDL_LOG_CATEGORY_APPLICATION, "%s", message);
+    return 0;
+}
+
+int LuaLogInfo(lua_State *L)
+{
+    const char *message = luaL_checkstring(L, 1);
+    SDL_LogInfo(SDL_LOG_CATEGORY_APPLICATION, "%s", message);
+    return 0;
+}
+
+int LuaLogWarn(lua_State *L)
+{
+    const char *message = luaL_checkstring(L, 1);
+    SDL_LogWarn(SDL_LOG_CATEGORY_APPLICATION, "%s", message);
+    return 0;
+}
+
+int LuaLogError(lua_State *L)
+{
+    const char *message = luaL_checkstring(L, 1);
+    SDL_LogError(SDL_LOG_CATEGORY_APPLICATION, "%s", message);
+    return 0;
+}
+
+int LuaLogFatal(lua_State *L)
+{
+    const char *message = luaL_checkstring(L, 1);
+    SDL_LogCritical(SDL_LOG_CATEGORY_APPLICATION, "%s", message);
+    return 0;
+}
+
 int LuaTimeTicks(lua_State *L)
 {
     engine::LuaRuntime *runtime = GetRuntime(L);
@@ -1984,6 +2019,21 @@ void RegisterAudio(lua_State *L)
     lua_setfield(L, -2, "newMusic");
 }
 
+void RegisterLog(lua_State *L)
+{
+    lua_newtable(L);
+    lua_pushcfunction(L, LuaLogDebug);
+    lua_setfield(L, -2, "debug");
+    lua_pushcfunction(L, LuaLogInfo);
+    lua_setfield(L, -2, "info");
+    lua_pushcfunction(L, LuaLogWarn);
+    lua_setfield(L, -2, "warn");
+    lua_pushcfunction(L, LuaLogError);
+    lua_setfield(L, -2, "error");
+    lua_pushcfunction(L, LuaLogFatal);
+    lua_setfield(L, -2, "fatal");
+}
+
 void RegisterTime(lua_State *L)
 {
     lua_newtable(L);
@@ -2139,6 +2189,9 @@ void RegisterLeo(lua_State *L)
 
     RegisterAudio(L);
     lua_setfield(L, -2, "audio");
+
+    RegisterLog(L);
+    lua_setfield(L, -2, "log");
 
     RegisterTime(L);
     lua_setfield(L, -2, "time");

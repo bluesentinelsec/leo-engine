@@ -81,6 +81,13 @@ If no options are provided:
   `0` means run until quit.  
   Default: `0`
 
+### Logging
+
+- `--log-level <level>`  
+  Log threshold (case-insensitive).  
+  Allowed values: `verbose`, `debug`, `info`, `warn`, `error`, `fatal`  
+  Default: `info`
+
 ## Examples
 
 Run with the default resources directory and script:

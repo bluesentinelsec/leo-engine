@@ -8,6 +8,10 @@
 #include <tmxlite/Map.hpp>
 
 #include <filesystem>
+#include <chrono>
+#include <cstdio>
+#include <ctime>
+#include <iomanip>
 #include <iostream>
 #include <stdexcept>
 #include <string>
@@ -25,6 +29,49 @@ struct ResourceConfig
     std::string mount_path;
     std::string prefix;
 };
+
+const char *LogPriorityLabel(SDL_LogPriority priority)
+{
+    switch (priority)
+    {
+    case SDL_LOG_PRIORITY_VERBOSE:
+        return "VERBOSE";
+    case SDL_LOG_PRIORITY_DEBUG:
+        return "DEBUG";
+    case SDL_LOG_PRIORITY_INFO:
+        return "INFO";
+    case SDL_LOG_PRIORITY_WARN:
+        return "WARN";
+    case SDL_LOG_PRIORITY_ERROR:
+        return "ERROR";
+    case SDL_LOG_PRIORITY_CRITICAL:
+        return "FATAL";
+    default:
+        return "INFO";
+    }
+}
+
+void SDLCALL LogOutput(void *userdata, int category, SDL_LogPriority priority, const char *message)
+{
+    (void)userdata;
+    (void)category;
+
+    using clock = std::chrono::system_clock;
+    auto now = clock::now();
+    auto ms = std::chrono::duration_cast<std::chrono::milliseconds>(now.time_since_epoch()) % 1000;
+    std::time_t tt = clock::to_time_t(now);
+    std::tm local_time{};
+#if defined(_WIN32)
+    localtime_s(&local_time, &tt);
+#else
+    localtime_r(&tt, &local_time);
+#endif
+
+    char time_buf[32];
+    std::strftime(time_buf, sizeof(time_buf), "%Y-%m-%d %H:%M:%S", &local_time);
+    std::fprintf(stderr, "%s.%03d [%s] %s\n", time_buf, static_cast<int>(ms.count()),
+                 LogPriorityLabel(priority), message ? message : "");
+}
 
 ResourceConfig ResolveResourceConfig(const std::string &resource_arg)
 {
@@ -88,6 +135,7 @@ int main(int argc, char *argv[])
     std::string window_mode_str = "borderless-fullscreen";
     int tick_hz = 60;
     int num_frame_ticks = 0;
+    std::string log_level = "info";
     app.add_flag("--version", show_version, "Show version information");
     app.add_option("-r,--resources,--resource", resource_path_arg, "Resource directory/archive to mount");
     app.add_option("-s,--script", script_path_arg, "Lua script path (VFS path)");
@@ -102,6 +150,7 @@ int main(int argc, char *argv[])
                    "Window mode: windowed, fullscreen, borderless-fullscreen");
     app.add_option("--tick-hz", tick_hz, "Fixed update tick rate");
     app.add_option("--frame-ticks,--num-frame-ticks", num_frame_ticks, "Number of frame ticks (0 = run until exit)");
+    app.add_option("--log-level", log_level, "Log level: verbose, debug, info, warn, error, fatal");
 
     try
     {
@@ -120,6 +169,8 @@ int main(int argc, char *argv[])
 
     try
     {
+        SDL_SetLogOutputFunction(LogOutput, nullptr);
+
         ResourceConfig resource_config = ResolveResourceConfig(resource_path_arg);
         std::string resource_path = resource_config.mount_path;
         std::string script_path = "resources/scripts/game.lua";
@@ -152,6 +203,37 @@ int main(int argc, char *argv[])
             throw std::runtime_error("Invalid window mode: " + window_mode_str);
         }
 
+        std::string log_level_normalized = ToLowerAscii(log_level);
+        SDL_LogPriority log_priority = SDL_LOG_PRIORITY_INFO;
+        if (log_level_normalized == "verbose")
+        {
+            log_priority = SDL_LOG_PRIORITY_VERBOSE;
+        }
+        else if (log_level_normalized == "debug")
+        {
+            log_priority = SDL_LOG_PRIORITY_DEBUG;
+        }
+        else if (log_level_normalized == "info")
+        {
+            log_priority = SDL_LOG_PRIORITY_INFO;
+        }
+        else if (log_level_normalized == "warn" || log_level_normalized == "warning")
+        {
+            log_priority = SDL_LOG_PRIORITY_WARN;
+        }
+        else if (log_level_normalized == "error")
+        {
+            log_priority = SDL_LOG_PRIORITY_ERROR;
+        }
+        else if (log_level_normalized == "fatal" || log_level_normalized == "critical")
+        {
+            log_priority = SDL_LOG_PRIORITY_CRITICAL;
+        }
+        else
+        {
+            throw std::runtime_error("Invalid log level: " + log_level);
+        }
+
         if (tick_hz <= 0)
         {
             throw std::runtime_error("tick-hz must be positive");
@@ -177,6 +259,8 @@ int main(int argc, char *argv[])
                                       .malloc_fn = SDL_malloc,
                                       .realloc_fn = SDL_realloc,
                                       .free_fn = SDL_free};
+
+        SDL_SetLogPriority(SDL_LOG_CATEGORY_APPLICATION, log_priority);
 
         leo::Engine::Simulation game(config);
         return game.Run();
