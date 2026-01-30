@@ -594,6 +594,84 @@ int LuaGraphicsDraw(lua_State *L)
     return 0;
 }
 
+int LuaGraphicsDrawEx(lua_State *L)
+{
+    engine::LuaRuntime *runtime = GetRuntime(L);
+    LuaTexture *ud = CheckTexture(L, 1);
+    double src_x = luaL_checknumber(L, 2);
+    double src_y = luaL_checknumber(L, 3);
+    double src_w = luaL_checknumber(L, 4);
+    double src_h = luaL_checknumber(L, 5);
+    double x = luaL_checknumber(L, 6);
+    double y = luaL_checknumber(L, 7);
+    double angle = luaL_optnumber(L, 8, 0.0);
+    double sx = luaL_optnumber(L, 9, 1.0);
+    double sy = luaL_optnumber(L, 10, 1.0);
+    double ox = luaL_optnumber(L, 11, 0.0);
+    double oy = luaL_optnumber(L, 12, 0.0);
+    bool flip_x = lua_toboolean(L, 13);
+    bool flip_y = lua_toboolean(L, 14);
+
+    if (!ud->texture.handle || src_w <= 0.0 || src_h <= 0.0)
+    {
+        return 0;
+    }
+
+    const leo::Camera::Camera2D *camera = runtime->GetActiveCamera();
+    SDL_FPoint screen = ApplyCameraPoint(camera, {static_cast<float>(x), static_cast<float>(y)});
+    float zoom = camera ? camera->zoom : 1.0f;
+    double render_angle = ApplyCameraRotation(camera, static_cast<float>(angle));
+
+    SDL_Color color = runtime->GetDrawColor();
+    int color_index = 15;
+    if (!lua_isnoneornil(L, color_index))
+    {
+        auto clamp = [](int value) -> Uint8 {
+            if (value < 0)
+                return 0;
+            if (value > 255)
+                return 255;
+            return static_cast<Uint8>(value);
+        };
+        int r = static_cast<int>(luaL_checkinteger(L, color_index));
+        int g = static_cast<int>(luaL_checkinteger(L, color_index + 1));
+        int b = static_cast<int>(luaL_checkinteger(L, color_index + 2));
+        int a = static_cast<int>(luaL_optinteger(L, color_index + 3, 255));
+        color = {clamp(r), clamp(g), clamp(b), clamp(a)};
+    }
+
+    SDL_SetTextureColorMod(ud->texture.handle, color.r, color.g, color.b);
+    SDL_SetTextureAlphaMod(ud->texture.handle, color.a);
+
+    float render_sx = static_cast<float>(sx) * zoom;
+    float render_sy = static_cast<float>(sy) * zoom;
+    float w = static_cast<float>(src_w) * render_sx;
+    float h = static_cast<float>(src_h) * render_sy;
+    SDL_FRect src = {static_cast<float>(src_x), static_cast<float>(src_y), static_cast<float>(src_w),
+                     static_cast<float>(src_h)};
+    SDL_FRect dst = {screen.x - static_cast<float>(ox * render_sx),
+                     screen.y - static_cast<float>(oy * render_sy), w, h};
+    SDL_FPoint center = {static_cast<float>(ox * render_sx), static_cast<float>(oy * render_sy)};
+    constexpr double kRadToDeg = 57.29577951308232;
+    double degrees = render_angle * kRadToDeg;
+
+    SDL_FlipMode flip = SDL_FLIP_NONE;
+    if (flip_x)
+    {
+        flip = static_cast<SDL_FlipMode>(flip | SDL_FLIP_HORIZONTAL);
+    }
+    if (flip_y)
+    {
+        flip = static_cast<SDL_FlipMode>(flip | SDL_FLIP_VERTICAL);
+    }
+
+    SDL_RenderTextureRotated(runtime->GetRenderer(), ud->texture.handle, &src, &dst, degrees, &center, flip);
+
+    SDL_SetTextureColorMod(ud->texture.handle, 255, 255, 255);
+    SDL_SetTextureAlphaMod(ud->texture.handle, 255);
+    return 0;
+}
+
 int LuaGraphicsSetColor(lua_State *L)
 {
     engine::LuaRuntime *runtime = GetRuntime(L);
@@ -1952,6 +2030,8 @@ void RegisterGraphics(lua_State *L)
     lua_setfield(L, -2, "newImage");
     lua_pushcfunction(L, LuaGraphicsDraw);
     lua_setfield(L, -2, "draw");
+    lua_pushcfunction(L, LuaGraphicsDrawEx);
+    lua_setfield(L, -2, "drawEx");
     lua_pushcfunction(L, LuaGraphicsSetColor);
     lua_setfield(L, -2, "setColor");
     lua_pushcfunction(L, LuaGraphicsClear);

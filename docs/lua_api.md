@@ -46,6 +46,9 @@ Rendering and textures, similar to Love2D's drawing API.
 ```lua
 local tex = leo.graphics.newImage("resources/images/character_64x64.png")
 leo.graphics.draw(tex, x, y, angle, sx, sy)
+-- Draw a sprite-sheet frame with rotation, scale, origin, optional flip, and optional RGBA override.
+-- Arguments: texture, srcX, srcY, srcW, srcH, x, y, angle, sx, sy, ox, oy, flipX, flipY, r, g, b, a
+leo.graphics.drawEx(tex, 0, 0, 32, 32, x, y, angle, 1.0, 1.0, 16, 16, false, false, 255, 255, 255, 255)
 leo.graphics.setColor(255, 255, 255, 255)
 leo.graphics.drawRectangleFilled(20, 20, 80, 40, 255, 64, 64, 200)
 leo.graphics.drawCircleOutline(160, 90, 20, 64, 200, 255, 255)
