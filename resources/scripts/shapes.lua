@@ -52,7 +52,14 @@ local function draw_snow(width, height, count, x_offset)
         local g = 200 + hash01(seed + 4.4) * 55
         local b = 220 + hash01(seed + 6.6) * 35
         local a = 140 + hash01(seed + 8.8) * 115
-        graphics.drawPixel(px, y, r, g, b, a)
+        graphics.drawPixel({
+            x = px,
+            y = y,
+            r = r,
+            g = g,
+            b = b,
+            a = a,
+        })
     end
 end
 
@@ -62,7 +69,16 @@ local function draw_backdrop(x0, y0, width, height, phase)
     for i = 0, math.floor(width / stripe_w) do
         local x = x0 + i * stripe_w
         local r, g, b, a = modulate_color(30, 40, 70, 180, 0.35, 0.8, t + i * 0.3, 0.4)
-        graphics.drawRectangleFilled(x, y0, stripe_w - 10, height, r, g, b, a)
+        graphics.drawRectangleFilled({
+            x = x,
+            y = y0,
+            w = stripe_w - 10,
+            h = height,
+            r = r,
+            g = g,
+            b = b,
+            a = a,
+        })
     end
 end
 
@@ -99,7 +115,14 @@ local function draw_shape_set(offset_x, offset_y, phase)
     local spx, spy = scroll_cam:worldToScreen(px, py)
     with_transform(spx, spy, spin(1.6, 1.1 + phase), pulse(1.0, 0.45, 2.3, 0.4 + phase), function()
         local r, g, b, a = modulate_color(255, 64, 64, 255, 0.55, 2.4, 0.1 + phase, 0.7)
-        graphics.drawPixel(40, 0, r, g, b, a)
+        graphics.drawPixel({
+            x = 40,
+            y = 0,
+            r = r,
+            g = g,
+            b = b,
+            a = a,
+        })
     end)
 
     -- Line (row 1, col 2)
@@ -108,7 +131,16 @@ local function draw_shape_set(offset_x, offset_y, phase)
     local slx, sly = scroll_cam:worldToScreen(lx, ly)
     with_transform(slx, sly, spin(-1.2, 0.4 + phase), pulse(1.0, 0.35, 1.9, 0.3 + phase), function()
         local r, g, b, a = modulate_color(255, 220, 0, 255, 0.55, 1.9, 0.7 + phase, 0.6)
-        graphics.drawLine(-90, -20, 90, 20, r, g, b, a)
+        graphics.drawLine({
+            x1 = -90,
+            y1 = -20,
+            x2 = 90,
+            y2 = 20,
+            r = r,
+            g = g,
+            b = b,
+            a = a,
+        })
     end)
 
     -- Circle filled (row 1, col 3)
@@ -117,7 +149,15 @@ local function draw_shape_set(offset_x, offset_y, phase)
     local scfx, scfy = scroll_cam:worldToScreen(cfx, cfy)
     with_transform(scfx, scfy, spin(0.95, 2.0 + phase), pulse(1.0, 0.5, 1.6, 0.9 + phase), function()
         local r, g, b, a = modulate_color(0, 200, 255, 255, 0.6, 1.5, 1.1 + phase, 0.65)
-        graphics.drawCircleFilled(0, 0, 48, r, g, b, a)
+        graphics.drawCircleFilled({
+            x = 0,
+            y = 0,
+            radius = 48,
+            r = r,
+            g = g,
+            b = b,
+            a = a,
+        })
     end)
 
     -- Circle outline (row 1, col 4)
@@ -126,7 +166,15 @@ local function draw_shape_set(offset_x, offset_y, phase)
     local scox, scoy = scroll_cam:worldToScreen(cox, coy)
     with_transform(scox, scoy, spin(-1.05, 1.4 + phase), pulse(1.0, 0.45, 2.1, 0.2 + phase), function()
         local r, g, b, a = modulate_color(0, 255, 0, 255, 0.6, 2.0, 0.4 + phase, 0.75)
-        graphics.drawCircleOutline(0, 0, 46, r, g, b, a)
+        graphics.drawCircleOutline({
+            x = 0,
+            y = 0,
+            radius = 46,
+            r = r,
+            g = g,
+            b = b,
+            a = a,
+        })
     end)
 
     -- Rectangle filled (row 2, col 1)
@@ -135,7 +183,16 @@ local function draw_shape_set(offset_x, offset_y, phase)
     local srfx, srfy = scroll_cam:worldToScreen(rfx, rfy)
     with_transform(srfx, srfy, spin(0.85, 2.6 + phase), pulse(1.0, 0.4, 1.5, 0.8 + phase), function()
         local r, g, b, a = modulate_color(255, 128, 0, 255, 0.55, 1.4, 0.9 + phase, 0.7)
-        graphics.drawRectangleFilled(-80, -45, 160, 90, r, g, b, a)
+        graphics.drawRectangleFilled({
+            x = -80,
+            y = -45,
+            w = 160,
+            h = 90,
+            r = r,
+            g = g,
+            b = b,
+            a = a,
+        })
     end)
 
     -- Rectangle outline (row 2, col 2)
@@ -144,7 +201,16 @@ local function draw_shape_set(offset_x, offset_y, phase)
     local srox, sroy = scroll_cam:worldToScreen(rox, roy)
     with_transform(srox, sroy, spin(-1.35, 2.2 + phase), pulse(1.0, 0.35, 1.7, 0.1 + phase), function()
         local r, g, b, a = modulate_color(240, 240, 240, 255, 0.4, 1.1, 0.2 + phase, 0.5)
-        graphics.drawRectangleOutline(-80, -45, 160, 90, r, g, b, a)
+        graphics.drawRectangleOutline({
+            x = -80,
+            y = -45,
+            w = 160,
+            h = 90,
+            r = r,
+            g = g,
+            b = b,
+            a = a,
+        })
     end)
 
     -- Rounded rectangle filled (row 2, col 3)
@@ -153,7 +219,17 @@ local function draw_shape_set(offset_x, offset_y, phase)
     local srrx, srry = scroll_cam:worldToScreen(rrx, rry)
     with_transform(srrx, srry, spin(1.4, 3.1 + phase), pulse(1.0, 0.45, 1.8, 0.6 + phase), function()
         local r, g, b, a = modulate_color(160, 80, 255, 255, 0.6, 1.6, 1.4 + phase, 0.7)
-        graphics.drawRectangleRoundedFilled(-90, -45, 180, 90, 16, r, g, b, a)
+        graphics.drawRectangleRoundedFilled({
+            x = -90,
+            y = -45,
+            w = 180,
+            h = 90,
+            radius = 16,
+            r = r,
+            g = g,
+            b = b,
+            a = a,
+        })
     end)
 
     -- Rounded rectangle outline (row 2, col 4)
@@ -162,7 +238,17 @@ local function draw_shape_set(offset_x, offset_y, phase)
     local srrox, srroy = scroll_cam:worldToScreen(rrox, rroy)
     with_transform(srrox, srroy, spin(-1.55, 2.9 + phase), pulse(1.0, 0.45, 1.9, 0.9 + phase), function()
         local r, g, b, a = modulate_color(0, 255, 200, 255, 0.6, 1.9, 0.6 + phase, 0.7)
-        graphics.drawRectangleRoundedOutline(-90, -45, 180, 90, 20, r, g, b, a)
+        graphics.drawRectangleRoundedOutline({
+            x = -90,
+            y = -45,
+            w = 180,
+            h = 90,
+            radius = 20,
+            r = r,
+            g = g,
+            b = b,
+            a = a,
+        })
     end)
 
     -- Triangle filled (row 3, col 1)
@@ -171,7 +257,18 @@ local function draw_shape_set(offset_x, offset_y, phase)
     local stfx, stfy = scroll_cam:worldToScreen(tfx, tfy)
     with_transform(stfx, stfy, spin(1.75, 1.8 + phase), pulse(1.0, 0.45, 1.9, 0.3 + phase), function()
         local r, g, b, a = modulate_color(255, 0, 128, 255, 0.65, 2.0, 1.0 + phase, 0.8)
-        graphics.drawTriangleFilled(-70, 60, 0, -70, 70, 60, r, g, b, a)
+        graphics.drawTriangleFilled({
+            x1 = -70,
+            y1 = 60,
+            x2 = 0,
+            y2 = -70,
+            x3 = 70,
+            y3 = 60,
+            r = r,
+            g = g,
+            b = b,
+            a = a,
+        })
     end)
 
     -- Triangle outline (row 3, col 2)
@@ -180,7 +277,18 @@ local function draw_shape_set(offset_x, offset_y, phase)
     local stox, stoy = scroll_cam:worldToScreen(tox, toy)
     with_transform(stox, stoy, spin(-1.1, 0.7 + phase), pulse(1.0, 0.4, 1.6, 0.5 + phase), function()
         local r, g, b, a = modulate_color(0, 200, 120, 255, 0.55, 1.7, 0.2 + phase, 0.7)
-        graphics.drawTriangleOutline(-70, 60, 0, -70, 70, 60, r, g, b, a)
+        graphics.drawTriangleOutline({
+            x1 = -70,
+            y1 = 60,
+            x2 = 0,
+            y2 = -70,
+            x3 = 70,
+            y3 = 60,
+            r = r,
+            g = g,
+            b = b,
+            a = a,
+        })
     end)
 
     -- Polygon filled (row 3, col 3)
@@ -190,7 +298,13 @@ local function draw_shape_set(offset_x, offset_y, phase)
     with_transform(spfx, spfy, spin(0.95, 2.4 + phase), pulse(1.0, 0.45, 2.1, 0.2 + phase), function()
         local poly_filled = {-60, -20, -20, -60, 40, -30, 60, 20, 10, 60, -50, 30}
         local r, g, b, a = modulate_color(255, 0, 0, 180, 0.7, 2.2, 1.1 + phase, 0.9)
-        graphics.drawPolyFilled(poly_filled, r, g, b, a)
+        graphics.drawPolyFilled({
+            points = poly_filled,
+            r = r,
+            g = g,
+            b = b,
+            a = a,
+        })
     end)
 
     -- Polygon outline (row 3, col 4)
@@ -200,7 +314,13 @@ local function draw_shape_set(offset_x, offset_y, phase)
     with_transform(spox, spoy, spin(-1.45, 1.5 + phase), pulse(1.0, 0.45, 1.9, 0.7 + phase), function()
         local poly_outline = {-60, -20, -20, -60, 40, -30, 60, 20, 10, 60, -50, 30}
         local r, g, b, a = modulate_color(0, 255, 255, 255, 0.6, 1.8, 0.8 + phase, 0.75)
-        graphics.drawPolyOutline(poly_outline, r, g, b, a)
+        graphics.drawPolyOutline({
+            points = poly_outline,
+            r = r,
+            g = g,
+            b = b,
+            a = a,
+        })
     end)
 end
 

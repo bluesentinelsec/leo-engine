@@ -640,6 +640,47 @@ bool GetTableBoolFieldOpt(lua_State *L, int index, const char *key, bool default
     return value;
 }
 
+bool TableHasField(lua_State *L, int index, const char *key)
+{
+    int idx = lua_absindex(L, index);
+    lua_getfield(L, idx, key);
+    bool has_field = !lua_isnil(L, -1);
+    lua_pop(L, 1);
+    return has_field;
+}
+
+float GetTableNumberFieldReq(lua_State *L, int index, const char *key, const char *context)
+{
+    int idx = lua_absindex(L, index);
+    lua_getfield(L, idx, key);
+    if (lua_isnil(L, -1))
+    {
+        luaL_error(L, "%s requires '%s'", context, key);
+        return 0.0f;
+    }
+    float value = static_cast<float>(luaL_checknumber(L, -1));
+    lua_pop(L, 1);
+    return value;
+}
+
+leo::Graphics::Color ReadColorTable(lua_State *L, int index, const char *context)
+{
+    float r = GetTableNumberFieldReq(L, index, "r", context);
+    float g = GetTableNumberFieldReq(L, index, "g", context);
+    float b = GetTableNumberFieldReq(L, index, "b", context);
+
+    int idx = lua_absindex(L, index);
+    lua_getfield(L, idx, "a");
+    float a = 255.0f;
+    if (!lua_isnil(L, -1))
+    {
+        a = static_cast<float>(luaL_checknumber(L, -1));
+    }
+    lua_pop(L, 1);
+
+    return {ClampColorComponent(r), ClampColorComponent(g), ClampColorComponent(b), ClampColorComponent(a)};
+}
+
 LuaFont *CheckFont(lua_State *L, int index)
 {
     return static_cast<LuaFont *>(luaL_checkudata(L, index, kFontMeta));
@@ -1422,8 +1463,20 @@ int LuaWindowGetSize(lua_State *L)
 int LuaGraphicsDrawPixel(lua_State *L)
 {
     engine::LuaRuntime *runtime = GetRuntime(L);
-    SDL_FPoint point = ReadPointPair(L, 1);
-    leo::Graphics::Color color = ReadColor(L, 3);
+    SDL_FPoint point{};
+    leo::Graphics::Color color{};
+
+    if (lua_istable(L, 1))
+    {
+        point = {GetTableNumberFieldReq(L, 1, "x", "drawPixel"),
+                 GetTableNumberFieldReq(L, 1, "y", "drawPixel")};
+        color = ReadColorTable(L, 1, "drawPixel");
+    }
+    else
+    {
+        point = ReadPointPair(L, 1);
+        color = ReadColor(L, 3);
+    }
     const leo::Camera::Camera2D *camera = runtime->GetActiveCamera();
     SDL_FPoint screen = ApplyCameraPoint(camera, point);
     leo::Graphics::DrawPixel(runtime->GetRenderer(), screen.x, screen.y, color);
@@ -1433,9 +1486,24 @@ int LuaGraphicsDrawPixel(lua_State *L)
 int LuaGraphicsDrawLine(lua_State *L)
 {
     engine::LuaRuntime *runtime = GetRuntime(L);
-    SDL_FPoint p1 = ReadPointPair(L, 1);
-    SDL_FPoint p2 = ReadPointPair(L, 3);
-    leo::Graphics::Color color = ReadColor(L, 5);
+    SDL_FPoint p1{};
+    SDL_FPoint p2{};
+    leo::Graphics::Color color{};
+
+    if (lua_istable(L, 1))
+    {
+        p1 = {GetTableNumberFieldReq(L, 1, "x1", "drawLine"),
+              GetTableNumberFieldReq(L, 1, "y1", "drawLine")};
+        p2 = {GetTableNumberFieldReq(L, 1, "x2", "drawLine"),
+              GetTableNumberFieldReq(L, 1, "y2", "drawLine")};
+        color = ReadColorTable(L, 1, "drawLine");
+    }
+    else
+    {
+        p1 = ReadPointPair(L, 1);
+        p2 = ReadPointPair(L, 3);
+        color = ReadColor(L, 5);
+    }
     const leo::Camera::Camera2D *camera = runtime->GetActiveCamera();
     SDL_FPoint s1 = ApplyCameraPoint(camera, p1);
     SDL_FPoint s2 = ApplyCameraPoint(camera, p2);
@@ -1446,9 +1514,23 @@ int LuaGraphicsDrawLine(lua_State *L)
 int LuaGraphicsDrawCircleFilled(lua_State *L)
 {
     engine::LuaRuntime *runtime = GetRuntime(L);
-    SDL_FPoint center = ReadPointPair(L, 1);
-    float radius = static_cast<float>(luaL_checknumber(L, 3));
-    leo::Graphics::Color color = ReadColor(L, 4);
+    SDL_FPoint center{};
+    float radius = 0.0f;
+    leo::Graphics::Color color{};
+
+    if (lua_istable(L, 1))
+    {
+        center = {GetTableNumberFieldReq(L, 1, "x", "drawCircleFilled"),
+                  GetTableNumberFieldReq(L, 1, "y", "drawCircleFilled")};
+        radius = GetTableNumberFieldReq(L, 1, "radius", "drawCircleFilled");
+        color = ReadColorTable(L, 1, "drawCircleFilled");
+    }
+    else
+    {
+        center = ReadPointPair(L, 1);
+        radius = static_cast<float>(luaL_checknumber(L, 3));
+        color = ReadColor(L, 4);
+    }
     const leo::Camera::Camera2D *camera = runtime->GetActiveCamera();
     SDL_FPoint screen = ApplyCameraPoint(camera, center);
     float scaled_radius = ApplyCameraScale(camera, radius);
@@ -1459,9 +1541,23 @@ int LuaGraphicsDrawCircleFilled(lua_State *L)
 int LuaGraphicsDrawCircleOutline(lua_State *L)
 {
     engine::LuaRuntime *runtime = GetRuntime(L);
-    SDL_FPoint center = ReadPointPair(L, 1);
-    float radius = static_cast<float>(luaL_checknumber(L, 3));
-    leo::Graphics::Color color = ReadColor(L, 4);
+    SDL_FPoint center{};
+    float radius = 0.0f;
+    leo::Graphics::Color color{};
+
+    if (lua_istable(L, 1))
+    {
+        center = {GetTableNumberFieldReq(L, 1, "x", "drawCircleOutline"),
+                  GetTableNumberFieldReq(L, 1, "y", "drawCircleOutline")};
+        radius = GetTableNumberFieldReq(L, 1, "radius", "drawCircleOutline");
+        color = ReadColorTable(L, 1, "drawCircleOutline");
+    }
+    else
+    {
+        center = ReadPointPair(L, 1);
+        radius = static_cast<float>(luaL_checknumber(L, 3));
+        color = ReadColor(L, 4);
+    }
     const leo::Camera::Camera2D *camera = runtime->GetActiveCamera();
     SDL_FPoint screen = ApplyCameraPoint(camera, center);
     float scaled_radius = ApplyCameraScale(camera, radius);
@@ -1472,8 +1568,22 @@ int LuaGraphicsDrawCircleOutline(lua_State *L)
 int LuaGraphicsDrawRectangleFilled(lua_State *L)
 {
     engine::LuaRuntime *runtime = GetRuntime(L);
-    SDL_FRect rect = ReadRect(L, 1);
-    leo::Graphics::Color color = ReadColor(L, 5);
+    SDL_FRect rect{};
+    leo::Graphics::Color color{};
+
+    if (lua_istable(L, 1))
+    {
+        rect = {GetTableNumberFieldReq(L, 1, "x", "drawRectangleFilled"),
+                GetTableNumberFieldReq(L, 1, "y", "drawRectangleFilled"),
+                GetTableNumberFieldReq(L, 1, "w", "drawRectangleFilled"),
+                GetTableNumberFieldReq(L, 1, "h", "drawRectangleFilled")};
+        color = ReadColorTable(L, 1, "drawRectangleFilled");
+    }
+    else
+    {
+        rect = ReadRect(L, 1);
+        color = ReadColor(L, 5);
+    }
     const leo::Camera::Camera2D *camera = runtime->GetActiveCamera();
     if (camera && camera->rotation != 0.0f)
     {
@@ -1499,8 +1609,22 @@ int LuaGraphicsDrawRectangleFilled(lua_State *L)
 int LuaGraphicsDrawRectangleOutline(lua_State *L)
 {
     engine::LuaRuntime *runtime = GetRuntime(L);
-    SDL_FRect rect = ReadRect(L, 1);
-    leo::Graphics::Color color = ReadColor(L, 5);
+    SDL_FRect rect{};
+    leo::Graphics::Color color{};
+
+    if (lua_istable(L, 1))
+    {
+        rect = {GetTableNumberFieldReq(L, 1, "x", "drawRectangleOutline"),
+                GetTableNumberFieldReq(L, 1, "y", "drawRectangleOutline"),
+                GetTableNumberFieldReq(L, 1, "w", "drawRectangleOutline"),
+                GetTableNumberFieldReq(L, 1, "h", "drawRectangleOutline")};
+        color = ReadColorTable(L, 1, "drawRectangleOutline");
+    }
+    else
+    {
+        rect = ReadRect(L, 1);
+        color = ReadColor(L, 5);
+    }
     const leo::Camera::Camera2D *camera = runtime->GetActiveCamera();
     if (camera && camera->rotation != 0.0f)
     {
@@ -1526,9 +1650,25 @@ int LuaGraphicsDrawRectangleOutline(lua_State *L)
 int LuaGraphicsDrawRectangleRoundedFilled(lua_State *L)
 {
     engine::LuaRuntime *runtime = GetRuntime(L);
-    SDL_FRect rect = ReadRect(L, 1);
-    float radius = static_cast<float>(luaL_checknumber(L, 5));
-    leo::Graphics::Color color = ReadColor(L, 6);
+    SDL_FRect rect{};
+    float radius = 0.0f;
+    leo::Graphics::Color color{};
+
+    if (lua_istable(L, 1))
+    {
+        rect = {GetTableNumberFieldReq(L, 1, "x", "drawRectangleRoundedFilled"),
+                GetTableNumberFieldReq(L, 1, "y", "drawRectangleRoundedFilled"),
+                GetTableNumberFieldReq(L, 1, "w", "drawRectangleRoundedFilled"),
+                GetTableNumberFieldReq(L, 1, "h", "drawRectangleRoundedFilled")};
+        radius = GetTableNumberFieldReq(L, 1, "radius", "drawRectangleRoundedFilled");
+        color = ReadColorTable(L, 1, "drawRectangleRoundedFilled");
+    }
+    else
+    {
+        rect = ReadRect(L, 1);
+        radius = static_cast<float>(luaL_checknumber(L, 5));
+        color = ReadColor(L, 6);
+    }
     const leo::Camera::Camera2D *camera = runtime->GetActiveCamera();
     if (camera && camera->rotation != 0.0f)
     {
@@ -1555,9 +1695,25 @@ int LuaGraphicsDrawRectangleRoundedFilled(lua_State *L)
 int LuaGraphicsDrawRectangleRoundedOutline(lua_State *L)
 {
     engine::LuaRuntime *runtime = GetRuntime(L);
-    SDL_FRect rect = ReadRect(L, 1);
-    float radius = static_cast<float>(luaL_checknumber(L, 5));
-    leo::Graphics::Color color = ReadColor(L, 6);
+    SDL_FRect rect{};
+    float radius = 0.0f;
+    leo::Graphics::Color color{};
+
+    if (lua_istable(L, 1))
+    {
+        rect = {GetTableNumberFieldReq(L, 1, "x", "drawRectangleRoundedOutline"),
+                GetTableNumberFieldReq(L, 1, "y", "drawRectangleRoundedOutline"),
+                GetTableNumberFieldReq(L, 1, "w", "drawRectangleRoundedOutline"),
+                GetTableNumberFieldReq(L, 1, "h", "drawRectangleRoundedOutline")};
+        radius = GetTableNumberFieldReq(L, 1, "radius", "drawRectangleRoundedOutline");
+        color = ReadColorTable(L, 1, "drawRectangleRoundedOutline");
+    }
+    else
+    {
+        rect = ReadRect(L, 1);
+        radius = static_cast<float>(luaL_checknumber(L, 5));
+        color = ReadColor(L, 6);
+    }
     const leo::Camera::Camera2D *camera = runtime->GetActiveCamera();
     if (camera && camera->rotation != 0.0f)
     {
@@ -1585,10 +1741,28 @@ int LuaGraphicsDrawRectangleRoundedOutline(lua_State *L)
 int LuaGraphicsDrawTriangleFilled(lua_State *L)
 {
     engine::LuaRuntime *runtime = GetRuntime(L);
-    SDL_FPoint a = ReadPointPair(L, 1);
-    SDL_FPoint b = ReadPointPair(L, 3);
-    SDL_FPoint c = ReadPointPair(L, 5);
-    leo::Graphics::Color color = ReadColor(L, 7);
+    SDL_FPoint a{};
+    SDL_FPoint b{};
+    SDL_FPoint c{};
+    leo::Graphics::Color color{};
+
+    if (lua_istable(L, 1))
+    {
+        a = {GetTableNumberFieldReq(L, 1, "x1", "drawTriangleFilled"),
+             GetTableNumberFieldReq(L, 1, "y1", "drawTriangleFilled")};
+        b = {GetTableNumberFieldReq(L, 1, "x2", "drawTriangleFilled"),
+             GetTableNumberFieldReq(L, 1, "y2", "drawTriangleFilled")};
+        c = {GetTableNumberFieldReq(L, 1, "x3", "drawTriangleFilled"),
+             GetTableNumberFieldReq(L, 1, "y3", "drawTriangleFilled")};
+        color = ReadColorTable(L, 1, "drawTriangleFilled");
+    }
+    else
+    {
+        a = ReadPointPair(L, 1);
+        b = ReadPointPair(L, 3);
+        c = ReadPointPair(L, 5);
+        color = ReadColor(L, 7);
+    }
     const leo::Camera::Camera2D *camera = runtime->GetActiveCamera();
     a = ApplyCameraPoint(camera, a);
     b = ApplyCameraPoint(camera, b);
@@ -1600,10 +1774,28 @@ int LuaGraphicsDrawTriangleFilled(lua_State *L)
 int LuaGraphicsDrawTriangleOutline(lua_State *L)
 {
     engine::LuaRuntime *runtime = GetRuntime(L);
-    SDL_FPoint a = ReadPointPair(L, 1);
-    SDL_FPoint b = ReadPointPair(L, 3);
-    SDL_FPoint c = ReadPointPair(L, 5);
-    leo::Graphics::Color color = ReadColor(L, 7);
+    SDL_FPoint a{};
+    SDL_FPoint b{};
+    SDL_FPoint c{};
+    leo::Graphics::Color color{};
+
+    if (lua_istable(L, 1))
+    {
+        a = {GetTableNumberFieldReq(L, 1, "x1", "drawTriangleOutline"),
+             GetTableNumberFieldReq(L, 1, "y1", "drawTriangleOutline")};
+        b = {GetTableNumberFieldReq(L, 1, "x2", "drawTriangleOutline"),
+             GetTableNumberFieldReq(L, 1, "y2", "drawTriangleOutline")};
+        c = {GetTableNumberFieldReq(L, 1, "x3", "drawTriangleOutline"),
+             GetTableNumberFieldReq(L, 1, "y3", "drawTriangleOutline")};
+        color = ReadColorTable(L, 1, "drawTriangleOutline");
+    }
+    else
+    {
+        a = ReadPointPair(L, 1);
+        b = ReadPointPair(L, 3);
+        c = ReadPointPair(L, 5);
+        color = ReadColor(L, 7);
+    }
     const leo::Camera::Camera2D *camera = runtime->GetActiveCamera();
     a = ApplyCameraPoint(camera, a);
     b = ApplyCameraPoint(camera, b);
@@ -1616,8 +1808,21 @@ int LuaGraphicsDrawPolyFilled(lua_State *L)
 {
     engine::LuaRuntime *runtime = GetRuntime(L);
     std::vector<SDL_FPoint> points;
-    ReadPointList(L, 1, &points);
-    leo::Graphics::Color color = ReadColor(L, 2);
+    leo::Graphics::Color color{};
+
+    if (lua_istable(L, 1) && TableHasField(L, 1, "points"))
+    {
+        int idx = lua_absindex(L, 1);
+        lua_getfield(L, idx, "points");
+        ReadPointList(L, lua_gettop(L), &points);
+        lua_pop(L, 1);
+        color = ReadColorTable(L, 1, "drawPolyFilled");
+    }
+    else
+    {
+        ReadPointList(L, 1, &points);
+        color = ReadColor(L, 2);
+    }
     const leo::Camera::Camera2D *camera = runtime->GetActiveCamera();
     if (camera)
     {
@@ -1634,8 +1839,21 @@ int LuaGraphicsDrawPolyOutline(lua_State *L)
 {
     engine::LuaRuntime *runtime = GetRuntime(L);
     std::vector<SDL_FPoint> points;
-    ReadPointList(L, 1, &points);
-    leo::Graphics::Color color = ReadColor(L, 2);
+    leo::Graphics::Color color{};
+
+    if (lua_istable(L, 1) && TableHasField(L, 1, "points"))
+    {
+        int idx = lua_absindex(L, 1);
+        lua_getfield(L, idx, "points");
+        ReadPointList(L, lua_gettop(L), &points);
+        lua_pop(L, 1);
+        color = ReadColorTable(L, 1, "drawPolyOutline");
+    }
+    else
+    {
+        ReadPointList(L, 1, &points);
+        color = ReadColor(L, 2);
+    }
     const leo::Camera::Camera2D *camera = runtime->GetActiveCamera();
     if (camera)
     {
