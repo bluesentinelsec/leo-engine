@@ -1,5 +1,6 @@
 local graphics = leo.graphics
 local camera_api = leo.camera
+local math_api = leo.math
 local tiled = leo.tiled
 
 local map = nil
@@ -14,18 +15,8 @@ local cursor = {
 }
 
 local function clamp_cursor()
-  if cursor.x < 0 then
-    cursor.x = 0
-  end
-  if cursor.y < 0 then
-    cursor.y = 0
-  end
-  if cursor.x > map_w then
-    cursor.x = map_w
-  end
-  if cursor.y > map_h then
-    cursor.y = map_h
-  end
+  cursor.x = math_api.clamp(cursor.x, 0, map_w)
+  cursor.y = math_api.clamp(cursor.y, 0, map_h)
 end
 
 local function move_cursor(dt, input)
@@ -56,17 +47,20 @@ local function move_cursor(dt, input)
 end
 
 leo.load = function()
-  map = tiled.load("resources/maps/map.tmx")
+  map = tiled.load({ path = "resources/maps/map.tmx" })
   map_w, map_h = map:getPixelSize()
-
-  cam = camera_api.new()
-  cam:setBounds(0, 0, map_w, map_h)
-  cam:setClamp(true)
-  cam:setDeadzone(0, 0)
-  cam:setSmoothTime(0.08)
 
   cursor.x = map_w * 0.5
   cursor.y = map_h * 0.5
+
+  cam = camera_api.new({
+    position = { x = cursor.x, y = cursor.y },
+    target = { x = cursor.x, y = cursor.y },
+    bounds = { x = 0, y = 0, w = map_w, h = map_h },
+    clamp = true,
+    deadzone = { w = 0, h = 0 },
+    smooth_time = 0.08,
+  })
 end
 
 leo.update = function(dt, input)
@@ -75,8 +69,7 @@ leo.update = function(dt, input)
   end
 
   move_cursor(dt, input)
-  cam:setTarget(cursor.x, cursor.y)
-  cam:update(dt)
+  cam:update(dt, { target = { x = cursor.x, y = cursor.y } })
 end
 
 leo.draw = function()
@@ -87,7 +80,16 @@ leo.draw = function()
   end
 
   graphics.beginCamera(cam)
-  map:draw(0, 0)
-  graphics.drawRectangleFilled(cursor.x - 6, cursor.y - 6, 12, 12, 255, 220, 120, 255)
+  map:draw({ x = 0, y = 0 })
+  graphics.drawRectangleFilled({
+    x = cursor.x - 6,
+    y = cursor.y - 6,
+    w = 12,
+    h = 12,
+    r = 255,
+    g = 220,
+    b = 120,
+    a = 255,
+  })
   graphics.endCamera()
 end

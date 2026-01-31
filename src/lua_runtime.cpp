@@ -640,6 +640,25 @@ bool GetTableBoolFieldOpt(lua_State *L, int index, const char *key, bool default
     return value;
 }
 
+bool GetTableBoolFieldReq(lua_State *L, int index, const char *key, const char *context)
+{
+    int idx = lua_absindex(L, index);
+    lua_getfield(L, idx, key);
+    if (lua_isnil(L, -1))
+    {
+        luaL_error(L, "%s requires '%s'", context, key);
+        return false;
+    }
+    if (!lua_isboolean(L, -1))
+    {
+        luaL_error(L, "%s field '%s' must be boolean", context, key);
+        return false;
+    }
+    bool value = lua_toboolean(L, -1);
+    lua_pop(L, 1);
+    return value;
+}
+
 bool TableHasField(lua_State *L, int index, const char *key)
 {
     int idx = lua_absindex(L, index);
@@ -2326,7 +2345,15 @@ int LuaGraphicsEndCamera(lua_State *L)
 int LuaTiledLoad(lua_State *L)
 {
     engine::LuaRuntime *runtime = GetRuntime(L);
-    const char *path = luaL_checkstring(L, 1);
+    const char *path = nullptr;
+    if (lua_istable(L, 1))
+    {
+        path = GetTableStringFieldReq(L, 1, "path", "leo.tiled.load");
+    }
+    else
+    {
+        path = luaL_checkstring(L, 1);
+    }
 
     try
     {
@@ -2354,8 +2381,18 @@ int LuaTiledMapDraw(lua_State *L)
 {
     engine::LuaRuntime *runtime = GetRuntime(L);
     LuaTiledMap *ud = CheckTiledMap(L, 1);
-    float x = static_cast<float>(luaL_optnumber(L, 2, 0.0));
-    float y = static_cast<float>(luaL_optnumber(L, 3, 0.0));
+    float x = 0.0f;
+    float y = 0.0f;
+    if (lua_istable(L, 2))
+    {
+        x = GetTableFloatFieldOpt(L, 2, "x", 0.0f);
+        y = GetTableFloatFieldOpt(L, 2, "y", 0.0f);
+    }
+    else
+    {
+        x = static_cast<float>(luaL_optnumber(L, 2, 0.0));
+        y = static_cast<float>(luaL_optnumber(L, 3, 0.0));
+    }
     ud->map.Draw(runtime->GetRenderer(), x, y, runtime->GetActiveCamera());
     return 0;
 }
@@ -2364,9 +2401,22 @@ int LuaTiledMapDrawLayer(lua_State *L)
 {
     engine::LuaRuntime *runtime = GetRuntime(L);
     LuaTiledMap *ud = CheckTiledMap(L, 1);
-    int layer_index = static_cast<int>(luaL_checkinteger(L, 2)) - 1;
-    float x = static_cast<float>(luaL_optnumber(L, 3, 0.0));
-    float y = static_cast<float>(luaL_optnumber(L, 4, 0.0));
+    int layer_index = 0;
+    float x = 0.0f;
+    float y = 0.0f;
+    if (lua_istable(L, 2))
+    {
+        layer_index =
+            static_cast<int>(GetTableNumberFieldReq(L, 2, "layer", "map.drawLayer")) - 1;
+        x = GetTableFloatFieldOpt(L, 2, "x", 0.0f);
+        y = GetTableFloatFieldOpt(L, 2, "y", 0.0f);
+    }
+    else
+    {
+        layer_index = static_cast<int>(luaL_checkinteger(L, 2)) - 1;
+        x = static_cast<float>(luaL_optnumber(L, 3, 0.0));
+        y = static_cast<float>(luaL_optnumber(L, 4, 0.0));
+    }
     ud->map.DrawLayer(runtime->GetRenderer(), layer_index, x, y, runtime->GetActiveCamera());
     return 0;
 }
@@ -2602,11 +2652,59 @@ int LuaFontPrintCurrent(lua_State *L)
 int LuaSoundNew(lua_State *L)
 {
     engine::LuaRuntime *runtime = GetRuntime(L);
-    const char *path = luaL_checkstring(L, 1);
+    const char *path = nullptr;
+    bool apply_looping = false;
+    bool looping = false;
+    bool apply_volume = false;
+    float volume = 0.0f;
+    bool apply_pitch = false;
+    float pitch = 0.0f;
+    bool auto_play = false;
+
+    if (lua_istable(L, 1))
+    {
+        path = GetTableStringFieldReq(L, 1, "path", "leo.audio.newSound");
+        if (TableHasField(L, 1, "looping"))
+        {
+            looping = GetTableBoolFieldReq(L, 1, "looping", "leo.audio.newSound");
+            apply_looping = true;
+        }
+        if (TableHasField(L, 1, "volume"))
+        {
+            volume = GetTableFloatFieldOpt(L, 1, "volume", 0.0f);
+            apply_volume = true;
+        }
+        if (TableHasField(L, 1, "pitch"))
+        {
+            pitch = GetTableFloatFieldOpt(L, 1, "pitch", 0.0f);
+            apply_pitch = true;
+        }
+        auto_play = GetTableBoolFieldOpt(L, 1, "play", false) || GetTableBoolFieldOpt(L, 1, "playing", false);
+    }
+    else
+    {
+        path = luaL_checkstring(L, 1);
+    }
     try
     {
         LuaSound *ud = static_cast<LuaSound *>(lua_newuserdata(L, sizeof(LuaSound)));
         new (&ud->sound) engine::Sound(engine::Sound::LoadFromVfs(runtime->GetVfs(), path));
+        if (apply_looping)
+        {
+            ud->sound.SetLooping(looping);
+        }
+        if (apply_volume)
+        {
+            ud->sound.SetVolume(volume);
+        }
+        if (apply_pitch)
+        {
+            ud->sound.SetPitch(pitch);
+        }
+        if (auto_play)
+        {
+            ud->sound.Play();
+        }
         luaL_getmetatable(L, kSoundMeta);
         lua_setmetatable(L, -2);
         return 1;
@@ -2655,7 +2753,15 @@ int LuaSoundIsPlaying(lua_State *L)
 int LuaSoundSetLooping(lua_State *L)
 {
     LuaSound *ud = CheckSound(L, 1);
-    bool looping = lua_toboolean(L, 2);
+    bool looping = false;
+    if (lua_istable(L, 2))
+    {
+        looping = GetTableBoolFieldReq(L, 2, "looping", "sound.setLooping");
+    }
+    else
+    {
+        looping = lua_toboolean(L, 2);
+    }
     ud->sound.SetLooping(looping);
     return 0;
 }
@@ -2663,7 +2769,15 @@ int LuaSoundSetLooping(lua_State *L)
 int LuaSoundSetVolume(lua_State *L)
 {
     LuaSound *ud = CheckSound(L, 1);
-    float volume = static_cast<float>(luaL_checknumber(L, 2));
+    float volume = 0.0f;
+    if (lua_istable(L, 2))
+    {
+        volume = GetTableNumberFieldReq(L, 2, "volume", "sound.setVolume");
+    }
+    else
+    {
+        volume = static_cast<float>(luaL_checknumber(L, 2));
+    }
     ud->sound.SetVolume(volume);
     return 0;
 }
@@ -2671,7 +2785,15 @@ int LuaSoundSetVolume(lua_State *L)
 int LuaSoundSetPitch(lua_State *L)
 {
     LuaSound *ud = CheckSound(L, 1);
-    float pitch = static_cast<float>(luaL_checknumber(L, 2));
+    float pitch = 0.0f;
+    if (lua_istable(L, 2))
+    {
+        pitch = GetTableNumberFieldReq(L, 2, "pitch", "sound.setPitch");
+    }
+    else
+    {
+        pitch = static_cast<float>(luaL_checknumber(L, 2));
+    }
     ud->sound.SetPitch(pitch);
     return 0;
 }
@@ -2679,11 +2801,59 @@ int LuaSoundSetPitch(lua_State *L)
 int LuaMusicNew(lua_State *L)
 {
     engine::LuaRuntime *runtime = GetRuntime(L);
-    const char *path = luaL_checkstring(L, 1);
+    const char *path = nullptr;
+    bool apply_looping = false;
+    bool looping = false;
+    bool apply_volume = false;
+    float volume = 0.0f;
+    bool apply_pitch = false;
+    float pitch = 0.0f;
+    bool auto_play = false;
+
+    if (lua_istable(L, 1))
+    {
+        path = GetTableStringFieldReq(L, 1, "path", "leo.audio.newMusic");
+        if (TableHasField(L, 1, "looping"))
+        {
+            looping = GetTableBoolFieldReq(L, 1, "looping", "leo.audio.newMusic");
+            apply_looping = true;
+        }
+        if (TableHasField(L, 1, "volume"))
+        {
+            volume = GetTableFloatFieldOpt(L, 1, "volume", 0.0f);
+            apply_volume = true;
+        }
+        if (TableHasField(L, 1, "pitch"))
+        {
+            pitch = GetTableFloatFieldOpt(L, 1, "pitch", 0.0f);
+            apply_pitch = true;
+        }
+        auto_play = GetTableBoolFieldOpt(L, 1, "play", false) || GetTableBoolFieldOpt(L, 1, "playing", false);
+    }
+    else
+    {
+        path = luaL_checkstring(L, 1);
+    }
     try
     {
         LuaMusic *ud = static_cast<LuaMusic *>(lua_newuserdata(L, sizeof(LuaMusic)));
         new (&ud->music) engine::Music(engine::Music::LoadFromVfs(runtime->GetVfs(), path));
+        if (apply_looping)
+        {
+            ud->music.SetLooping(looping);
+        }
+        if (apply_volume)
+        {
+            ud->music.SetVolume(volume);
+        }
+        if (apply_pitch)
+        {
+            ud->music.SetPitch(pitch);
+        }
+        if (auto_play)
+        {
+            ud->music.Play();
+        }
         luaL_getmetatable(L, kMusicMeta);
         lua_setmetatable(L, -2);
         return 1;
@@ -2732,7 +2902,15 @@ int LuaMusicIsPlaying(lua_State *L)
 int LuaMusicSetLooping(lua_State *L)
 {
     LuaMusic *ud = CheckMusic(L, 1);
-    bool looping = lua_toboolean(L, 2);
+    bool looping = false;
+    if (lua_istable(L, 2))
+    {
+        looping = GetTableBoolFieldReq(L, 2, "looping", "music.setLooping");
+    }
+    else
+    {
+        looping = lua_toboolean(L, 2);
+    }
     ud->music.SetLooping(looping);
     return 0;
 }
@@ -2740,7 +2918,15 @@ int LuaMusicSetLooping(lua_State *L)
 int LuaMusicSetVolume(lua_State *L)
 {
     LuaMusic *ud = CheckMusic(L, 1);
-    float volume = static_cast<float>(luaL_checknumber(L, 2));
+    float volume = 0.0f;
+    if (lua_istable(L, 2))
+    {
+        volume = GetTableNumberFieldReq(L, 2, "volume", "music.setVolume");
+    }
+    else
+    {
+        volume = static_cast<float>(luaL_checknumber(L, 2));
+    }
     ud->music.SetVolume(volume);
     return 0;
 }
@@ -2748,7 +2934,15 @@ int LuaMusicSetVolume(lua_State *L)
 int LuaMusicSetPitch(lua_State *L)
 {
     LuaMusic *ud = CheckMusic(L, 1);
-    float pitch = static_cast<float>(luaL_checknumber(L, 2));
+    float pitch = 0.0f;
+    if (lua_istable(L, 2))
+    {
+        pitch = GetTableNumberFieldReq(L, 2, "pitch", "music.setPitch");
+    }
+    else
+    {
+        pitch = static_cast<float>(luaL_checknumber(L, 2));
+    }
     ud->music.SetPitch(pitch);
     return 0;
 }
