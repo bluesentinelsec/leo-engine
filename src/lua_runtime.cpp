@@ -1438,6 +1438,84 @@ int LuaGraphicsGetSize(lua_State *L)
     return 2;
 }
 
+int LuaGraphicsBeginViewport(lua_State *L)
+{
+    engine::LuaRuntime *runtime = GetRuntime(L);
+    int x = static_cast<int>(luaL_checkinteger(L, 1));
+    int y = static_cast<int>(luaL_checkinteger(L, 2));
+    int w = static_cast<int>(luaL_checkinteger(L, 3));
+    int h = static_cast<int>(luaL_checkinteger(L, 4));
+    if (w <= 0 || h <= 0)
+    {
+        return luaL_error(L, "leo.graphics.beginViewport requires positive width and height");
+    }
+    SDL_Rect viewport = {x, y, w, h};
+    SDL_SetRenderViewport(runtime->GetRenderer(), &viewport);
+    return 0;
+}
+
+int LuaGraphicsEndViewport(lua_State *L)
+{
+    engine::LuaRuntime *runtime = GetRuntime(L);
+    SDL_SetRenderViewport(runtime->GetRenderer(), nullptr);
+    return 0;
+}
+
+int LuaGraphicsDrawGrid(lua_State *L)
+{
+    engine::LuaRuntime *runtime = GetRuntime(L);
+    float x = 0.0f;
+    float y = 0.0f;
+    float w = 0.0f;
+    float h = 0.0f;
+    float step = 64.0f;
+    leo::Graphics::Color color = {255, 255, 255, 255};
+
+    if (lua_istable(L, 1))
+    {
+        x = GetTableNumberFieldReq(L, 1, "x", "drawGrid");
+        y = GetTableNumberFieldReq(L, 1, "y", "drawGrid");
+        w = GetTableNumberFieldReq(L, 1, "w", "drawGrid");
+        h = GetTableNumberFieldReq(L, 1, "h", "drawGrid");
+        step = GetTableNumberFieldReq(L, 1, "step", "drawGrid");
+        color = ReadColorTable(L, 1, "drawGrid");
+    }
+    else
+    {
+        x = static_cast<float>(luaL_checknumber(L, 1));
+        y = static_cast<float>(luaL_checknumber(L, 2));
+        w = static_cast<float>(luaL_checknumber(L, 3));
+        h = static_cast<float>(luaL_checknumber(L, 4));
+        step = static_cast<float>(luaL_checknumber(L, 5));
+        color = ReadColor(L, 6);
+    }
+
+    if (w <= 0.0f || h <= 0.0f)
+    {
+        return 0;
+    }
+    if (step <= 0.0f)
+    {
+        return luaL_error(L, "leo.graphics.drawGrid requires positive step");
+    }
+
+    const leo::Camera::Camera2D *camera = runtime->GetActiveCamera();
+    for (float gx = x; gx <= x + w; gx += step)
+    {
+        SDL_FPoint p1 = ApplyCameraPoint(camera, {gx, y});
+        SDL_FPoint p2 = ApplyCameraPoint(camera, {gx, y + h});
+        leo::Graphics::DrawLine(runtime->GetRenderer(), p1.x, p1.y, p2.x, p2.y, color);
+    }
+    for (float gy = y; gy <= y + h; gy += step)
+    {
+        SDL_FPoint p1 = ApplyCameraPoint(camera, {x, gy});
+        SDL_FPoint p2 = ApplyCameraPoint(camera, {x + w, gy});
+        leo::Graphics::DrawLine(runtime->GetRenderer(), p1.x, p1.y, p2.x, p2.y, color);
+    }
+
+    return 0;
+}
+
 int LuaWindowSetSize(lua_State *L)
 {
     engine::LuaRuntime *runtime = GetRuntime(L);
@@ -3134,6 +3212,12 @@ void RegisterGraphics(lua_State *L)
     lua_setfield(L, -2, "clear");
     lua_pushcfunction(L, LuaGraphicsGetSize);
     lua_setfield(L, -2, "getSize");
+    lua_pushcfunction(L, LuaGraphicsBeginViewport);
+    lua_setfield(L, -2, "beginViewport");
+    lua_pushcfunction(L, LuaGraphicsEndViewport);
+    lua_setfield(L, -2, "endViewport");
+    lua_pushcfunction(L, LuaGraphicsDrawGrid);
+    lua_setfield(L, -2, "drawGrid");
     lua_pushcfunction(L, LuaGraphicsDrawPixel);
     lua_setfield(L, -2, "drawPixel");
     lua_pushcfunction(L, LuaGraphicsDrawLine);
@@ -3221,6 +3305,37 @@ void RegisterLog(lua_State *L)
     lua_setfield(L, -2, "error");
     lua_pushcfunction(L, LuaLogFatal);
     lua_setfield(L, -2, "fatal");
+}
+
+int LuaMathClamp(lua_State *L)
+{
+    float value = static_cast<float>(luaL_checknumber(L, 1));
+    float min_value = static_cast<float>(luaL_checknumber(L, 2));
+    float max_value = static_cast<float>(luaL_checknumber(L, 3));
+    if (min_value > max_value)
+    {
+        std::swap(min_value, max_value);
+    }
+    float clamped = value < min_value ? min_value : (value > max_value ? max_value : value);
+    lua_pushnumber(L, clamped);
+    return 1;
+}
+
+int LuaMathClamp01(lua_State *L)
+{
+    float value = static_cast<float>(luaL_checknumber(L, 1));
+    float clamped = value < 0.0f ? 0.0f : (value > 1.0f ? 1.0f : value);
+    lua_pushnumber(L, clamped);
+    return 1;
+}
+
+void RegisterMath(lua_State *L)
+{
+    lua_newtable(L);
+    lua_pushcfunction(L, LuaMathClamp);
+    lua_setfield(L, -2, "clamp");
+    lua_pushcfunction(L, LuaMathClamp01);
+    lua_setfield(L, -2, "clamp01");
 }
 
 void RegisterTime(lua_State *L)
@@ -3385,6 +3500,9 @@ void RegisterLeo(lua_State *L)
 
     RegisterLog(L);
     lua_setfield(L, -2, "log");
+
+    RegisterMath(L);
+    lua_setfield(L, -2, "math");
 
     RegisterTime(L);
     lua_setfield(L, -2, "time");

@@ -15,8 +15,11 @@ Numbered checklist of every Lua API function and symbol exposed by Leo Engine.
 1. `leo.graphics.setColor`
 1. `leo.graphics.clear`
 1. `leo.graphics.getSize`
+1. `leo.graphics.beginViewport`
+1. `leo.graphics.endViewport`
 1. `leo.graphics.drawPixel`
 1. `leo.graphics.drawLine`
+1. `leo.graphics.drawGrid`
 1. `leo.graphics.drawCircleFilled`
 1. `leo.graphics.drawCircleOutline`
 1. `leo.graphics.drawRectangleFilled`
@@ -72,6 +75,10 @@ Numbered checklist of every Lua API function and symbol exposed by Leo Engine.
 1. `leo.time` (module table)
 1. `leo.time.ticks`
 1. `leo.time.tickDelta`
+
+1. `leo.math` (module table)
+1. `leo.math.clamp`
+1. `leo.math.clamp01`
 
 1. `leo.fs` (module table)
 1. `leo.fs.read`
