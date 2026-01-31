@@ -32,6 +32,16 @@ constexpr const char *kMouseMeta = "leo.mouse";
 constexpr const char *kGamepadMeta = "leo.gamepad";
 constexpr const char *kCameraMeta = "leo.camera";
 constexpr const char *kTiledMapMeta = "leo.tiled_map";
+constexpr const char *kAnimationMeta = "leo.animation";
+
+struct AnimationFrame
+{
+    float x;
+    float y;
+    float w;
+    float h;
+    float duration;
+};
 
 struct LuaTexture
 {
@@ -77,6 +87,20 @@ struct LuaCamera
 struct LuaTiledMap
 {
     engine::TiledMap map;
+};
+
+struct LuaAnimation
+{
+    engine::Texture texture;
+    engine::Texture *texture_ptr;
+    bool owns_texture;
+    int texture_ref;
+    std::vector<AnimationFrame> frames;
+    size_t frame_index;
+    float frame_time;
+    bool playing;
+    bool looping;
+    float speed;
 };
 
 engine::LuaRuntime *GetRuntime(lua_State *L)
@@ -500,6 +524,122 @@ LuaTexture *CheckTexture(lua_State *L, int index)
     return static_cast<LuaTexture *>(luaL_checkudata(L, index, kTextureMeta));
 }
 
+LuaAnimation *CheckAnimation(lua_State *L, int index)
+{
+    return static_cast<LuaAnimation *>(luaL_checkudata(L, index, kAnimationMeta));
+}
+
+void InitAnimationState(LuaAnimation *ud)
+{
+    ud->frames.clear();
+    ud->frame_index = 0;
+    ud->frame_time = 0.0f;
+    ud->playing = false;
+    ud->looping = true;
+    ud->speed = 1.0f;
+}
+
+void ApplyAnimationFlags(lua_State *L, LuaAnimation *ud, int looping_index, int playing_index)
+{
+    if (!lua_isnoneornil(L, looping_index))
+    {
+        ud->looping = lua_toboolean(L, looping_index);
+    }
+    if (!lua_isnoneornil(L, playing_index))
+    {
+        ud->playing = lua_toboolean(L, playing_index);
+    }
+}
+
+const char *GetTableStringField(lua_State *L, int index, const char *key)
+{
+    int idx = lua_absindex(L, index);
+    lua_getfield(L, idx, key);
+    if (lua_isnil(L, -1))
+    {
+        luaL_error(L, "Animation sheet requires '%s'", key);
+        return "";
+    }
+    const char *value = luaL_checkstring(L, -1);
+    lua_pop(L, 1);
+    return value;
+}
+
+int GetTableIntField(lua_State *L, int index, const char *key)
+{
+    int idx = lua_absindex(L, index);
+    lua_getfield(L, idx, key);
+    if (lua_isnil(L, -1))
+    {
+        luaL_error(L, "Animation sheet requires '%s'", key);
+        return 0;
+    }
+    int value = static_cast<int>(luaL_checkinteger(L, -1));
+    lua_pop(L, 1);
+    return value;
+}
+
+int GetTableIntFieldOpt(lua_State *L, int index, const char *key, int default_value)
+{
+    int idx = lua_absindex(L, index);
+    lua_getfield(L, idx, key);
+    if (lua_isnil(L, -1))
+    {
+        lua_pop(L, 1);
+        return default_value;
+    }
+    int value = static_cast<int>(luaL_checkinteger(L, -1));
+    lua_pop(L, 1);
+    return value;
+}
+
+float GetTableFloatField(lua_State *L, int index, const char *key)
+{
+    int idx = lua_absindex(L, index);
+    lua_getfield(L, idx, key);
+    if (lua_isnil(L, -1))
+    {
+        luaL_error(L, "Animation sheet requires '%s'", key);
+        return 0.0f;
+    }
+    float value = static_cast<float>(luaL_checknumber(L, -1));
+    lua_pop(L, 1);
+    return value;
+}
+
+float GetTableFloatFieldOpt(lua_State *L, int index, const char *key, float default_value)
+{
+    int idx = lua_absindex(L, index);
+    lua_getfield(L, idx, key);
+    if (lua_isnil(L, -1))
+    {
+        lua_pop(L, 1);
+        return default_value;
+    }
+    float value = static_cast<float>(luaL_checknumber(L, -1));
+    lua_pop(L, 1);
+    return value;
+}
+
+bool GetTableBoolFieldOpt(lua_State *L, int index, const char *key, bool default_value)
+{
+    int idx = lua_absindex(L, index);
+    lua_getfield(L, idx, key);
+    if (lua_isnil(L, -1))
+    {
+        lua_pop(L, 1);
+        return default_value;
+    }
+    if (!lua_isboolean(L, -1))
+    {
+        luaL_error(L, "Animation sheet field '%s' must be boolean", key);
+        return default_value;
+    }
+    bool value = lua_toboolean(L, -1);
+    lua_pop(L, 1);
+    return value;
+}
+
 LuaFont *CheckFont(lua_State *L, int index)
 {
     return static_cast<LuaFont *>(luaL_checkudata(L, index, kFontMeta));
@@ -669,6 +809,490 @@ int LuaGraphicsDrawEx(lua_State *L)
 
     SDL_SetTextureColorMod(ud->texture.handle, 255, 255, 255);
     SDL_SetTextureAlphaMod(ud->texture.handle, 255);
+    return 0;
+}
+
+int LuaAnimationNew(lua_State *L)
+{
+    engine::LuaRuntime *runtime = GetRuntime(L);
+    const char *path = luaL_checkstring(L, 1);
+
+    try
+    {
+        engine::TextureLoader loader(runtime->GetVfs(), runtime->GetRenderer());
+        LuaAnimation *ud = static_cast<LuaAnimation *>(lua_newuserdata(L, sizeof(LuaAnimation)));
+        new (&ud->texture) engine::Texture(loader.Load(path));
+        ud->texture_ptr = &ud->texture;
+        ud->owns_texture = true;
+        ud->texture_ref = LUA_NOREF;
+        InitAnimationState(ud);
+        ApplyAnimationFlags(L, ud, 2, 3);
+        luaL_getmetatable(L, kAnimationMeta);
+        lua_setmetatable(L, -2);
+        return 1;
+    }
+    catch (const std::exception &e)
+    {
+        return luaL_error(L, "%s", e.what());
+    }
+}
+
+int LuaAnimationNewFromTexture(lua_State *L)
+{
+    LuaTexture *tex = CheckTexture(L, 1);
+    LuaAnimation *ud = static_cast<LuaAnimation *>(lua_newuserdata(L, sizeof(LuaAnimation)));
+    new (&ud->texture) engine::Texture();
+    ud->texture_ptr = &tex->texture;
+    ud->owns_texture = false;
+    ud->texture_ref = LUA_NOREF;
+    InitAnimationState(ud);
+    ApplyAnimationFlags(L, ud, 2, 3);
+
+    lua_pushvalue(L, 1);
+    ud->texture_ref = luaL_ref(L, LUA_REGISTRYINDEX);
+
+    luaL_getmetatable(L, kAnimationMeta);
+    lua_setmetatable(L, -2);
+    return 1;
+}
+
+int LuaAnimationNewSheet(lua_State *L)
+{
+    engine::LuaRuntime *runtime = GetRuntime(L);
+    const char *path = nullptr;
+    int frame_w = 0;
+    int frame_h = 0;
+    int frame_count = 0;
+    float frame_time = 0.0f;
+    bool looping = true;
+    bool playing = false;
+
+    if (lua_istable(L, 1))
+    {
+        path = GetTableStringField(L, 1, "path");
+        frame_w = GetTableIntField(L, 1, "frame_w");
+        frame_h = GetTableIntField(L, 1, "frame_h");
+        frame_count = GetTableIntField(L, 1, "frame_count");
+        frame_time = GetTableFloatField(L, 1, "frame_time");
+        looping = GetTableBoolFieldOpt(L, 1, "looping", true);
+        playing = GetTableBoolFieldOpt(L, 1, "playing", false);
+    }
+    else
+    {
+        path = luaL_checkstring(L, 1);
+        frame_w = static_cast<int>(luaL_checkinteger(L, 2));
+        frame_h = static_cast<int>(luaL_checkinteger(L, 3));
+        frame_count = static_cast<int>(luaL_checkinteger(L, 4));
+        frame_time = static_cast<float>(luaL_checknumber(L, 5));
+    }
+
+    if (frame_w <= 0 || frame_h <= 0 || frame_count <= 0 || frame_time <= 0.0f)
+    {
+        return luaL_error(L, "Animation sheets require positive frame size, count, and time");
+    }
+
+    try
+    {
+        engine::TextureLoader loader(runtime->GetVfs(), runtime->GetRenderer());
+        LuaAnimation *ud = static_cast<LuaAnimation *>(lua_newuserdata(L, sizeof(LuaAnimation)));
+        new (&ud->texture) engine::Texture(loader.Load(path));
+        ud->texture_ptr = &ud->texture;
+        ud->owns_texture = true;
+        ud->texture_ref = LUA_NOREF;
+        InitAnimationState(ud);
+        ud->frames.reserve(static_cast<size_t>(frame_count));
+        for (int i = 0; i < frame_count; ++i)
+        {
+            float x = static_cast<float>(i * frame_w);
+            ud->frames.push_back({x, 0.0f, static_cast<float>(frame_w), static_cast<float>(frame_h), frame_time});
+        }
+        if (lua_istable(L, 1))
+        {
+            ud->looping = looping;
+            ud->playing = playing;
+        }
+        else
+        {
+            ApplyAnimationFlags(L, ud, 6, 7);
+        }
+        luaL_getmetatable(L, kAnimationMeta);
+        lua_setmetatable(L, -2);
+        return 1;
+    }
+    catch (const std::exception &e)
+    {
+        return luaL_error(L, "%s", e.what());
+    }
+}
+
+int LuaAnimationNewSheetEx(lua_State *L)
+{
+    engine::LuaRuntime *runtime = GetRuntime(L);
+    const char *path = nullptr;
+    int frame_w = 0;
+    int frame_h = 0;
+    int frame_count = 0;
+    float frame_time = 0.0f;
+    int start_x = 0;
+    int start_y = 0;
+    int pad_x = 0;
+    int pad_y = 0;
+    int columns = 0;
+    bool looping = true;
+    bool playing = false;
+
+    if (lua_istable(L, 1))
+    {
+        path = GetTableStringField(L, 1, "path");
+        frame_w = GetTableIntField(L, 1, "frame_w");
+        frame_h = GetTableIntField(L, 1, "frame_h");
+        frame_count = GetTableIntField(L, 1, "frame_count");
+        frame_time = GetTableFloatField(L, 1, "frame_time");
+        start_x = GetTableIntFieldOpt(L, 1, "start_x", 0);
+        start_y = GetTableIntFieldOpt(L, 1, "start_y", 0);
+        pad_x = GetTableIntFieldOpt(L, 1, "pad_x", 0);
+        pad_y = GetTableIntFieldOpt(L, 1, "pad_y", 0);
+        columns = GetTableIntFieldOpt(L, 1, "columns", 0);
+        looping = GetTableBoolFieldOpt(L, 1, "looping", true);
+        playing = GetTableBoolFieldOpt(L, 1, "playing", false);
+    }
+    else
+    {
+        path = luaL_checkstring(L, 1);
+        frame_w = static_cast<int>(luaL_checkinteger(L, 2));
+        frame_h = static_cast<int>(luaL_checkinteger(L, 3));
+        frame_count = static_cast<int>(luaL_checkinteger(L, 4));
+        frame_time = static_cast<float>(luaL_checknumber(L, 5));
+        start_x = static_cast<int>(luaL_optinteger(L, 6, 0));
+        start_y = static_cast<int>(luaL_optinteger(L, 7, 0));
+        pad_x = static_cast<int>(luaL_optinteger(L, 8, 0));
+        pad_y = static_cast<int>(luaL_optinteger(L, 9, 0));
+        columns = static_cast<int>(luaL_optinteger(L, 10, 0));
+    }
+
+    if (frame_w <= 0 || frame_h <= 0 || frame_count <= 0 || frame_time <= 0.0f)
+    {
+        return luaL_error(L, "Animation sheets require positive frame size, count, and time");
+    }
+
+    if (start_x < 0 || start_y < 0 || pad_x < 0 || pad_y < 0)
+    {
+        return luaL_error(L, "Animation sheet offsets and padding must be non-negative");
+    }
+
+    try
+    {
+        engine::TextureLoader loader(runtime->GetVfs(), runtime->GetRenderer());
+        LuaAnimation *ud = static_cast<LuaAnimation *>(lua_newuserdata(L, sizeof(LuaAnimation)));
+        new (&ud->texture) engine::Texture(loader.Load(path));
+        ud->texture_ptr = &ud->texture;
+        ud->owns_texture = true;
+        ud->texture_ref = LUA_NOREF;
+        InitAnimationState(ud);
+
+        const int stride_x = frame_w + pad_x;
+        const int stride_y = frame_h + pad_y;
+        if (stride_x <= 0 || stride_y <= 0)
+        {
+            return luaL_error(L, "Animation sheet frame stride must be positive");
+        }
+
+        if (columns <= 0)
+        {
+            int available_w = ud->texture.width - start_x;
+            columns = available_w > 0 ? (available_w + pad_x) / stride_x : 0;
+        }
+
+        if (columns <= 0)
+        {
+            return luaL_error(L, "Animation sheet column count must be positive");
+        }
+
+        ud->frames.reserve(static_cast<size_t>(frame_count));
+        for (int i = 0; i < frame_count; ++i)
+        {
+            int col = i % columns;
+            int row = i / columns;
+            float x = static_cast<float>(start_x + col * stride_x);
+            float y = static_cast<float>(start_y + row * stride_y);
+
+            if (x + frame_w > ud->texture.width || y + frame_h > ud->texture.height)
+            {
+                return luaL_error(L, "Animation sheet frame exceeds texture bounds");
+            }
+
+            ud->frames.push_back({x, y, static_cast<float>(frame_w), static_cast<float>(frame_h), frame_time});
+        }
+
+        if (lua_istable(L, 1))
+        {
+            ud->looping = looping;
+            ud->playing = playing;
+        }
+        else
+        {
+            ApplyAnimationFlags(L, ud, 11, 12);
+        }
+        luaL_getmetatable(L, kAnimationMeta);
+        lua_setmetatable(L, -2);
+        return 1;
+    }
+    catch (const std::exception &e)
+    {
+        return luaL_error(L, "%s", e.what());
+    }
+}
+
+int LuaAnimationAddFrame(lua_State *L)
+{
+    LuaAnimation *ud = CheckAnimation(L, 1);
+    float x = static_cast<float>(luaL_checknumber(L, 2));
+    float y = static_cast<float>(luaL_checknumber(L, 3));
+    float w = static_cast<float>(luaL_checknumber(L, 4));
+    float h = static_cast<float>(luaL_checknumber(L, 5));
+    float duration = static_cast<float>(luaL_checknumber(L, 6));
+
+    if (w <= 0.0f || h <= 0.0f || duration <= 0.0f)
+    {
+        return luaL_error(L, "Animation frames require positive width, height, and duration");
+    }
+
+    ud->frames.push_back({x, y, w, h, duration});
+    return 0;
+}
+
+int LuaAnimationPlay(lua_State *L)
+{
+    LuaAnimation *ud = CheckAnimation(L, 1);
+    ud->playing = true;
+    return 0;
+}
+
+int LuaAnimationPause(lua_State *L)
+{
+    LuaAnimation *ud = CheckAnimation(L, 1);
+    ud->playing = false;
+    return 0;
+}
+
+int LuaAnimationResume(lua_State *L)
+{
+    LuaAnimation *ud = CheckAnimation(L, 1);
+    ud->playing = true;
+    return 0;
+}
+
+int LuaAnimationRestart(lua_State *L)
+{
+    LuaAnimation *ud = CheckAnimation(L, 1);
+    ud->frame_index = 0;
+    ud->frame_time = 0.0f;
+    ud->playing = true;
+    return 0;
+}
+
+int LuaAnimationIsPlaying(lua_State *L)
+{
+    LuaAnimation *ud = CheckAnimation(L, 1);
+    lua_pushboolean(L, ud->playing);
+    return 1;
+}
+
+int LuaAnimationSetLooping(lua_State *L)
+{
+    LuaAnimation *ud = CheckAnimation(L, 1);
+    ud->looping = lua_toboolean(L, 2);
+    return 0;
+}
+
+int LuaAnimationSetSpeed(lua_State *L)
+{
+    LuaAnimation *ud = CheckAnimation(L, 1);
+    float speed = static_cast<float>(luaL_checknumber(L, 2));
+    ud->speed = speed > 0.0f ? speed : 0.0f;
+    return 0;
+}
+
+int LuaAnimationUpdate(lua_State *L)
+{
+    LuaAnimation *ud = CheckAnimation(L, 1);
+    float dt = static_cast<float>(luaL_checknumber(L, 2));
+
+    if (!ud->playing || ud->frames.empty() || ud->speed <= 0.0f)
+    {
+        return 0;
+    }
+
+    float scaled = dt * ud->speed;
+    ud->frame_time += scaled;
+
+    while (ud->frame_time >= ud->frames[ud->frame_index].duration)
+    {
+        ud->frame_time -= ud->frames[ud->frame_index].duration;
+        ud->frame_index++;
+        if (ud->frame_index >= ud->frames.size())
+        {
+            if (ud->looping)
+            {
+                ud->frame_index = 0;
+            }
+            else
+            {
+                ud->frame_index = ud->frames.size() - 1;
+                ud->playing = false;
+                break;
+            }
+        }
+    }
+
+    return 0;
+}
+
+int LuaAnimationDraw(lua_State *L)
+{
+    engine::LuaRuntime *runtime = GetRuntime(L);
+    LuaAnimation *ud = CheckAnimation(L, 1);
+    double x = 0.0;
+    double y = 0.0;
+    double angle = 0.0;
+    double sx = 1.0;
+    double sy = 1.0;
+    double ox = 0.0;
+    double oy = 0.0;
+    bool flip_x = false;
+    bool flip_y = false;
+    bool has_color_override = false;
+    SDL_Color override_color = {255, 255, 255, 255};
+
+    if (lua_istable(L, 2))
+    {
+        x = GetTableFloatField(L, 2, "x");
+        y = GetTableFloatField(L, 2, "y");
+        angle = GetTableFloatFieldOpt(L, 2, "angle", 0.0f);
+        sx = GetTableFloatFieldOpt(L, 2, "sx", 1.0f);
+        sy = GetTableFloatFieldOpt(L, 2, "sy", 1.0f);
+        ox = GetTableFloatFieldOpt(L, 2, "ox", 0.0f);
+        oy = GetTableFloatFieldOpt(L, 2, "oy", 0.0f);
+        flip_x = GetTableBoolFieldOpt(L, 2, "flipX", false);
+        flip_y = GetTableBoolFieldOpt(L, 2, "flipY", false);
+
+        int idx = lua_absindex(L, 2);
+        lua_getfield(L, idx, "r");
+        if (!lua_isnil(L, -1))
+        {
+            has_color_override = true;
+            int r = static_cast<int>(luaL_checkinteger(L, -1));
+            lua_pop(L, 1);
+            int g = GetTableIntField(L, 2, "g");
+            int b = GetTableIntField(L, 2, "b");
+            int a = GetTableIntFieldOpt(L, 2, "a", 255);
+            auto clamp = [](int value) -> Uint8 {
+                if (value < 0)
+                    return 0;
+                if (value > 255)
+                    return 255;
+                return static_cast<Uint8>(value);
+            };
+            override_color = {clamp(r), clamp(g), clamp(b), clamp(a)};
+        }
+        else
+        {
+            lua_pop(L, 1);
+        }
+    }
+    else
+    {
+        x = luaL_checknumber(L, 2);
+        y = luaL_checknumber(L, 3);
+        angle = luaL_optnumber(L, 4, 0.0);
+        sx = luaL_optnumber(L, 5, 1.0);
+        sy = luaL_optnumber(L, 6, 1.0);
+        ox = luaL_optnumber(L, 7, 0.0);
+        oy = luaL_optnumber(L, 8, 0.0);
+        flip_x = lua_toboolean(L, 9);
+        flip_y = lua_toboolean(L, 10);
+    }
+
+    if (!ud->texture_ptr || !ud->texture_ptr->handle || ud->frames.empty())
+    {
+        return 0;
+    }
+
+    const AnimationFrame &frame = ud->frames[ud->frame_index];
+
+    const leo::Camera::Camera2D *camera = runtime->GetActiveCamera();
+    SDL_FPoint screen = ApplyCameraPoint(camera, {static_cast<float>(x), static_cast<float>(y)});
+    float zoom = camera ? camera->zoom : 1.0f;
+    double render_angle = ApplyCameraRotation(camera, static_cast<float>(angle));
+
+    SDL_Color color = runtime->GetDrawColor();
+    if (has_color_override)
+    {
+        color = override_color;
+    }
+    else
+    {
+        int color_index = 11;
+        if (!lua_isnoneornil(L, color_index))
+        {
+            auto clamp = [](int value) -> Uint8 {
+                if (value < 0)
+                    return 0;
+                if (value > 255)
+                    return 255;
+                return static_cast<Uint8>(value);
+            };
+            int r = static_cast<int>(luaL_checkinteger(L, color_index));
+            int g = static_cast<int>(luaL_checkinteger(L, color_index + 1));
+            int b = static_cast<int>(luaL_checkinteger(L, color_index + 2));
+            int a = static_cast<int>(luaL_optinteger(L, color_index + 3, 255));
+            color = {clamp(r), clamp(g), clamp(b), clamp(a)};
+        }
+    }
+
+    SDL_SetTextureColorMod(ud->texture_ptr->handle, color.r, color.g, color.b);
+    SDL_SetTextureAlphaMod(ud->texture_ptr->handle, color.a);
+
+    float render_sx = static_cast<float>(sx) * zoom;
+    float render_sy = static_cast<float>(sy) * zoom;
+    float w = frame.w * render_sx;
+    float h = frame.h * render_sy;
+    SDL_FRect src = {frame.x, frame.y, frame.w, frame.h};
+    SDL_FRect dst = {screen.x - static_cast<float>(ox * render_sx),
+                     screen.y - static_cast<float>(oy * render_sy), w, h};
+    SDL_FPoint center = {static_cast<float>(ox * render_sx), static_cast<float>(oy * render_sy)};
+    constexpr double kRadToDeg = 57.29577951308232;
+    double degrees = render_angle * kRadToDeg;
+
+    SDL_FlipMode flip = SDL_FLIP_NONE;
+    if (flip_x)
+    {
+        flip = static_cast<SDL_FlipMode>(flip | SDL_FLIP_HORIZONTAL);
+    }
+    if (flip_y)
+    {
+        flip = static_cast<SDL_FlipMode>(flip | SDL_FLIP_VERTICAL);
+    }
+
+    SDL_RenderTextureRotated(runtime->GetRenderer(), ud->texture_ptr->handle, &src, &dst, degrees, &center, flip);
+
+    SDL_SetTextureColorMod(ud->texture_ptr->handle, 255, 255, 255);
+    SDL_SetTextureAlphaMod(ud->texture_ptr->handle, 255);
+    return 0;
+}
+
+int LuaAnimationGc(lua_State *L)
+{
+    LuaAnimation *ud = CheckAnimation(L, 1);
+    if (ud->owns_texture)
+    {
+        ud->texture.Reset();
+    }
+    if (ud->texture_ref != LUA_NOREF)
+    {
+        luaL_unref(L, LUA_REGISTRYINDEX, ud->texture_ref);
+        ud->texture_ref = LUA_NOREF;
+    }
     return 0;
 }
 
@@ -1902,6 +2526,37 @@ void RegisterTiledMapMeta(lua_State *L)
     lua_pop(L, 1);
 }
 
+void RegisterAnimationMeta(lua_State *L)
+{
+    luaL_newmetatable(L, kAnimationMeta);
+    lua_pushcfunction(L, LuaAnimationGc);
+    lua_setfield(L, -2, "__gc");
+
+    lua_newtable(L);
+    lua_pushcfunction(L, LuaAnimationAddFrame);
+    lua_setfield(L, -2, "addFrame");
+    lua_pushcfunction(L, LuaAnimationPlay);
+    lua_setfield(L, -2, "play");
+    lua_pushcfunction(L, LuaAnimationPause);
+    lua_setfield(L, -2, "pause");
+    lua_pushcfunction(L, LuaAnimationResume);
+    lua_setfield(L, -2, "resume");
+    lua_pushcfunction(L, LuaAnimationRestart);
+    lua_setfield(L, -2, "restart");
+    lua_pushcfunction(L, LuaAnimationIsPlaying);
+    lua_setfield(L, -2, "isPlaying");
+    lua_pushcfunction(L, LuaAnimationSetLooping);
+    lua_setfield(L, -2, "setLooping");
+    lua_pushcfunction(L, LuaAnimationSetSpeed);
+    lua_setfield(L, -2, "setSpeed");
+    lua_pushcfunction(L, LuaAnimationUpdate);
+    lua_setfield(L, -2, "update");
+    lua_pushcfunction(L, LuaAnimationDraw);
+    lua_setfield(L, -2, "draw");
+    lua_setfield(L, -2, "__index");
+    lua_pop(L, 1);
+}
+
 void RegisterFontMeta(lua_State *L)
 {
     luaL_newmetatable(L, kFontMeta);
@@ -2099,6 +2754,19 @@ void RegisterAudio(lua_State *L)
     lua_setfield(L, -2, "newMusic");
 }
 
+void RegisterAnimation(lua_State *L)
+{
+    lua_newtable(L);
+    lua_pushcfunction(L, LuaAnimationNew);
+    lua_setfield(L, -2, "new");
+    lua_pushcfunction(L, LuaAnimationNewFromTexture);
+    lua_setfield(L, -2, "newFromTexture");
+    lua_pushcfunction(L, LuaAnimationNewSheet);
+    lua_setfield(L, -2, "newSheet");
+    lua_pushcfunction(L, LuaAnimationNewSheetEx);
+    lua_setfield(L, -2, "newSheetEx");
+}
+
 void RegisterLog(lua_State *L)
 {
     lua_newtable(L);
@@ -2249,6 +2917,7 @@ void RegisterLeo(lua_State *L)
 {
     RegisterTextureMeta(L);
     RegisterTiledMapMeta(L);
+    RegisterAnimationMeta(L);
     RegisterFontMeta(L);
     RegisterSoundMeta(L);
     RegisterMusicMeta(L);
@@ -2269,6 +2938,9 @@ void RegisterLeo(lua_State *L)
 
     RegisterAudio(L);
     lua_setfield(L, -2, "audio");
+
+    RegisterAnimation(L);
+    lua_setfield(L, -2, "animation");
 
     RegisterLog(L);
     lua_setfield(L, -2, "log");

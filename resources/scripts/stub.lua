@@ -1,17 +1,17 @@
 -- Leo Engine stub script for experiments and quick tests.
 
-leo.load = function()
+function leo.load()
     -- No-op; add init logic here.
 end
 
-leo.update = function(dt, input)
+function leo.update(dt, input)
     -- No-op; add update logic here.
 end
 
-leo.draw = function()
+function leo.draw()
     -- No-op; add render logic here.
 end
 
-leo.shutdown = function()
+function leo.shutdown()
     -- No-op; add shutdown logic here.
 end

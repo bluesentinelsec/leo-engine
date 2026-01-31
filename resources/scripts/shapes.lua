@@ -204,7 +204,7 @@ local function draw_shape_set(offset_x, offset_y, phase)
     end)
 end
 
-leo.load = function()
+function leo.load()
     elapsed = 0
     scroll_cam = camera.new()
     shape_cam = camera.new()
@@ -219,7 +219,7 @@ leo.load = function()
     fps_value = 0
 end
 
-leo.update = function(dt, input)
+function leo.update(dt, input)
     elapsed = elapsed + dt
     last_dt = dt
     fps_timer = fps_timer + dt
@@ -239,7 +239,7 @@ leo.update = function(dt, input)
     end
 end
 
-leo.draw = function()
+function leo.draw()
     graphics.clear(18, 18, 22, 255)
 
     graphics.beginCamera(scroll_cam)
@@ -264,5 +264,5 @@ leo.draw = function()
     end
 end
 
-leo.shutdown = function()
+function leo.shutdown()
 end

@@ -64,6 +64,47 @@ Primitive helpers (RGBA per call):
 Camera helpers:
 `beginCamera(camera)`, `endCamera()`.
 
+### leo.animation
+High-level sprite-sheet animation helper.
+
+```lua
+local anim = leo.animation.new("resources/images/animation_test.png")
+anim:addFrame(0, 0, 64, 64, 0.25)
+anim:addFrame(64, 0, 64, 64, 0.25)
+anim:addFrame(128, 0, 64, 64, 0.25)
+anim:setLooping(true)
+anim:play()
+
+-- Or, use the sheet helper:
+-- local anim = leo.animation.newSheet("resources/images/animation_test.png", 64, 64, 3, 0.25)
+-- local anim = leo.animation.newSheet("resources/images/animation_test.png", 64, 64, 3, 0.25, true, true)
+-- local anim = leo.animation.newSheetEx("resources/images/animation_test.png", 64, 64, 3, 0.25, 0, 0, 0, 0, 0, true, true)
+-- local anim = leo.animation.newSheet({path="resources/images/animation_test.png", frame_w=64, frame_h=64, frame_count=3, frame_time=0.25, looping=true, playing=true})
+
+-- in update:
+anim:update(dt)
+
+-- in draw:
+anim:draw(640, 360, 0, 1.0, 1.0, 32, 32, false, false)
+-- or, with named arguments:
+-- anim:draw({x=640, y=360, ox=32, oy=32, sx=1.0, sy=1.0, angle=0, flipX=false, flipY=false, r=255, g=255, b=255, a=255})
+```
+
+Constructors:
+`new(path, looping, playing)`, `newFromTexture(texture, looping, playing)`,
+`newSheet(path, frame_w, frame_h, frame_count, frame_time, looping, playing)`,
+`newSheetEx(path, frame_w, frame_h, frame_count, frame_time, start_x, start_y, pad_x, pad_y, columns, looping, playing)`.
+
+`newSheet` and `newSheetEx` also accept a table with named fields:
+`path`, `frame_w`, `frame_h`, `frame_count`, `frame_time`, `looping`, `playing`, plus
+`start_x`, `start_y`, `pad_x`, `pad_y`, `columns` for `newSheetEx`.
+
+Methods:
+`addFrame`, `play`, `pause`, `resume`, `restart`, `isPlaying`, `setLooping`, `setSpeed`, `update`, `draw`.
+
+`draw` accepts either positional args or a table with named fields: `x`, `y`, `angle`, `sx`, `sy`, `ox`, `oy`,
+`flipX`, `flipY`, `r`, `g`, `b`, `a`.
+
 ### leo.window
 Window sizing and mode helpers.
 
