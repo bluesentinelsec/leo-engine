@@ -663,6 +663,20 @@ float GetTableNumberFieldReq(lua_State *L, int index, const char *key, const cha
     return value;
 }
 
+const char *GetTableStringFieldReq(lua_State *L, int index, const char *key, const char *context)
+{
+    int idx = lua_absindex(L, index);
+    lua_getfield(L, idx, key);
+    if (lua_isnil(L, -1))
+    {
+        luaL_error(L, "%s requires '%s'", context, key);
+        return "";
+    }
+    const char *value = luaL_checkstring(L, -1);
+    lua_pop(L, 1);
+    return value;
+}
+
 leo::Graphics::Color ReadColorTable(lua_State *L, int index, const char *context)
 {
     float r = GetTableNumberFieldReq(L, index, "r", context);
@@ -679,6 +693,38 @@ leo::Graphics::Color ReadColorTable(lua_State *L, int index, const char *context
     lua_pop(L, 1);
 
     return {ClampColorComponent(r), ClampColorComponent(g), ClampColorComponent(b), ClampColorComponent(a)};
+}
+
+bool ReadColorTableOptional(lua_State *L, int index, const char *context, SDL_Color *out)
+{
+    int idx = lua_absindex(L, index);
+    lua_getfield(L, idx, "r");
+    if (lua_isnil(L, -1))
+    {
+        lua_pop(L, 1);
+        return false;
+    }
+    int r = static_cast<int>(luaL_checkinteger(L, -1));
+    lua_pop(L, 1);
+    int g = static_cast<int>(GetTableNumberFieldReq(L, index, "g", context));
+    int b = static_cast<int>(GetTableNumberFieldReq(L, index, "b", context));
+    float a = GetTableFloatFieldOpt(L, index, "a", 255.0f);
+    *out = {ClampColorComponent(r), ClampColorComponent(g), ClampColorComponent(b), ClampColorComponent(a)};
+    return true;
+}
+
+bool ReadColorArgsOptional(lua_State *L, int index, SDL_Color *out)
+{
+    if (lua_isnoneornil(L, index))
+    {
+        return false;
+    }
+    int r = static_cast<int>(luaL_checkinteger(L, index));
+    int g = static_cast<int>(luaL_checkinteger(L, index + 1));
+    int b = static_cast<int>(luaL_checkinteger(L, index + 2));
+    int a = static_cast<int>(luaL_optinteger(L, index + 3, 255));
+    *out = {ClampColorComponent(r), ClampColorComponent(g), ClampColorComponent(b), ClampColorComponent(a)};
+    return true;
 }
 
 LuaFont *CheckFont(lua_State *L, int index)
@@ -2361,12 +2407,29 @@ int LuaFontPrint(lua_State *L)
 {
     engine::LuaRuntime *runtime = GetRuntime(L);
     LuaFont *ud = CheckFont(L, 1);
-    const char *text = luaL_checkstring(L, 2);
-    float x = static_cast<float>(luaL_checknumber(L, 3));
-    float y = static_cast<float>(luaL_checknumber(L, 4));
-    int size = static_cast<int>(luaL_optinteger(L, 5, ud->pixel_size));
-
+    const char *text = nullptr;
+    float x = 0.0f;
+    float y = 0.0f;
+    int size = ud->pixel_size;
     SDL_Color color = runtime->GetDrawColor();
+
+    if (lua_istable(L, 2))
+    {
+        text = GetTableStringFieldReq(L, 2, "text", "font.print");
+        x = GetTableNumberFieldReq(L, 2, "x", "font.print");
+        y = GetTableNumberFieldReq(L, 2, "y", "font.print");
+        size = static_cast<int>(GetTableFloatFieldOpt(L, 2, "size", static_cast<float>(ud->pixel_size)));
+        ReadColorTableOptional(L, 2, "font.print", &color);
+    }
+    else
+    {
+        text = luaL_checkstring(L, 2);
+        x = static_cast<float>(luaL_checknumber(L, 3));
+        y = static_cast<float>(luaL_checknumber(L, 4));
+        size = static_cast<int>(luaL_optinteger(L, 5, ud->pixel_size));
+        ReadColorArgsOptional(L, 6, &color);
+    }
+
     engine::TextDesc desc = {
         .font = &ud->font,
         .text = text,
@@ -2394,22 +2457,72 @@ int LuaFontSet(lua_State *L)
 int LuaFontPrintCurrent(lua_State *L)
 {
     engine::LuaRuntime *runtime = GetRuntime(L);
-    if (!runtime->GetCurrentFont())
+    SDL_Color color = runtime->GetDrawColor();
+    LuaFont *ud = nullptr;
+    engine::Font *font = nullptr;
+    const char *text = nullptr;
+    float x = 0.0f;
+    float y = 0.0f;
+    int pixel_size = 0;
+
+    if (lua_istable(L, 1))
+    {
+        lua_getfield(L, 1, "font");
+        if (!lua_isnil(L, -1))
+        {
+            ud = CheckFont(L, -1);
+        }
+        lua_pop(L, 1);
+
+        text = GetTableStringFieldReq(L, 1, "text", "leo.font.print");
+        x = GetTableNumberFieldReq(L, 1, "x", "leo.font.print");
+        y = GetTableNumberFieldReq(L, 1, "y", "leo.font.print");
+        if (ud)
+        {
+            pixel_size = static_cast<int>(GetTableFloatFieldOpt(L, 1, "size", static_cast<float>(ud->pixel_size)));
+        }
+        else
+        {
+            pixel_size = static_cast<int>(GetTableFloatFieldOpt(L, 1, "size",
+                                                              static_cast<float>(runtime->GetCurrentFontSize())));
+        }
+        ReadColorTableOptional(L, 1, "leo.font.print", &color);
+    }
+    else if (luaL_testudata(L, 1, kFontMeta))
+    {
+        ud = CheckFont(L, 1);
+        text = luaL_checkstring(L, 2);
+        x = static_cast<float>(luaL_checknumber(L, 3));
+        y = static_cast<float>(luaL_checknumber(L, 4));
+        pixel_size = static_cast<int>(luaL_optinteger(L, 5, ud->pixel_size));
+        ReadColorArgsOptional(L, 6, &color);
+    }
+    else
+    {
+        text = luaL_checkstring(L, 1);
+        x = static_cast<float>(luaL_checknumber(L, 2));
+        y = static_cast<float>(luaL_checknumber(L, 3));
+        ReadColorArgsOptional(L, 4, &color);
+    }
+
+    if (ud)
+    {
+        font = &ud->font;
+    }
+    else
+    {
+        font = runtime->GetCurrentFont();
+    }
+
+    if (!font)
     {
         return luaL_error(L, "leo.font.print requires leo.font.set(font) first");
     }
 
-    const char *text = luaL_checkstring(L, 1);
-    float x = static_cast<float>(luaL_checknumber(L, 2));
-    float y = static_cast<float>(luaL_checknumber(L, 3));
-
-    engine::Font *font = runtime->GetCurrentFont();
-    int pixel_size = runtime->GetCurrentFontSize();
     if (pixel_size <= 0)
     {
         pixel_size = font->GetLineHeight();
     }
-    SDL_Color color = runtime->GetDrawColor();
     engine::TextDesc desc = {
         .font = font,
         .text = text,
