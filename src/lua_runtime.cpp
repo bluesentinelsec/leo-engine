@@ -1972,6 +1972,98 @@ int LuaCameraNew(lua_State *L)
     {
         ud->camera = leo::Camera::CreateDefault(0.0f, 0.0f);
     }
+
+    if (lua_istable(L, 1))
+    {
+        int idx = lua_absindex(L, 1);
+
+        lua_getfield(L, idx, "position");
+        if (!lua_isnil(L, -1))
+        {
+            luaL_checktype(L, -1, LUA_TTABLE);
+            float x = GetTableNumberFieldReq(L, -1, "x", "camera.new position");
+            float y = GetTableNumberFieldReq(L, -1, "y", "camera.new position");
+            ud->camera.position = {x, y};
+        }
+        lua_pop(L, 1);
+
+        lua_getfield(L, idx, "target");
+        if (!lua_isnil(L, -1))
+        {
+            luaL_checktype(L, -1, LUA_TTABLE);
+            float x = GetTableNumberFieldReq(L, -1, "x", "camera.new target");
+            float y = GetTableNumberFieldReq(L, -1, "y", "camera.new target");
+            ud->camera.target = {x, y};
+        }
+        lua_pop(L, 1);
+
+        lua_getfield(L, idx, "offset");
+        if (!lua_isnil(L, -1))
+        {
+            luaL_checktype(L, -1, LUA_TTABLE);
+            float x = GetTableNumberFieldReq(L, -1, "x", "camera.new offset");
+            float y = GetTableNumberFieldReq(L, -1, "y", "camera.new offset");
+            ud->camera.offset = {x, y};
+        }
+        lua_pop(L, 1);
+
+        lua_getfield(L, idx, "zoom");
+        if (!lua_isnil(L, -1))
+        {
+            float zoom = static_cast<float>(luaL_checknumber(L, -1));
+            if (zoom > 0.0f)
+            {
+                ud->camera.zoom = zoom;
+            }
+        }
+        lua_pop(L, 1);
+
+        lua_getfield(L, idx, "rotation");
+        if (!lua_isnil(L, -1))
+        {
+            ud->camera.rotation = static_cast<float>(luaL_checknumber(L, -1));
+        }
+        lua_pop(L, 1);
+
+        lua_getfield(L, idx, "deadzone");
+        if (!lua_isnil(L, -1))
+        {
+            luaL_checktype(L, -1, LUA_TTABLE);
+            float w = GetTableNumberFieldReq(L, -1, "w", "camera.new deadzone");
+            float h = GetTableNumberFieldReq(L, -1, "h", "camera.new deadzone");
+            ud->camera.deadzone = {0.0f, 0.0f, w, h};
+            ud->camera.use_deadzone = (w > 0.0f && h > 0.0f);
+        }
+        lua_pop(L, 1);
+
+        lua_getfield(L, idx, "smooth_time");
+        if (!lua_isnil(L, -1))
+        {
+            float seconds = static_cast<float>(luaL_checknumber(L, -1));
+            ud->camera.smooth_time = seconds < 0.0f ? 0.0f : seconds;
+        }
+        lua_pop(L, 1);
+
+        lua_getfield(L, idx, "bounds");
+        if (!lua_isnil(L, -1))
+        {
+            luaL_checktype(L, -1, LUA_TTABLE);
+            float x = GetTableNumberFieldReq(L, -1, "x", "camera.new bounds");
+            float y = GetTableNumberFieldReq(L, -1, "y", "camera.new bounds");
+            float w = GetTableNumberFieldReq(L, -1, "w", "camera.new bounds");
+            float h = GetTableNumberFieldReq(L, -1, "h", "camera.new bounds");
+            ud->camera.bounds = {x, y, w, h};
+        }
+        lua_pop(L, 1);
+
+        lua_getfield(L, idx, "clamp");
+        if (!lua_isnil(L, -1))
+        {
+            ud->camera.clamp_to_bounds = lua_toboolean(L, -1);
+        }
+        lua_pop(L, 1);
+    }
+
     luaL_getmetatable(L, kCameraMeta);
     lua_setmetatable(L, -2);
     return 1;
@@ -2049,6 +2141,38 @@ int LuaCameraUpdate(lua_State *L)
 {
     LuaCamera *ud = CheckCamera(L, 1);
     float dt = static_cast<float>(luaL_checknumber(L, 2));
+    if (lua_istable(L, 3))
+    {
+        int idx = lua_absindex(L, 3);
+
+        lua_getfield(L, idx, "target");
+        if (!lua_isnil(L, -1))
+        {
+            luaL_checktype(L, -1, LUA_TTABLE);
+            float x = GetTableNumberFieldReq(L, -1, "x", "camera.update target");
+            float y = GetTableNumberFieldReq(L, -1, "y", "camera.update target");
+            ud->camera.target = {x, y};
+        }
+        lua_pop(L, 1);
+
+        lua_getfield(L, idx, "zoom");
+        if (!lua_isnil(L, -1))
+        {
+            float zoom = static_cast<float>(luaL_checknumber(L, -1));
+            if (zoom > 0.0f)
+            {
+                ud->camera.zoom = zoom;
+            }
+        }
+        lua_pop(L, 1);
+
+        lua_getfield(L, idx, "rotation");
+        if (!lua_isnil(L, -1))
+        {
+            ud->camera.rotation = static_cast<float>(luaL_checknumber(L, -1));
+        }
+        lua_pop(L, 1);
+    }
     leo::Camera::Update(ud->camera, dt);
     return 0;
 }
