@@ -468,8 +468,7 @@ namespace leo
 namespace Engine
 {
 
-Simulation::Simulation(Config &config)
-    : config(config), vfs(config), window(nullptr), renderer(nullptr), lua(nullptr)
+Simulation::Simulation(Config &config) : config(config), vfs(config), window(nullptr), renderer(nullptr), lua(nullptr)
 {
 }
 

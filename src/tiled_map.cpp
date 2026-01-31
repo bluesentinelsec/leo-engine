@@ -3,15 +3,15 @@
 #include "leo/camera.h"
 #include "leo/vfs.h"
 #include <SDL3/SDL.h>
+#include <algorithm>
+#include <cmath>
+#include <stdexcept>
+#include <string>
 #include <tmxlite/Layer.hpp>
 #include <tmxlite/LayerGroup.hpp>
 #include <tmxlite/Map.hpp>
 #include <tmxlite/TileLayer.hpp>
 #include <tmxlite/Tileset.hpp>
-#include <algorithm>
-#include <cmath>
-#include <stdexcept>
-#include <string>
 #include <unordered_set>
 #include <vector>
 
@@ -177,8 +177,8 @@ std::vector<std::string> BuildImageCandidates(const std::string &raw_path, const
 }
 
 engine::Texture LoadTextureWithFallback(engine::TextureLoader &loader, SDL_Renderer *renderer,
-                                        const std::vector<std::string> &candidates, int fallback_w,
-                                        int fallback_h, SDL_Color fallback_color, const std::string &label,
+                                        const std::vector<std::string> &candidates, int fallback_w, int fallback_h,
+                                        SDL_Color fallback_color, const std::string &label,
                                         std::unordered_set<std::string> *missing)
 {
     for (const auto &candidate : candidates)
@@ -354,10 +354,9 @@ TiledMap TiledMap::LoadFromVfs(VFS &vfs, SDL_Renderer *renderer, const char *vfs
         {
             std::vector<std::string> candidates = BuildImageCandidates(atlas_path, map_dir);
             SDL_Color fallback = ColorFromId(tileset.getFirstGID());
-            Texture texture =
-                LoadTextureWithFallback(loader, renderer, candidates, static_cast<int>(tileset.getTileSize().x),
-                                        static_cast<int>(tileset.getTileSize().y), fallback, atlas_path,
-                                        &missing_images);
+            Texture texture = LoadTextureWithFallback(
+                loader, renderer, candidates, static_cast<int>(tileset.getTileSize().x),
+                static_cast<int>(tileset.getTileSize().y), fallback, atlas_path, &missing_images);
 
             size_t texture_index = result.textures.size();
             result.textures.push_back(std::move(texture));
@@ -401,8 +400,8 @@ TiledMap TiledMap::LoadFromVfs(VFS &vfs, SDL_Renderer *renderer, const char *vfs
                     fallback_h = result.tile_height;
                 }
 
-                Texture texture = LoadTextureWithFallback(loader, renderer, candidates, fallback_w, fallback_h, fallback,
-                                                         image_path, &missing_images);
+                Texture texture = LoadTextureWithFallback(loader, renderer, candidates, fallback_w, fallback_h,
+                                                          fallback, image_path, &missing_images);
 
                 size_t texture_index = result.textures.size();
                 result.textures.push_back(std::move(texture));

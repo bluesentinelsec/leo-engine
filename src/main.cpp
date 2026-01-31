@@ -7,16 +7,16 @@
 #include <stb_truetype.h>
 #include <tmxlite/Map.hpp>
 
-#include <filesystem>
+#include <algorithm>
+#include <cctype>
 #include <chrono>
 #include <cstdio>
 #include <ctime>
+#include <filesystem>
 #include <iomanip>
 #include <iostream>
 #include <stdexcept>
 #include <string>
-#include <algorithm>
-#include <cctype>
 
 #include "leo/engine_core.h"
 
@@ -69,8 +69,8 @@ void SDLCALL LogOutput(void *userdata, int category, SDL_LogPriority priority, c
 
     char time_buf[32];
     std::strftime(time_buf, sizeof(time_buf), "%Y-%m-%d %H:%M:%S", &local_time);
-    std::fprintf(stderr, "%s.%03d [%s] %s\n", time_buf, static_cast<int>(ms.count()),
-                 LogPriorityLabel(priority), message ? message : "");
+    std::fprintf(stderr, "%s.%03d [%s] %s\n", time_buf, static_cast<int>(ms.count()), LogPriorityLabel(priority),
+                 message ? message : "");
 }
 
 ResourceConfig ResolveResourceConfig(const std::string &resource_arg)
@@ -146,8 +146,7 @@ int main(int argc, char *argv[])
     app.add_option("--window-height", window_height, "Window height in pixels");
     app.add_option("--logical-width", logical_width, "Logical render width");
     app.add_option("--logical-height", logical_height, "Logical render height");
-    app.add_option("--window-mode", window_mode_str,
-                   "Window mode: windowed, fullscreen, borderless-fullscreen");
+    app.add_option("--window-mode", window_mode_str, "Window mode: windowed, fullscreen, borderless-fullscreen");
     app.add_option("--tick-hz", tick_hz, "Fixed update tick rate");
     app.add_option("--frame-ticks,--num-frame-ticks", num_frame_ticks, "Number of frame ticks (0 = run until exit)");
     app.add_option("--log-level", log_level, "Log level: verbose, debug, info, warn, error, fatal");

@@ -188,8 +188,8 @@ void StartPlayback(AudioHandle *handle, bool *paused, const char *context)
     ma_result result = ma_sound_start(&handle->sound);
     if (result != MA_SUCCESS)
     {
-        throw std::runtime_error(std::string(context) + " failed to start (miniaudio error " +
-                                 std::to_string(result) + ")");
+        throw std::runtime_error(std::string(context) + " failed to start (miniaudio error " + std::to_string(result) +
+                                 ")");
     }
 }
 

@@ -1,15 +1,15 @@
 #include "leo/lua_runtime.h"
-#include "leo/engine_core.h"
 #include "leo/audio.h"
 #include "leo/camera.h"
 #include "leo/collision.h"
+#include "leo/engine_core.h"
 #include "leo/font.h"
 #include "leo/gamepad.h"
 #include "leo/graphics.h"
 #include "leo/keyboard.h"
 #include "leo/mouse.h"
-#include "leo/tiled_map.h"
 #include "leo/texture_loader.h"
+#include "leo/tiled_map.h"
 #include "leo/vfs.h"
 #include <SDL3/SDL.h>
 #include <SDL3/SDL_stdinc.h>
@@ -807,8 +807,8 @@ int LuaGraphicsDraw(lua_State *L)
     float render_sy = static_cast<float>(sy) * zoom;
     float w = static_cast<float>(ud->texture.width) * render_sx;
     float h = static_cast<float>(ud->texture.height) * render_sy;
-    SDL_FRect dst = {screen.x - static_cast<float>(ox * render_sx),
-                     screen.y - static_cast<float>(oy * render_sy), w, h};
+    SDL_FRect dst = {screen.x - static_cast<float>(ox * render_sx), screen.y - static_cast<float>(oy * render_sy), w,
+                     h};
     SDL_FPoint center = {static_cast<float>(ox * render_sx), static_cast<float>(oy * render_sy)};
     constexpr double kRadToDeg = 57.29577951308232;
     double degrees = render_angle * kRadToDeg;
@@ -876,8 +876,8 @@ int LuaGraphicsDrawEx(lua_State *L)
     float h = static_cast<float>(src_h) * render_sy;
     SDL_FRect src = {static_cast<float>(src_x), static_cast<float>(src_y), static_cast<float>(src_w),
                      static_cast<float>(src_h)};
-    SDL_FRect dst = {screen.x - static_cast<float>(ox * render_sx),
-                     screen.y - static_cast<float>(oy * render_sy), w, h};
+    SDL_FRect dst = {screen.x - static_cast<float>(ox * render_sx), screen.y - static_cast<float>(oy * render_sy), w,
+                     h};
     SDL_FPoint center = {static_cast<float>(ox * render_sx), static_cast<float>(oy * render_sy)};
     constexpr double kRadToDeg = 57.29577951308232;
     double degrees = render_angle * kRadToDeg;
@@ -1345,8 +1345,8 @@ int LuaAnimationDraw(lua_State *L)
     float w = frame.w * render_sx;
     float h = frame.h * render_sy;
     SDL_FRect src = {frame.x, frame.y, frame.w, frame.h};
-    SDL_FRect dst = {screen.x - static_cast<float>(ox * render_sx),
-                     screen.y - static_cast<float>(oy * render_sy), w, h};
+    SDL_FRect dst = {screen.x - static_cast<float>(ox * render_sx), screen.y - static_cast<float>(oy * render_sy), w,
+                     h};
     SDL_FPoint center = {static_cast<float>(ox * render_sx), static_cast<float>(oy * render_sy)};
     constexpr double kRadToDeg = 57.29577951308232;
     double degrees = render_angle * kRadToDeg;
@@ -1514,8 +1514,7 @@ int LuaGraphicsDrawPixel(lua_State *L)
 
     if (lua_istable(L, 1))
     {
-        point = {GetTableNumberFieldReq(L, 1, "x", "drawPixel"),
-                 GetTableNumberFieldReq(L, 1, "y", "drawPixel")};
+        point = {GetTableNumberFieldReq(L, 1, "x", "drawPixel"), GetTableNumberFieldReq(L, 1, "y", "drawPixel")};
         color = ReadColorTable(L, 1, "drawPixel");
     }
     else
@@ -1538,10 +1537,8 @@ int LuaGraphicsDrawLine(lua_State *L)
 
     if (lua_istable(L, 1))
     {
-        p1 = {GetTableNumberFieldReq(L, 1, "x1", "drawLine"),
-              GetTableNumberFieldReq(L, 1, "y1", "drawLine")};
-        p2 = {GetTableNumberFieldReq(L, 1, "x2", "drawLine"),
-              GetTableNumberFieldReq(L, 1, "y2", "drawLine")};
+        p1 = {GetTableNumberFieldReq(L, 1, "x1", "drawLine"), GetTableNumberFieldReq(L, 1, "y1", "drawLine")};
+        p2 = {GetTableNumberFieldReq(L, 1, "x2", "drawLine"), GetTableNumberFieldReq(L, 1, "y2", "drawLine")};
         color = ReadColorTable(L, 1, "drawLine");
     }
     else
@@ -1633,10 +1630,8 @@ int LuaGraphicsDrawRectangleFilled(lua_State *L)
     const leo::Camera::Camera2D *camera = runtime->GetActiveCamera();
     if (camera && camera->rotation != 0.0f)
     {
-        SDL_FPoint corners[4] = {{rect.x, rect.y},
-                                 {rect.x + rect.w, rect.y},
-                                 {rect.x + rect.w, rect.y + rect.h},
-                                 {rect.x, rect.y + rect.h}};
+        SDL_FPoint corners[4] = {
+            {rect.x, rect.y}, {rect.x + rect.w, rect.y}, {rect.x + rect.w, rect.y + rect.h}, {rect.x, rect.y + rect.h}};
         for (SDL_FPoint &corner : corners)
         {
             corner = ApplyCameraPoint(camera, corner);
@@ -1674,10 +1669,8 @@ int LuaGraphicsDrawRectangleOutline(lua_State *L)
     const leo::Camera::Camera2D *camera = runtime->GetActiveCamera();
     if (camera && camera->rotation != 0.0f)
     {
-        SDL_FPoint corners[4] = {{rect.x, rect.y},
-                                 {rect.x + rect.w, rect.y},
-                                 {rect.x + rect.w, rect.y + rect.h},
-                                 {rect.x, rect.y + rect.h}};
+        SDL_FPoint corners[4] = {
+            {rect.x, rect.y}, {rect.x + rect.w, rect.y}, {rect.x + rect.w, rect.y + rect.h}, {rect.x, rect.y + rect.h}};
         for (SDL_FPoint &corner : corners)
         {
             corner = ApplyCameraPoint(camera, corner);
@@ -1718,10 +1711,8 @@ int LuaGraphicsDrawRectangleRoundedFilled(lua_State *L)
     const leo::Camera::Camera2D *camera = runtime->GetActiveCamera();
     if (camera && camera->rotation != 0.0f)
     {
-        SDL_FPoint corners[4] = {{rect.x, rect.y},
-                                 {rect.x + rect.w, rect.y},
-                                 {rect.x + rect.w, rect.y + rect.h},
-                                 {rect.x, rect.y + rect.h}};
+        SDL_FPoint corners[4] = {
+            {rect.x, rect.y}, {rect.x + rect.w, rect.y}, {rect.x + rect.w, rect.y + rect.h}, {rect.x, rect.y + rect.h}};
         for (SDL_FPoint &corner : corners)
         {
             corner = ApplyCameraPoint(camera, corner);
@@ -1763,10 +1754,8 @@ int LuaGraphicsDrawRectangleRoundedOutline(lua_State *L)
     const leo::Camera::Camera2D *camera = runtime->GetActiveCamera();
     if (camera && camera->rotation != 0.0f)
     {
-        SDL_FPoint corners[4] = {{rect.x, rect.y},
-                                 {rect.x + rect.w, rect.y},
-                                 {rect.x + rect.w, rect.y + rect.h},
-                                 {rect.x, rect.y + rect.h}};
+        SDL_FPoint corners[4] = {
+            {rect.x, rect.y}, {rect.x + rect.w, rect.y}, {rect.x + rect.w, rect.y + rect.h}, {rect.x, rect.y + rect.h}};
         for (SDL_FPoint &corner : corners)
         {
             corner = ApplyCameraPoint(camera, corner);
@@ -1779,8 +1768,7 @@ int LuaGraphicsDrawRectangleRoundedOutline(lua_State *L)
     float w = ApplyCameraScale(camera, rect.w);
     float h = ApplyCameraScale(camera, rect.h);
     float scaled_radius = ApplyCameraScale(camera, radius);
-    leo::Graphics::DrawRectangleRoundedOutline(runtime->GetRenderer(), screen.x, screen.y, w, h, scaled_radius,
-                                               color);
+    leo::Graphics::DrawRectangleRoundedOutline(runtime->GetRenderer(), screen.x, screen.y, w, h, scaled_radius, color);
     return 0;
 }
 
@@ -1990,8 +1978,7 @@ int LuaCollisionCheckPointPoly(lua_State *L)
     SDL_FPoint point = ReadPointPair(L, 1);
     std::vector<SDL_FPoint> points;
     ReadPointList(L, 3, &points);
-    lua_pushboolean(
-        L, leo::Collision::CheckCollisionPointPoly(point, points.data(), static_cast<int>(points.size())));
+    lua_pushboolean(L, leo::Collision::CheckCollisionPointPoly(point, points.data(), static_cast<int>(points.size())));
     return 1;
 }
 
@@ -2376,8 +2363,7 @@ int LuaFontNew(lua_State *L)
     try
     {
         LuaFont *ud = static_cast<LuaFont *>(lua_newuserdata(L, sizeof(LuaFont)));
-        new (&ud->font)
-            engine::Font(engine::Font::LoadFromVfs(runtime->GetVfs(), runtime->GetRenderer(), path, size));
+        new (&ud->font) engine::Font(engine::Font::LoadFromVfs(runtime->GetVfs(), runtime->GetRenderer(), path, size));
         ud->pixel_size = size;
         luaL_getmetatable(L, kFontMeta);
         lua_setmetatable(L, -2);
@@ -2483,8 +2469,8 @@ int LuaFontPrintCurrent(lua_State *L)
         }
         else
         {
-            pixel_size = static_cast<int>(GetTableFloatFieldOpt(L, 1, "size",
-                                                              static_cast<float>(runtime->GetCurrentFontSize())));
+            pixel_size = static_cast<int>(
+                GetTableFloatFieldOpt(L, 1, "size", static_cast<float>(runtime->GetCurrentFontSize())));
         }
         ReadColorTableOptional(L, 1, "leo.font.print", &color);
     }
@@ -3429,8 +3415,7 @@ namespace engine
 LuaRuntime::LuaRuntime() noexcept
     : L(nullptr), vfs(nullptr), window(nullptr), renderer(nullptr), config(nullptr), tick_index(0), tick_dt(0.0f),
       loaded(false), quit_requested(false), draw_color({255, 255, 255, 255}), active_camera(nullptr),
-      window_mode(WindowMode::Windowed), current_font_ref(LUA_NOREF), current_font_ptr(nullptr),
-      current_font_size(0)
+      window_mode(WindowMode::Windowed), current_font_ref(LUA_NOREF), current_font_ptr(nullptr), current_font_size(0)
 {
 }
 

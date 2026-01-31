@@ -458,8 +458,7 @@ void DrawRectangleOutline(SDL_Renderer *renderer, float x, float y, float w, flo
     SDL_RenderRect(renderer, &rect);
 }
 
-void DrawRectangleRoundedFilled(SDL_Renderer *renderer, float x, float y, float w, float h, float radius,
-                                Color color)
+void DrawRectangleRoundedFilled(SDL_Renderer *renderer, float x, float y, float w, float h, float radius, Color color)
 {
     if (!renderer || w <= 0.0f || h <= 0.0f)
     {
@@ -493,8 +492,7 @@ void DrawRectangleRoundedFilled(SDL_Renderer *renderer, float x, float y, float 
     DrawQuarterCircleFilled(renderer, right - r, bottom - r, r, Quadrant::BottomRight);
 }
 
-void DrawRectangleRoundedOutline(SDL_Renderer *renderer, float x, float y, float w, float h, float radius,
-                                 Color color)
+void DrawRectangleRoundedOutline(SDL_Renderer *renderer, float x, float y, float w, float h, float radius, Color color)
 {
     if (!renderer || w <= 0.0f || h <= 0.0f)
     {

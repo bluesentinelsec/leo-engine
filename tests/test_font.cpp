@@ -92,8 +92,7 @@ TEST_CASE("Font loader throws when file is missing", "[font]")
     SDL_Renderer *renderer = SDL_CreateRenderer(window, nullptr);
     REQUIRE(renderer != nullptr);
 
-    REQUIRE_THROWS_AS(engine::Font::LoadFromVfs(vfs, renderer, "resources/font/missing.ttf", 24),
-                      std::runtime_error);
+    REQUIRE_THROWS_AS(engine::Font::LoadFromVfs(vfs, renderer, "resources/font/missing.ttf", 24), std::runtime_error);
 
     SDL_DestroyRenderer(renderer);
     SDL_DestroyWindow(window);
