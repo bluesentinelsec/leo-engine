@@ -3365,6 +3365,15 @@ int LuaTimeTickDelta(lua_State *L)
     return 1;
 }
 
+int LuaTimeNow(lua_State *L)
+{
+    Uint64 counter = SDL_GetPerformanceCounter();
+    Uint64 freq = SDL_GetPerformanceFrequency();
+    double seconds = freq > 0 ? static_cast<double>(counter) / static_cast<double>(freq) : 0.0;
+    lua_pushnumber(L, seconds);
+    return 1;
+}
+
 int LuaFsRead(lua_State *L)
 {
     engine::LuaRuntime *runtime = GetRuntime(L);
@@ -3952,6 +3961,8 @@ void RegisterTime(lua_State *L)
     lua_setfield(L, -2, "ticks");
     lua_pushcfunction(L, LuaTimeTickDelta);
     lua_setfield(L, -2, "tickDelta");
+    lua_pushcfunction(L, LuaTimeNow);
+    lua_setfield(L, -2, "now");
 }
 
 void RegisterFs(lua_State *L)
