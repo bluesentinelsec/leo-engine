@@ -135,12 +135,16 @@ Numbered checklist of every Lua API function and symbol exposed by Leo Engine.
 1. `input.mouse.isDown`
 1. `input.mouse.isPressed`
 1. `input.mouse.isReleased`
+1. `input.mouse.setCursorVisible`
 1. `input.mouse.x`
 1. `input.mouse.y`
 1. `input.mouse.dx`
 1. `input.mouse.dy`
 1. `input.mouse.wheelX`
 1. `input.mouse.wheelY`
+
+1. `leo.mouse` (module table)
+1. `leo.mouse.setCursorVisible`
 1. `input.gamepads`
 1. `input.gamepads[1]`
 1. `input.gamepads[2]`

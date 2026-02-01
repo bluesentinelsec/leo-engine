@@ -3001,6 +3001,32 @@ int LuaMouseIsReleased(lua_State *L)
     return 1;
 }
 
+int LuaMouseSetCursorVisible(lua_State *L)
+{
+    int arg_index = 1;
+    if (!lua_isboolean(L, 1))
+    {
+        if (lua_isboolean(L, 2))
+        {
+            arg_index = 2;
+        }
+        else
+        {
+            return luaL_error(L, "setCursorVisible requires a boolean");
+        }
+    }
+    bool visible = lua_toboolean(L, arg_index);
+    if (visible)
+    {
+        SDL_ShowCursor();
+    }
+    else
+    {
+        SDL_HideCursor();
+    }
+    return 0;
+}
+
 int LuaMouseIndex(lua_State *L)
 {
     LuaMouse *ud = CheckMouse(L, 1);
@@ -3360,11 +3386,20 @@ void RegisterMouseMeta(lua_State *L)
     lua_setfield(L, -2, "isPressed");
     lua_pushcfunction(L, LuaMouseIsReleased);
     lua_setfield(L, -2, "isReleased");
+    lua_pushcfunction(L, LuaMouseSetCursorVisible);
+    lua_setfield(L, -2, "setCursorVisible");
 
     lua_pushvalue(L, -1);
     lua_pushcclosure(L, LuaMouseIndex, 1);
     lua_setfield(L, -3, "__index");
     lua_pop(L, 2);
+}
+
+void RegisterMouseModule(lua_State *L)
+{
+    lua_newtable(L);
+    lua_pushcfunction(L, LuaMouseSetCursorVisible);
+    lua_setfield(L, -2, "setCursorVisible");
 }
 
 void RegisterGamepadMeta(lua_State *L)
@@ -3694,6 +3729,9 @@ void RegisterLeo(lua_State *L)
 
     RegisterLog(L);
     lua_setfield(L, -2, "log");
+
+    RegisterMouseModule(L);
+    lua_setfield(L, -2, "mouse");
 
     RegisterMath(L);
     lua_setfield(L, -2, "math");
