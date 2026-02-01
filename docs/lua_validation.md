@@ -82,6 +82,13 @@ Numbered checklist of every Lua API function and symbol exposed by Leo Engine.
 
 1. `leo.fs` (module table)
 1. `leo.fs.read`
+1. `leo.fs.readWriteDir`
+1. `leo.fs.write`
+1. `leo.fs.getWriteDir`
+1. `leo.fs.listWriteDir`
+1. `leo.fs.listWriteDirFiles`
+1. `leo.fs.deleteFile`
+1. `leo.fs.deleteDir`
 
 1. `leo.tiled` (module table)
 1. `leo.tiled.load`

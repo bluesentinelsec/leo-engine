@@ -13,6 +13,7 @@
 #include "leo/vfs.h"
 #include <SDL3/SDL.h>
 #include <SDL3/SDL_stdinc.h>
+#include <physfs.h>
 #include <lua.hpp>
 #include <stdexcept>
 #include <string>
@@ -490,6 +491,7 @@ SDL_FRect ReadRect(lua_State *L, int index)
     return {x, y, w, h};
 }
 
+
 LuaCamera *CheckCamera(lua_State *L, int index)
 {
     return static_cast<LuaCamera *>(luaL_checkudata(L, index, kCameraMeta));
@@ -680,6 +682,53 @@ float GetTableNumberFieldReq(lua_State *L, int index, const char *key, const cha
     float value = static_cast<float>(luaL_checknumber(L, -1));
     lua_pop(L, 1);
     return value;
+}
+
+SDL_FPoint GetTablePointField(lua_State *L, int index, const char *key, const char *context)
+{
+    int idx = lua_absindex(L, index);
+    lua_getfield(L, idx, key);
+    if (lua_isnil(L, -1))
+    {
+        luaL_error(L, "%s requires '%s'", context, key);
+        return {0.0f, 0.0f};
+    }
+    luaL_checktype(L, -1, LUA_TTABLE);
+    SDL_FPoint point = {GetTableNumberFieldReq(L, -1, "x", context),
+                        GetTableNumberFieldReq(L, -1, "y", context)};
+    lua_pop(L, 1);
+    return point;
+}
+
+SDL_FRect GetTableRectField(lua_State *L, int index, const char *key, const char *context)
+{
+    int idx = lua_absindex(L, index);
+    lua_getfield(L, idx, key);
+    if (lua_isnil(L, -1))
+    {
+        luaL_error(L, "%s requires '%s'", context, key);
+        return {0.0f, 0.0f, 0.0f, 0.0f};
+    }
+    luaL_checktype(L, -1, LUA_TTABLE);
+    SDL_FRect rect = {GetTableNumberFieldReq(L, -1, "x", context), GetTableNumberFieldReq(L, -1, "y", context),
+                      GetTableNumberFieldReq(L, -1, "w", context), GetTableNumberFieldReq(L, -1, "h", context)};
+    lua_pop(L, 1);
+    return rect;
+}
+
+void ReadPointListField(lua_State *L, int index, const char *key, std::vector<SDL_FPoint> *out_points,
+                        const char *context)
+{
+    int idx = lua_absindex(L, index);
+    lua_getfield(L, idx, key);
+    if (lua_isnil(L, -1))
+    {
+        luaL_error(L, "%s requires '%s'", context, key);
+        lua_pop(L, 1);
+        return;
+    }
+    ReadPointList(L, lua_gettop(L), out_points);
+    lua_pop(L, 1);
 }
 
 const char *GetTableStringFieldReq(lua_State *L, int index, const char *key, const char *context)
@@ -1999,92 +2048,213 @@ int LuaGraphicsDrawPolyOutline(lua_State *L)
 
 int LuaCollisionCheckRecs(lua_State *L)
 {
-    SDL_FRect a = ReadRect(L, 1);
-    SDL_FRect b = ReadRect(L, 5);
+    SDL_FRect a = {};
+    SDL_FRect b = {};
+    if (lua_istable(L, 1))
+    {
+        a = GetTableRectField(L, 1, "a", "collision.checkRecs");
+        b = GetTableRectField(L, 1, "b", "collision.checkRecs");
+    }
+    else
+    {
+        a = ReadRect(L, 1);
+        b = ReadRect(L, 5);
+    }
     lua_pushboolean(L, leo::Collision::CheckCollisionRecs(a, b));
     return 1;
 }
 
 int LuaCollisionCheckCircles(lua_State *L)
 {
-    SDL_FPoint c1 = ReadPointPair(L, 1);
-    float r1 = static_cast<float>(luaL_checknumber(L, 3));
-    SDL_FPoint c2 = ReadPointPair(L, 4);
-    float r2 = static_cast<float>(luaL_checknumber(L, 6));
+    SDL_FPoint c1 = {};
+    SDL_FPoint c2 = {};
+    float r1 = 0.0f;
+    float r2 = 0.0f;
+    if (lua_istable(L, 1))
+    {
+        c1 = GetTablePointField(L, 1, "c1", "collision.checkCircles");
+        c2 = GetTablePointField(L, 1, "c2", "collision.checkCircles");
+        r1 = GetTableNumberFieldReq(L, 1, "r1", "collision.checkCircles");
+        r2 = GetTableNumberFieldReq(L, 1, "r2", "collision.checkCircles");
+    }
+    else
+    {
+        c1 = ReadPointPair(L, 1);
+        r1 = static_cast<float>(luaL_checknumber(L, 3));
+        c2 = ReadPointPair(L, 4);
+        r2 = static_cast<float>(luaL_checknumber(L, 6));
+    }
     lua_pushboolean(L, leo::Collision::CheckCollisionCircles(c1, r1, c2, r2));
     return 1;
 }
 
 int LuaCollisionCheckCircleRec(lua_State *L)
 {
-    SDL_FPoint center = ReadPointPair(L, 1);
-    float radius = static_cast<float>(luaL_checknumber(L, 3));
-    SDL_FRect rec = ReadRect(L, 4);
+    SDL_FPoint center = {};
+    float radius = 0.0f;
+    SDL_FRect rec = {};
+    if (lua_istable(L, 1))
+    {
+        center = GetTablePointField(L, 1, "center", "collision.checkCircleRec");
+        radius = GetTableNumberFieldReq(L, 1, "radius", "collision.checkCircleRec");
+        rec = GetTableRectField(L, 1, "rect", "collision.checkCircleRec");
+    }
+    else
+    {
+        center = ReadPointPair(L, 1);
+        radius = static_cast<float>(luaL_checknumber(L, 3));
+        rec = ReadRect(L, 4);
+    }
     lua_pushboolean(L, leo::Collision::CheckCollisionCircleRec(center, radius, rec));
     return 1;
 }
 
 int LuaCollisionCheckCircleLine(lua_State *L)
 {
-    SDL_FPoint center = ReadPointPair(L, 1);
-    float radius = static_cast<float>(luaL_checknumber(L, 3));
-    SDL_FPoint p1 = ReadPointPair(L, 4);
-    SDL_FPoint p2 = ReadPointPair(L, 6);
+    SDL_FPoint center = {};
+    float radius = 0.0f;
+    SDL_FPoint p1 = {};
+    SDL_FPoint p2 = {};
+    if (lua_istable(L, 1))
+    {
+        center = GetTablePointField(L, 1, "center", "collision.checkCircleLine");
+        radius = GetTableNumberFieldReq(L, 1, "radius", "collision.checkCircleLine");
+        p1 = GetTablePointField(L, 1, "p1", "collision.checkCircleLine");
+        p2 = GetTablePointField(L, 1, "p2", "collision.checkCircleLine");
+    }
+    else
+    {
+        center = ReadPointPair(L, 1);
+        radius = static_cast<float>(luaL_checknumber(L, 3));
+        p1 = ReadPointPair(L, 4);
+        p2 = ReadPointPair(L, 6);
+    }
     lua_pushboolean(L, leo::Collision::CheckCollisionCircleLine(center, radius, p1, p2));
     return 1;
 }
 
 int LuaCollisionCheckPointRec(lua_State *L)
 {
-    SDL_FPoint point = ReadPointPair(L, 1);
-    SDL_FRect rec = ReadRect(L, 3);
+    SDL_FPoint point = {};
+    SDL_FRect rec = {};
+    if (lua_istable(L, 1))
+    {
+        point = GetTablePointField(L, 1, "point", "collision.checkPointRec");
+        rec = GetTableRectField(L, 1, "rect", "collision.checkPointRec");
+    }
+    else
+    {
+        point = ReadPointPair(L, 1);
+        rec = ReadRect(L, 3);
+    }
     lua_pushboolean(L, leo::Collision::CheckCollisionPointRec(point, rec));
     return 1;
 }
 
 int LuaCollisionCheckPointCircle(lua_State *L)
 {
-    SDL_FPoint point = ReadPointPair(L, 1);
-    SDL_FPoint center = ReadPointPair(L, 3);
-    float radius = static_cast<float>(luaL_checknumber(L, 5));
+    SDL_FPoint point = {};
+    SDL_FPoint center = {};
+    float radius = 0.0f;
+    if (lua_istable(L, 1))
+    {
+        point = GetTablePointField(L, 1, "point", "collision.checkPointCircle");
+        center = GetTablePointField(L, 1, "center", "collision.checkPointCircle");
+        radius = GetTableNumberFieldReq(L, 1, "radius", "collision.checkPointCircle");
+    }
+    else
+    {
+        point = ReadPointPair(L, 1);
+        center = ReadPointPair(L, 3);
+        radius = static_cast<float>(luaL_checknumber(L, 5));
+    }
     lua_pushboolean(L, leo::Collision::CheckCollisionPointCircle(point, center, radius));
     return 1;
 }
 
 int LuaCollisionCheckPointTriangle(lua_State *L)
 {
-    SDL_FPoint point = ReadPointPair(L, 1);
-    SDL_FPoint p1 = ReadPointPair(L, 3);
-    SDL_FPoint p2 = ReadPointPair(L, 5);
-    SDL_FPoint p3 = ReadPointPair(L, 7);
+    SDL_FPoint point = {};
+    SDL_FPoint p1 = {};
+    SDL_FPoint p2 = {};
+    SDL_FPoint p3 = {};
+    if (lua_istable(L, 1))
+    {
+        point = GetTablePointField(L, 1, "point", "collision.checkPointTriangle");
+        p1 = GetTablePointField(L, 1, "p1", "collision.checkPointTriangle");
+        p2 = GetTablePointField(L, 1, "p2", "collision.checkPointTriangle");
+        p3 = GetTablePointField(L, 1, "p3", "collision.checkPointTriangle");
+    }
+    else
+    {
+        point = ReadPointPair(L, 1);
+        p1 = ReadPointPair(L, 3);
+        p2 = ReadPointPair(L, 5);
+        p3 = ReadPointPair(L, 7);
+    }
     lua_pushboolean(L, leo::Collision::CheckCollisionPointTriangle(point, p1, p2, p3));
     return 1;
 }
 
 int LuaCollisionCheckPointLine(lua_State *L)
 {
-    SDL_FPoint point = ReadPointPair(L, 1);
-    SDL_FPoint p1 = ReadPointPair(L, 3);
-    SDL_FPoint p2 = ReadPointPair(L, 5);
+    SDL_FPoint point = {};
+    SDL_FPoint p1 = {};
+    SDL_FPoint p2 = {};
+    if (lua_istable(L, 1))
+    {
+        point = GetTablePointField(L, 1, "point", "collision.checkPointLine");
+        p1 = GetTablePointField(L, 1, "p1", "collision.checkPointLine");
+        p2 = GetTablePointField(L, 1, "p2", "collision.checkPointLine");
+    }
+    else
+    {
+        point = ReadPointPair(L, 1);
+        p1 = ReadPointPair(L, 3);
+        p2 = ReadPointPair(L, 5);
+    }
     lua_pushboolean(L, leo::Collision::CheckCollisionPointLine(point, p1, p2));
     return 1;
 }
 
 int LuaCollisionCheckPointPoly(lua_State *L)
 {
-    SDL_FPoint point = ReadPointPair(L, 1);
+    SDL_FPoint point = {};
     std::vector<SDL_FPoint> points;
-    ReadPointList(L, 3, &points);
+    if (lua_istable(L, 1))
+    {
+        point = GetTablePointField(L, 1, "point", "collision.checkPointPoly");
+        ReadPointListField(L, 1, "points", &points, "collision.checkPointPoly");
+    }
+    else
+    {
+        point = ReadPointPair(L, 1);
+        ReadPointList(L, 3, &points);
+    }
     lua_pushboolean(L, leo::Collision::CheckCollisionPointPoly(point, points.data(), static_cast<int>(points.size())));
     return 1;
 }
 
 int LuaCollisionCheckLines(lua_State *L)
 {
-    SDL_FPoint p1 = ReadPointPair(L, 1);
-    SDL_FPoint p2 = ReadPointPair(L, 3);
-    SDL_FPoint p3 = ReadPointPair(L, 5);
-    SDL_FPoint p4 = ReadPointPair(L, 7);
+    SDL_FPoint p1 = {};
+    SDL_FPoint p2 = {};
+    SDL_FPoint p3 = {};
+    SDL_FPoint p4 = {};
+    if (lua_istable(L, 1))
+    {
+        p1 = GetTablePointField(L, 1, "p1", "collision.checkLines");
+        p2 = GetTablePointField(L, 1, "p2", "collision.checkLines");
+        p3 = GetTablePointField(L, 1, "p3", "collision.checkLines");
+        p4 = GetTablePointField(L, 1, "p4", "collision.checkLines");
+    }
+    else
+    {
+        p1 = ReadPointPair(L, 1);
+        p2 = ReadPointPair(L, 3);
+        p3 = ReadPointPair(L, 5);
+        p4 = ReadPointPair(L, 7);
+    }
     lua_pushboolean(L, leo::Collision::CheckCollisionLines(p1, p2, p3, p4));
     return 1;
 }
@@ -3198,7 +3368,15 @@ int LuaTimeTickDelta(lua_State *L)
 int LuaFsRead(lua_State *L)
 {
     engine::LuaRuntime *runtime = GetRuntime(L);
-    const char *path = luaL_checkstring(L, 1);
+    const char *path = nullptr;
+    if (lua_istable(L, 1))
+    {
+        path = GetTableStringFieldReq(L, 1, "path", "leo.fs.read");
+    }
+    else
+    {
+        path = luaL_checkstring(L, 1);
+    }
     void *data = nullptr;
     size_t size = 0;
 
@@ -3218,6 +3396,206 @@ int LuaFsRead(lua_State *L)
     lua_pushlstring(L, static_cast<const char *>(data), size);
     SDL_free(data);
     return 1;
+}
+
+int LuaFsReadWriteDir(lua_State *L)
+{
+    engine::LuaRuntime *runtime = GetRuntime(L);
+    const char *path = nullptr;
+    if (lua_istable(L, 1))
+    {
+        path = GetTableStringFieldReq(L, 1, "path", "leo.fs.readWriteDir");
+    }
+    else
+    {
+        path = luaL_checkstring(L, 1);
+    }
+
+    void *data = nullptr;
+    size_t size = 0;
+
+    try
+    {
+        runtime->GetVfs().ReadAllWriteDir(path, &data, &size);
+    }
+    catch (const std::exception &e)
+    {
+        if (data)
+        {
+            SDL_free(data);
+        }
+        return luaL_error(L, "%s", e.what());
+    }
+
+    lua_pushlstring(L, static_cast<const char *>(data), size);
+    SDL_free(data);
+    return 1;
+}
+
+int LuaFsWrite(lua_State *L)
+{
+    engine::LuaRuntime *runtime = GetRuntime(L);
+    const char *path = nullptr;
+    const char *data = nullptr;
+    size_t size = 0;
+
+    if (lua_istable(L, 1))
+    {
+        path = GetTableStringFieldReq(L, 1, "path", "leo.fs.write");
+        int idx = lua_absindex(L, 1);
+        lua_getfield(L, idx, "data");
+        if (lua_isnil(L, -1))
+        {
+            lua_pop(L, 1);
+            return luaL_error(L, "leo.fs.write requires 'data'");
+        }
+        data = luaL_checklstring(L, -1, &size);
+        lua_pop(L, 1);
+    }
+    else
+    {
+        path = luaL_checkstring(L, 1);
+        data = luaL_checklstring(L, 2, &size);
+    }
+
+    try
+    {
+        runtime->GetVfs().WriteAll(path, data, size);
+    }
+    catch (const std::exception &e)
+    {
+        return luaL_error(L, "%s", e.what());
+    }
+
+    return 0;
+}
+
+int LuaFsGetWriteDir(lua_State *L)
+{
+    const char *dir = PHYSFS_getWriteDir();
+    if (!dir || !*dir)
+    {
+        lua_pushnil(L);
+        return 1;
+    }
+    lua_pushstring(L, dir);
+    return 1;
+}
+
+int LuaFsListWriteDir(lua_State *L)
+{
+    engine::LuaRuntime *runtime = GetRuntime(L);
+    const char *path = "";
+
+    if (lua_istable(L, 1))
+    {
+        if (TableHasField(L, 1, "path"))
+        {
+            path = GetTableStringFieldReq(L, 1, "path", "leo.fs.listWriteDir");
+        }
+    }
+    else if (!lua_isnoneornil(L, 1))
+    {
+        path = luaL_checkstring(L, 1);
+    }
+
+    char **entries = nullptr;
+    try
+    {
+        runtime->GetVfs().ListWriteDir(path, &entries);
+    }
+    catch (const std::exception &e)
+    {
+        return luaL_error(L, "%s", e.what());
+    }
+
+    lua_newtable(L);
+    if (entries)
+    {
+        for (int i = 0; entries[i]; ++i)
+        {
+            lua_pushstring(L, entries[i]);
+            lua_rawseti(L, -2, i + 1);
+        }
+        runtime->GetVfs().FreeList(entries);
+    }
+
+    return 1;
+}
+
+int LuaFsListWriteDirFiles(lua_State *L)
+{
+    engine::LuaRuntime *runtime = GetRuntime(L);
+    char **entries = nullptr;
+    try
+    {
+        runtime->GetVfs().ListWriteDirFiles(&entries);
+    }
+    catch (const std::exception &e)
+    {
+        return luaL_error(L, "%s", e.what());
+    }
+
+    lua_newtable(L);
+    if (entries)
+    {
+        for (int i = 0; entries[i]; ++i)
+        {
+            lua_pushstring(L, entries[i]);
+            lua_rawseti(L, -2, i + 1);
+        }
+        runtime->GetVfs().FreeList(entries);
+    }
+
+    return 1;
+}
+
+int LuaFsDeleteFile(lua_State *L)
+{
+    engine::LuaRuntime *runtime = GetRuntime(L);
+    const char *path = nullptr;
+    if (lua_istable(L, 1))
+    {
+        path = GetTableStringFieldReq(L, 1, "path", "leo.fs.deleteFile");
+    }
+    else
+    {
+        path = luaL_checkstring(L, 1);
+    }
+
+    try
+    {
+        runtime->GetVfs().DeleteFile(path);
+    }
+    catch (const std::exception &e)
+    {
+        return luaL_error(L, "%s", e.what());
+    }
+    return 0;
+}
+
+int LuaFsDeleteDir(lua_State *L)
+{
+    engine::LuaRuntime *runtime = GetRuntime(L);
+    const char *path = nullptr;
+    if (lua_istable(L, 1))
+    {
+        path = GetTableStringFieldReq(L, 1, "path", "leo.fs.deleteDir");
+    }
+    else
+    {
+        path = luaL_checkstring(L, 1);
+    }
+
+    try
+    {
+        runtime->GetVfs().DeleteDirRecursive(path);
+    }
+    catch (const std::exception &e)
+    {
+        return luaL_error(L, "%s", e.what());
+    }
+    return 0;
 }
 
 int LuaQuit(lua_State *L)
@@ -3581,6 +3959,20 @@ void RegisterFs(lua_State *L)
     lua_newtable(L);
     lua_pushcfunction(L, LuaFsRead);
     lua_setfield(L, -2, "read");
+    lua_pushcfunction(L, LuaFsReadWriteDir);
+    lua_setfield(L, -2, "readWriteDir");
+    lua_pushcfunction(L, LuaFsWrite);
+    lua_setfield(L, -2, "write");
+    lua_pushcfunction(L, LuaFsGetWriteDir);
+    lua_setfield(L, -2, "getWriteDir");
+    lua_pushcfunction(L, LuaFsListWriteDir);
+    lua_setfield(L, -2, "listWriteDir");
+    lua_pushcfunction(L, LuaFsListWriteDirFiles);
+    lua_setfield(L, -2, "listWriteDirFiles");
+    lua_pushcfunction(L, LuaFsDeleteFile);
+    lua_setfield(L, -2, "deleteFile");
+    lua_pushcfunction(L, LuaFsDeleteDir);
+    lua_setfield(L, -2, "deleteDir");
 }
 
 void RegisterTiled(lua_State *L)
