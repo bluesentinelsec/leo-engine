@@ -976,7 +976,8 @@ int LuaAnimationNew(lua_State *L)
     {
         engine::TextureLoader loader(runtime->GetVfs(), runtime->GetRenderer());
         LuaAnimation *ud = static_cast<LuaAnimation *>(lua_newuserdata(L, sizeof(LuaAnimation)));
-        new (&ud->texture) engine::Texture(loader.Load(path));
+        new (ud) LuaAnimation{};
+        ud->texture = loader.Load(path);
         ud->texture_ptr = &ud->texture;
         ud->owns_texture = true;
         ud->texture_ref = LUA_NOREF;
@@ -996,7 +997,7 @@ int LuaAnimationNewFromTexture(lua_State *L)
 {
     LuaTexture *tex = CheckTexture(L, 1);
     LuaAnimation *ud = static_cast<LuaAnimation *>(lua_newuserdata(L, sizeof(LuaAnimation)));
-    new (&ud->texture) engine::Texture();
+    new (ud) LuaAnimation{};
     ud->texture_ptr = &tex->texture;
     ud->owns_texture = false;
     ud->texture_ref = LUA_NOREF;
@@ -1050,7 +1051,8 @@ int LuaAnimationNewSheet(lua_State *L)
     {
         engine::TextureLoader loader(runtime->GetVfs(), runtime->GetRenderer());
         LuaAnimation *ud = static_cast<LuaAnimation *>(lua_newuserdata(L, sizeof(LuaAnimation)));
-        new (&ud->texture) engine::Texture(loader.Load(path));
+        new (ud) LuaAnimation{};
+        ud->texture = loader.Load(path);
         ud->texture_ptr = &ud->texture;
         ud->owns_texture = true;
         ud->texture_ref = LUA_NOREF;
@@ -1139,7 +1141,8 @@ int LuaAnimationNewSheetEx(lua_State *L)
     {
         engine::TextureLoader loader(runtime->GetVfs(), runtime->GetRenderer());
         LuaAnimation *ud = static_cast<LuaAnimation *>(lua_newuserdata(L, sizeof(LuaAnimation)));
-        new (&ud->texture) engine::Texture(loader.Load(path));
+        new (ud) LuaAnimation{};
+        ud->texture = loader.Load(path);
         ud->texture_ptr = &ud->texture;
         ud->owns_texture = true;
         ud->texture_ref = LUA_NOREF;
@@ -1443,6 +1446,7 @@ int LuaAnimationGc(lua_State *L)
     {
         ud->texture.Reset();
     }
+    std::vector<AnimationFrame>().swap(ud->frames);
     if (ud->texture_ref != LUA_NOREF)
     {
         luaL_unref(L, LUA_REGISTRYINDEX, ud->texture_ref);
