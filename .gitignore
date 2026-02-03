@@ -59,6 +59,4 @@ build
 cmake-build-debug
 .cache
 .vscode
-scripts/merge_files.sh
-leo_pack_mega.h
-
+.DS_Store
