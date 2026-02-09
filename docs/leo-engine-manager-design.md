@@ -1,48 +1,51 @@
-# Leo Engine Manager — Design Document (Draft)
+# Leo Engine Manager — Design Document 
 
 ## 1) Vision and Goals
-Leo Engine Manager is a **code‑first game project manager** that makes it fast to bootstrap, run, and package Leo Engine games from the terminal. It should be:
-- **Terminal‑native** and minimal: one install, a few commands, no GUI required.
+Leo Engine Manager is a code‑first game project manager that makes it fast and easy to bootstrap, run, and package Leo Engine games from the terminal. It should be:
+- **Terminal‑native** and minimal: easily installed with Pip, as few as one command to put a window and sprite on the screen, and no GUI required.
 - **CI/CD and git‑friendly**: deterministic output, easy automation, sensible defaults.
 - **Project‑centric**: enforce/encourage a clean project structure, with templates to jump‑start games.
 
 ### Primary goals
 - **Bootstrap** a new project quickly from templates.
-- **Run** the game in development mode with easy overrides.
-- **Package** games for distribution in develop and release modes.
+- **Run** the game during development (windowed, debug log level), with CLI overrides for experimentation and verification.
+- **Package** games for distribution.
 - **Cross‑platform packaging** by downloading prebuilt engine binaries.
-- **Provide sane defaults for common tasks** (e.g., save locations).
 
 ## 2) Non‑Goals (for now)
 - Signing/notarization for macOS
-- Advanced build pipelines (e.g., compiling the engine from source)
-- Full editor functionality
-- Multi‑engine support
+- Full editor functionality (developers are expected to bring their own editor, though we have first class support for Tiled maps)
 
 ## 3) User Experience (CLI)
 Installation and usage should be obvious and terse:
 
 ```bash
+# this installs the leo-engine project manager
 pip install leo-engine
 
+# verify installation worked
 leo-engine --version
 
+# create project directory
 mkdir my_game
 cd my_game
 
+# bootstrap game (we'll likely add more CLI arguments)
+# treat all CLI args as mandatory during development
+# we'll roll back as we develop more
 leo-engine new --template <template> --name <game_name>
 
+# run the game during active development
 leo-engine run
 
-leo-engine package --build-type=develop
-leo-engine package --build-type=release
-
+# package game for distribution
 leo-engine package --platform linux/amd64
 ```
 
 ### CLI conventions
-- **Subcommands**: `new`, `run`, `package`, `doctor` (optional), `templates` (optional).
+- **Subcommands**: `new`, `run`, `package`.
 - **Flags** should be explicit and stable (good for CI).
+- **All errors fatal** treat all errors as fatal during development (fail fast and be transparent).
 - **Defaults** should make the happy path trivial.
 
 ## 4) Project Structure
@@ -50,8 +53,6 @@ Default template should yield a “sane” structure:
 ```
 my_game/
   bin/
-    develop/
-    release/
   resources/
   README.md
   LICENSE
@@ -59,59 +60,30 @@ my_game/
   .gitignore
 ```
 
-### Notes
-- `bin/` contains engine runtimes; separate **develop** and **release** builds.
-- `resources/` contains scripts/assets or a packed archive depending on build mode.
-- Root should be clean and git‑ready.
-
 ## 5) Templates
 Templates are the primary way to bootstrap structure and content.
-
-### Template system
 - Default template provides a minimal, working game (scripts + assets).
 - Additional templates may provide “starter” features (e.g., camera, input, UI).
-
-### Template distribution
-- Templates may be bundled with the manager or downloaded on demand.
-- A template specifies:
-  - project layout
-  - initial assets/scripts
-  - metadata (name, description, supported engine version)
 
 ## 6) Bootstrapping (`leo-engine new`)
 When creating a project, the manager should:
 
-1. **Download prebuilt engine binaries** for the current OS/CPU platform.
-   - Always fetch **develop** and **release** variants.
-   - **Develop** build includes debug symbols.
-   - **Release** build is optimized, no symbols.
-   - Binaries are placed under `bin/develop/` and `bin/release/`.
-2. **Install template contents** (resources, default scripts, assets).
+1. **Download prebuilt leo-engine-runtime binary** for the current OS/CPU platform.
+   - Runtime is placed under `bin`.
+2. **Download template contents** as zip archive, unpack in current working directory, yielding folder called 'resources'. This folder contains the template's lua scripts and media files. 
 3. **Project housekeeping**:
-   - Write `.gitignore` with defaults.
+   - Write `.gitignore` with defaultas (TBD).
    - Add `README.md`, `LICENSE`, `third_party_licenses/`.
-   - Initialize a git repo (optional or default?).
+   - Initialize a git repo.
 
 ## 7) Running (`leo-engine run`)
-By default, `run` should launch in developer mode.
+The leo-engine manager will invoke the leo-engine runtime under bin/.
+By default, the manager will invoke the runtime in windowed mode with debug console log level.
+All leo-engine runtime CLI flags can be overriden from the manager, so for example, the caller can test the game in fullscreen mode, or specify the path to an alternate resources folder or archive.
 
-### Default process
-```
-./bin/develop/<game> -r resources/ \
-  --log-level debug \
-  --window-mode windowed
-```
-
-### Overrides
-- Allow CLI overrides for runtime options (e.g., fullscreen, window size, log level).
-- Lua should still be able to override settings inside `leo.load()`.
 
 ## 8) Packaging (`leo-engine package`)
 Packaging should be turnkey and focused on shipping MVP builds.
-
-### Build types
-- **develop**: internal/artist builds.
-- **release**: optimized, customer‑facing builds.
 
 ### Cross‑platform support
 - Must support packaging for `windows/amd64` and `linux/amd64` initially.
