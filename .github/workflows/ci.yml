@@ -30,12 +30,23 @@ jobs:
           libwayland-dev libxkbcommon-dev libdrm-dev libgbm-dev libxtst-dev \
           libpulse-dev libasound2-dev libjack-dev
     
+    - name: Configure CMake (macOS universal)
+      if: runner.os == 'macOS'
+      run: cmake -B build -S . -DCMAKE_BUILD_TYPE=Release -DCMAKE_POLICY_VERSION_MINIMUM=3.5 '-DCMAKE_OSX_ARCHITECTURES=x86_64;arm64'
+
     - name: Configure CMake
+      if: runner.os != 'macOS'
       run: cmake -B build -S . -DCMAKE_BUILD_TYPE=Release -DCMAKE_POLICY_VERSION_MINIMUM=3.5
     
     - name: Build
       run: cmake --build build --config Release
-    
+
+    - name: Verify universal binary (macOS)
+      if: runner.os == 'macOS'
+      run: |
+        lipo -info build/leo-engine-runtime
+        lipo -info build/leo-engine-runtime | grep -E "x86_64.*arm64|arm64.*x86_64"
+
     - name: Run tests (Linux)
       if: runner.os == 'Linux'
       run: xvfb-run -a bash -lc "cd build && ctest --output-on-failure -C Release"

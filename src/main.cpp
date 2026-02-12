@@ -126,7 +126,7 @@ int main(int argc, char *argv[])
     std::string resource_path_arg;
     std::string script_path_arg;
     std::string organization = "bluesentinelsec";
-    std::string app_name = "leo-engine";
+    std::string app_name = "leo-engine-runtime";
     std::string window_title = "Leo Engine";
     int window_width = 1280;
     int window_height = 720;

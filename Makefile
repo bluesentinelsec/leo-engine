@@ -2,10 +2,10 @@
 
 build:
 	cmake -B build -S .
-	cmake --build build
+	cmake --build build --parallel
 
 run: build
-	./build/leo-engine
+	./build/leo-engine-runtime
 
 test: build
 	cd build && ctest --output-on-failure

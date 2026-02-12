@@ -1,7 +1,7 @@
 cmake_minimum_required(VERSION 3.20)
 
 set(PROJECT_VERSION 0.1.0)
-set(EXECUTABLE_NAME "leo-engine")
+set(EXECUTABLE_NAME "leo-engine-runtime")
 
 project(LeoEngine VERSION ${PROJECT_VERSION} LANGUAGES CXX)
 

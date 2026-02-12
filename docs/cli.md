@@ -5,7 +5,7 @@ This document describes the Leo Engine command-line options and their behavior.
 ## Usage
 
 ```
-./leo-engine [options]
+./leo-engine-runtime [options]
 ```
 
 ## Defaults
@@ -41,7 +41,7 @@ If no options are provided:
 
 - `--app-name <name>`  
   App name used by PhysFS for the write directory.  
-  Default: `leo-engine`
+  Default: `leo-engine-runtime`
 
 ### Window and rendering
 
@@ -92,15 +92,15 @@ If no options are provided:
 
 Run with the default resources directory and script:
 ```
-./leo-engine
+./leo-engine-runtime
 ```
 
 Mount a zip and run a script from it:
 ```
-./leo-engine --resources resources.zip --script resources/scripts/game.lua
+./leo-engine-runtime --resources resources.zip --script resources/scripts/game.lua
 ```
 
 Windowed mode with explicit size and tick rate:
 ```
-./leo-engine --window-mode windowed --window-width 1024 --window-height 576 --tick-hz 120
+./leo-engine-runtime --window-mode windowed --window-width 1024 --window-height 576 --tick-hz 120
 ```

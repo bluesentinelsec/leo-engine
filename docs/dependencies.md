@@ -54,10 +54,6 @@ This document lists all third-party dependencies used in the Leo Engine project.
 - **License**: MIT License or Public Domain (dual-licensed)
 - **Purpose**: Header-only libraries for image loading (stb_image.h) and font rendering (stb_truetype.h)
 
-## Memory Allocation
-
-All dependencies are configured to use SDL3's memory allocation functions (`SDL_malloc`, `SDL_realloc`, `SDL_free`) to support custom allocators via `SDL_SetMemoryFunctions()`.
-
 ## Build Configuration
 
 All dependencies are statically linked into the Leo Engine executable for simplified deployment and predictable runtime behavior across platforms.
