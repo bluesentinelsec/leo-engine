@@ -117,6 +117,12 @@ std::string ToLowerAscii(std::string value)
                    [](unsigned char ch) { return static_cast<char>(std::tolower(ch)); });
     return value;
 }
+
+std::string NormalizeVfsPath(std::string path)
+{
+    std::replace(path.begin(), path.end(), '\\', '/');
+    return path;
+}
 } // namespace
 
 int main(int argc, char *argv[])
@@ -179,7 +185,7 @@ int main(int argc, char *argv[])
         }
         if (!script_path_arg.empty())
         {
-            script_path = script_path_arg;
+            script_path = NormalizeVfsPath(script_path_arg);
         }
 
         std::string window_mode_normalized = ToLowerAscii(window_mode_str);
