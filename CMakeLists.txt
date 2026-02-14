@@ -84,6 +84,7 @@ set(CORE_SOURCES
     src/audio.cpp
     src/miniaudio_impl.cpp
     src/lua_runtime.cpp
+    src/steam_runtime.cpp
     src/tiled_map.cpp
 )
 

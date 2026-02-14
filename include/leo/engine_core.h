@@ -13,6 +13,7 @@ namespace engine
 {
 
 class LuaRuntime;
+class SteamRuntime;
 
 } // namespace engine
 
@@ -60,6 +61,7 @@ class Simulation
     SDL_Window *window;
     SDL_Renderer *renderer;
     std::unique_ptr<::engine::LuaRuntime> lua;
+    std::unique_ptr<::engine::SteamRuntime> steam;
 };
 
 } // namespace Engine

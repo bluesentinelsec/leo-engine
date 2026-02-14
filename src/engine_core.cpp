@@ -1,12 +1,42 @@
 #include "leo/engine_core.h"
 #include "leo/lua_runtime.h"
+#include "leo/steam_runtime.h"
+#include <atomic>
 #include <memory>
+#include <csignal>
 #include <stdexcept>
+#if defined(_WIN32)
+#include <windows.h>
+#endif
 
 namespace
 {
 
 constexpr int kMaxGamepads = 2;
+std::atomic<bool> g_external_quit_requested{false};
+
+void OnSignal(int)
+{
+    g_external_quit_requested.store(true);
+}
+
+#if defined(_WIN32)
+BOOL WINAPI ConsoleCtrlHandler(DWORD ctrl_type)
+{
+    switch (ctrl_type)
+    {
+    case CTRL_C_EVENT:
+    case CTRL_BREAK_EVENT:
+    case CTRL_CLOSE_EVENT:
+    case CTRL_LOGOFF_EVENT:
+    case CTRL_SHUTDOWN_EVENT:
+        g_external_quit_requested.store(true);
+        return TRUE;
+    default:
+        return FALSE;
+    }
+}
+#endif
 
 struct GamepadSlot
 {
@@ -468,7 +498,8 @@ namespace leo
 namespace Engine
 {
 
-Simulation::Simulation(Config &config) : config(config), vfs(config), window(nullptr), renderer(nullptr), lua(nullptr)
+Simulation::Simulation(Config &config)
+    : config(config), vfs(config), window(nullptr), renderer(nullptr), lua(nullptr), steam(nullptr)
 {
 }
 
@@ -476,6 +507,12 @@ Simulation::~Simulation() = default;
 
 int Simulation::Run()
 {
+    g_external_quit_requested.store(false);
+    std::signal(SIGINT, OnSignal);
+    std::signal(SIGTERM, OnSignal);
+#if defined(_WIN32)
+    SetConsoleCtrlHandler(ConsoleCtrlHandler, TRUE);
+#endif
 
     if (!SDL_Init(SDL_INIT_AUDIO | SDL_INIT_VIDEO | SDL_INIT_EVENTS | SDL_INIT_HAPTIC | SDL_INIT_GAMEPAD))
     {
@@ -657,6 +694,15 @@ int Simulation::Run()
             lua->SetFrameInfo(frame_ticks, tick_dt);
         }
         OnUpdate(ctx, input, tick_dt);
+        if (steam && steam->ConsumeShutdownRequested())
+        {
+            running = false;
+        }
+        if (g_external_quit_requested.load())
+        {
+            SDL_LogInfo(SDL_LOG_CATEGORY_APPLICATION, "External termination requested; exiting");
+            running = false;
+        }
         OnRender(ctx);
         if (lua && lua->WantsQuit())
         {
@@ -695,6 +741,12 @@ int Simulation::Run()
 
 void Simulation::OnInit(Context &ctx)
 {
+    steam = std::make_unique<engine::SteamRuntime>();
+    if (!steam->Init())
+    {
+        steam.reset();
+    }
+
     if (!config.script_path || !*config.script_path)
     {
         return;
@@ -709,6 +761,11 @@ void Simulation::OnInit(Context &ctx)
 void Simulation::OnUpdate(Context &ctx, const InputFrame &input, float dt)
 {
     (void)ctx;
+    if (steam)
+    {
+        steam->RunCallbacks();
+    }
+
     if (lua)
     {
         lua->CallUpdate(dt, input);
@@ -735,6 +792,12 @@ void Simulation::OnExit(Context &ctx)
     {
         lua->CallShutdown();
         lua.reset();
+    }
+
+    if (steam)
+    {
+        steam->Shutdown();
+        steam.reset();
     }
 }
 
